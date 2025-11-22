@@ -205,3 +205,42 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ============================================
+# Job Application Bot - Custom Rules
+# ============================================
+
+# API Keys and Secrets (CRITICAL - NEVER COMMIT!)
+.env
+*.env
+.env.local
+*_api_key.txt
+secrets/
+
+# Database (contains personal job data)
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Output files (contains personal resume data)
+output/resumes/*
+output/cover_letters/*
+!output/resumes/.gitkeep
+!output/cover_letters/.gitkeep
+
+# Logs (may contain sensitive job URLs)
+logs/*.log
+
+# Playwright browsers (large files)
+.playwright/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
