@@ -1,6 +1,3 @@
-# job-application-bot
-Automated job application system for IT Infrastructure roles
-
 # 🤖 Job Application Bot
 
 Automated job application system that finds, matches, and tailors applications for IT Infrastructure positions.
