@@ -1,28 +1,68 @@
-"""
-Resume and cover letter tailoring with AI
-"""
+# app/tailor.py
+import os
+import time
 import logging
-from typing import Dict, List, Tuple
-from anthropic import Anthropic
-from config.settings import ANTHROPIC_API_KEY, RESUME_DATA, TAILORING
+from typing import Optional
+import requests  # assuming Gemini API is HTTP-based
+from dotenv import load_dotenv
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-class ResumeTailor:
-    """AI-powered resume and cover letter tailoring"""
-    
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or ANTHROPIC_API_KEY
+
+class APIClient:
+    def __init__(self, api_key: Optional[str] = None, timeout: int = 30):
+        self.api_key = api_key or GEMINI_API_KEY
+        self.timeout = timeout
         if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY not found. Set it in .env file")
-        
-        self.client = Anthropic(api_key=self.api_key)
-        self.resume_data = RESUME_DATA
-    
-    def tailor_application(self, job: Dict, match_result: Dict) -> Dict:
+            raise ValueError("Gemini API key not found in environment or parameters.")
+
+    def call_model(self, prompt: str) -> str:
         """
-        Create complete tailored application
+        Call Gemini API to generate a tailored resume.
+
+        Implements retries and simple error handling.
+        """
+        url = "https://api.gemini.example.com/v1/responses"  # replace with real Gemini endpoint
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        payload = {
+            "prompt": prompt,
+            "max_tokens": 1000,
+            "temperature": 0.3,
+        }
+
+        retries = 2
+        for attempt in range(1, retries + 2):
+            try:
+                resp = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
+                resp.raise_for_status()
+                data = resp.json()
+                # Assuming Gemini returns {'text': '...'}
+                return data.get("text", "[No text returned]")
+            except Exception as exc:
+                logger.exception("Gemini API call failed on attempt %s: %s", attempt, exc)
+                if attempt > retries:
+                    raise
+                time.sleep(attempt * 1.0)  # simple backoff
+        raise RuntimeError("Failed to call Gemini API after retries.")
+
+
+class Tailor:
+    def __init__(self, api_client: Optional[APIClient] = None):
+        self.client = api_client or APIClient()
+
+    def tailor_resume(self, resume_text: str, job_text: str) -> str:
+        prompt = (
+            "You are a resume assistant. Rewrite the resume to emphasize skills and "
+            "experience that match the following job description. Do not invent new "
+            "facts; only rephrase and reorder content present in the resume.\n\n"
+            f"JOB DESCRIPTION:\n{job_text}\n\n"
+            f"RESUME:\n{resume_text}\n\n"
+            "Produce a tailored resume. Use bullet points where appropriate."
+        )
+        return self.client.call_model(prompt)
         Returns: {resume_text, cover_letter, changes}
         """
         logger.info(f"Tailoring application for {job['title']} at {job['company']}")
