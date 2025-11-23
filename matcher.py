@@ -108,6 +108,25 @@ class JobMatcher:
             },
         }
 
+    def _calculate_skills_match(
+        self, job_text: str
+    ) -> Tuple[float, List[str], List[str]]:
+        """Calculate skills match score"""
+        job_text_lower = job_text.lower()
+        matched_skills = [skill for skill in self.all_skills if skill in job_text_lower]
+
+        if not self.all_skills:
+            return 0.0, [], []
+
+        score = len(matched_skills) / len(self.all_skills)
+        missing_skills = list(self.all_skills - set(matched_skills))
+
+        return (
+            score,
+            [s.title() for s in matched_skills],
+            [s.title() for s in missing_skills],
+        )
+
     def _calculate_experience_match(self, job_text: str) -> Tuple[float, List[str]]:
         """Calculate experience relevance"""
         relevant_exp = []
@@ -139,7 +158,7 @@ class JobMatcher:
             # Check for skill matches (existing logic)
             for skill in exp.get("skills_used", []):
                 if skill.lower() in job_text:
-                    relevance += 0.15  # Increased from 0.1
+                    relevance += 0.15
 
             if relevance > 0.2:
                 relevant_exp.append(
@@ -251,3 +270,7 @@ def demo_matcher():
         print(f"Match Score: {result['match_score']*100:.1f}%")
         print(f"Recommendation: {result['recommendation']}")
         print()
+
+
+if __name__ == "__main__":
+    demo_matcher()
