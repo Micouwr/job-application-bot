@@ -98,10 +98,12 @@ Title: {job['title']}
 Company: {job['company']}
 Description: {job.get('description', '')[:800]}
 
-MATCH ANALYSIS:
-- Match Score: {match['match_score']*100:.1f}%
-- Matched Skills: {', '.join(match['matched_skills'])}
-- Relevant Experience: {'; '.join(match['relevant_experience'][:2])}
+MATCH_ANALYSIS = [
+    f"- Match Score: {match['match_score']*100:.1f}%",
+    f"- Matched Skills: {', '.join(match['matched_skills'])}",
+    f"- Relevant Experience: {'; '.join(match['relevant_experience'][:2])}"
+]
+
 
 TASK:
 Create a tailored resume that:
