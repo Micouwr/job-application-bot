@@ -100,7 +100,6 @@ class JobMatcher:
     
     def _calculate_skills_match(self, job_text: str) -> Tuple[float, List[str], List[str]]:
         """Calculate skills match score"""
-        # Define skill keywords to look for
         skill_patterns = {
             'ai governance': ['ai governance', 'ai management', 'responsible ai'],
             'iso 42001': ['iso/iec 42001', 'iso 42001', 'ai standard'],
@@ -121,18 +120,15 @@ class JobMatcher:
         matched = []
         for skill, patterns in skill_patterns.items():
             if any(pattern in job_text for pattern in patterns):
-                if any(skill.lower() in resume_skill or resume_skill in skill.lower() 
-                       for resume_skill in self.all_skills):
+                if skill.lower() in self.all_skills:
                     matched.append(skill.title())
         
-        # Find mentioned but not matched skills
         missing = []
         for skill, patterns in skill_patterns.items():
             if any(pattern in job_text for pattern in patterns):
                 if skill.title() not in matched:
                     missing.append(skill.title())
         
-        # Score based on matches vs requirements
         total_required = len(matched) + len(missing)
         score = len(matched) / total_required if total_required > 0 else 1.0
         
@@ -145,11 +141,9 @@ class JobMatcher:
         for exp in self.resume['experience']:
             relevance = 0
             
-            # Check role keywords
             if exp['title'].lower() in job_text:
                 relevance += 0.3
             
-            # Check skills used
             for skill in exp.get('skills_used', []):
                 if skill.lower() in job_text:
                     relevance += 0.1
@@ -159,7 +153,6 @@ class JobMatcher:
                     f"{exp['title']} at {exp['company']} ({exp['dates']})"
                 )
         
-        # Score based on relevant experiences
         score = min(len(relevant_exp) / 2.0, 1.0)
         
         return score, relevant_exp
@@ -231,10 +224,7 @@ def demo_matcher():
     """Demo the matcher"""
     from scraper import demo_scraper
     
-    # Get sample jobs
     jobs = demo_scraper()
-    
-    # Match them
     matcher = JobMatcher()
     
     print("\n=== MATCHING RESULTS ===\n")
@@ -243,10 +233,4 @@ def demo_matcher():
         print(f"Job: {job['title']} at {job['company']}")
         print(f"Match Score: {result['match_score']*100:.1f}%")
         print(f"Recommendation: {result['recommendation']}")
-        print(f"Matched Skills: {', '.join(result['matched_skills'][:5])}")
-        print(f"Reasoning: {result['reasoning']}")
-        print("-" * 80)
-
-
-if __name__ == "__main__":
-    demo_matcher()
+        print
