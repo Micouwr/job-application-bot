@@ -108,39 +108,38 @@ class JobMatcher:
             },
         }
 
-    def _calculate_skills_match(
-        self, job_text: str
-    ) -> Tuple[float, List[str], List[str]]:
-        """Calculate skills match score"""
-        job_text_lower = job_text.lower()
-        matched_skills = [skill for skill in self.all_skills if skill in job_text_lower]
-
-        if not self.all_skills:
-            return 0.0, [], []
-
-        score = len(matched_skills) / len(self.all_skills)
-        missing_skills = list(self.all_skills - set(matched_skills))
-
-        return (
-            score,
-            [s.title() for s in matched_skills],
-            [s.title() for s in missing_skills],
-        )
-
     def _calculate_experience_match(self, job_text: str) -> Tuple[float, List[str]]:
         """Calculate experience relevance"""
         relevant_exp = []
         score = 0.0
 
+        # Key terms that indicate relevance
+        senior_terms = ['senior', 'lead', 'architect', 'manager', 'director']
+        infrastructure_terms = ['infrastructure', 'network', 'systems', 'architecture']
+        support_terms = ['help desk', 'service desk', 'support', 'technical']
+
         for exp in self.resume["experience"]:
             relevance = 0
+            exp_title_lower = exp["title"].lower()
+            
+            # Check for exact title match (rare but best)
+            if exp_title_lower in job_text:
+                relevance += 0.5
+            
+            # Check for senior-level indicators
+            if any(term in exp_title_lower for term in senior_terms):
+                if any(term in job_text for term in senior_terms):
+                    relevance += 0.3
+            
+            # Check for infrastructure/technical role overlap
+            if any(term in exp_title_lower for term in infrastructure_terms + support_terms):
+                if any(term in job_text for term in infrastructure_terms + support_terms):
+                    relevance += 0.2
 
-            if exp["title"].lower() in job_text:
-                relevance += 0.5  # Higher weight for title match
-
+            # Check for skill matches (existing logic)
             for skill in exp.get("skills_used", []):
                 if skill.lower() in job_text:
-                    relevance += 0.1
+                    relevance += 0.15  # Increased from 0.1
 
             if relevance > 0.2:
                 relevant_exp.append(
