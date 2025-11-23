@@ -128,8 +128,8 @@ class JobApplicationBot:
         # Step 4: Show summary
         self._print_summary()
     
-    def add_manual_job(self, title: str, company: str, url: str, 
-                      description: str = "", location: str = "") -> dict:
+    def add_manual_job(self, title: str, company: str = "Unknown", url: str = "",
+                   description: str = "", location: str = "") -> dict:
         """Add a job manually"""
         job = self.scraper.add_manual_job(title, company, url, description, location)
         logger.info(f"✓ Added: {title} at {company}")
