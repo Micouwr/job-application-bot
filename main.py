@@ -8,6 +8,7 @@ import sys
 import logging
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, List, Tuple   # <-- added this import
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -60,15 +61,12 @@ class JobApplicationBot:
     def run_pipeline(self, manual_jobs: list = None):
         """
         Run the complete job application pipeline
-        
-        Args:
-            manual_jobs: List of manually added jobs (optional)
         """
         logger.info("\n" + "=" * 80)
         logger.info("STARTING PIPELINE")
         logger.info("=" * 80 + "\n")
         
-        # Step 1: Get jobs (manual or scraped)
+        # Step 1: Get jobs
         if manual_jobs:
             jobs = manual_jobs
             logger.info(f"Using {len(jobs)} manually added jobs")
@@ -111,7 +109,6 @@ class JobApplicationBot:
             logger.info(f"\nTailoring for: {job['title']} at {job['company']}")
             
             try:
-                # Generate tailored application
                 application = self.tailor.tailor_application(job, match)
                 
                 # Save to database
@@ -135,18 +132,7 @@ class JobApplicationBot:
     
     def add_manual_job(self, title: str, company: str, url: str, 
                       description: str = "", location: str = "") -> dict:
-        """
-        Add a job manually
-        
-        Example:
-            bot.add_manual_job(
-                title="Senior IT Architect",
-                company="Tech Corp",
-                url="https://linkedin.com/jobs/123",
-                description="Looking for senior architect with AI experience...",
-                location="Louisville, KY (Remote)"
-            )
-        """
+        """Add a job manually"""
         job = self.scraper.add_manual_job(title, company, url, description, location)
         logger.info(f"✓ Added: {title} at {company}")
         return job
@@ -210,7 +196,6 @@ class JobApplicationBot:
             print(f"   Location: {app['location']}")
             print(f"   URL: {app['url']}")
             
-            # Parse changes
             import json
             changes = json.loads(app['changes_summary']) if app['changes_summary'] else []
             print(f"   Changes: {', '.join(changes[:2])}")
@@ -223,16 +208,13 @@ class JobApplicationBot:
     
     def _save_application_files(self, job: Dict, application: Dict):
         """Save resume and cover letter to files"""
-        # Clean filename
         safe_company = "".join(c for c in job['company'] if c.isalnum() or c in (' ', '-', '_')).strip()
         timestamp = datetime.now().strftime("%Y%m%d")
         
-        # Save resume
         resume_file = RESUMES_DIR / f"{safe_company}_{timestamp}_resume.txt"
         with open(resume_file, 'w') as f:
             f.write(application['resume_text'])
         
-        # Save cover letter
         cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
         with open(cover_file, 'w') as f:
             f.write(application['cover_letter'])
@@ -271,38 +253,10 @@ def main():
     
     args = parser.parse_args()
     
-    # Initialize bot
     bot = JobApplicationBot()
     
     if args.interactive:
         bot.run_interactive()
     elif args.review:
         bot.review_pending()
-    elif args.stats:
-        stats = bot.db.get_statistics()
-        print("\n=== STATISTICS ===")
-        print(f"Total Jobs: {stats['total_jobs']}")
-        print(f"High Matches: {stats['high_matches']}")
-        print(f"Avg Match Score: {stats['avg_match_score']*100:.1f}%")
-        print("\nBy Status:")
-        for status, count in stats['by_status'].items():
-            print(f"  {status}: {count}")
-    else:
-        # Default: Show usage
-        print("\n" + "=" * 80)
-        print("JOB APPLICATION BOT")
-        print("=" * 80)
-        print("\nUsage:")
-        print("  python main.py --interactive    # Add jobs interactively")
-        print("  python main.py --review         # Review pending applications")
-        print("  python main.py --stats          # Show statistics")
-        print("\nOr use as a library:")
-        print("  from main import JobApplicationBot")
-        print("  bot = JobApplicationBot()")
-        print("  bot.add_manual_job(...)")
-        print("  bot.run_pipeline()")
-        print("=" * 80 + "\n")
-
-
-if __name__ == "__main__":
-    main()
+    elif args
