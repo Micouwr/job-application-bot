@@ -59,9 +59,7 @@ class JobApplicationBot:
         logger.info("✓ All components initialized")
     
     def run_pipeline(self, manual_jobs: list = None):
-        """
-        Run the complete job application pipeline
-        """
+        """Run the complete job application pipeline"""
         logger.info("\n" + "=" * 80)
         logger.info("STARTING PIPELINE")
         logger.info("=" * 80 + "\n")
@@ -259,4 +257,7 @@ def main():
         bot.run_interactive()
     elif args.review:
         bot.review_pending()
-    elif args
+    elif args.stats:
+        stats = bot.db.get_statistics()
+        print("\n=== STATISTICS ===")
+        print(f"Total
