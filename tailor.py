@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple, Any
 
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config.settings import RESUME_DATA
 
@@ -36,6 +37,7 @@ class ResumeTailor:
         else:
             self.model = None
 
+    @retry(stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def tailor_application(self, job: Dict, match: Dict) -> Dict:
         """
         Generates a tailored resume and cover letter for a given job application.
