@@ -187,11 +187,17 @@ class JobApplicationBot:
             print("\n" + "-" * 40)
             title = input("Job Title (or 'done'): ").strip()
 
-            if title.lower() == "done":
-                break
+if title.lower() == "done":
+    break
 
-            company = input("Company: ").strip()
-            url = input("Job URL: ").strip()
+if not title:
+    print("❌ Job title cannot be empty. Please try again.")
+    continue
+
+company = input("Company: ").strip()
+if not company:
+    company = "Unknown"
+    print("ℹ️  Using default company: Unknown")
             location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
 
             print("\nPaste job description (press Enter twice when done):")
@@ -235,8 +241,11 @@ class JobApplicationBot:
             import json
 
             changes = (
-                json.loads(app["changes_summary"]) if app["changes_summary"] else []
-            )
+        json.loads(app["changes_summary"]) if app["changes_summary"] else []
+    )
+except json.JSONDecodeError:
+    changes = []
+    logger.warning(f"Invalid JSON in changes_summary for {app['title']}")
             print(f"   Changes: {', '.join(changes[:2])}")
             print()
 
@@ -264,14 +273,18 @@ class JobApplicationBot:
         timestamp = datetime.now().strftime("%Y%m%d")
 
         resume_file = RESUMES_DIR / f"{safe_company}_{timestamp}_resume.txt"
-        with open(resume_file, "w") as f:
-            f.write(application["resume_text"])
-
-        cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
-        with open(cover_file, "w") as f:
-            f.write(application["cover_letter"])
-
-        logger.info(f"  Saved to: {resume_file.name} and {cover_file.name}")
+    resume_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(resume_file, "w", encoding="utf-8") as f:
+        f.write(application["resume_text"])
+    
+    cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
+    cover_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(cover_file, "w", encoding="utf-8") as f:
+        f.write(application["cover_letter"])
+    
+    logger.info(f"  Saved to: {resume_file.name} and {cover_file.name}")
+except IOError as e:
+    logger.error(f"  Failed to save application files: {e}")
 
     def _print_summary(self) -> None:
         """Prints a summary of the pipeline's execution."""
