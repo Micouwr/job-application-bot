@@ -34,7 +34,7 @@ def get_jobs():
     except Exception:
         return json.dumps([])
 
-@app.route('/api/add_job', methods=['POST'])
+@app.route("/api/add_job", methods=["POST"])
 def add_job():
     """Add a job manually via API"""
     title = request.form.get("title", "")
@@ -46,7 +46,7 @@ def add_job():
     job = bot.add_manual_job(title, company, url, description, location)
     bot.run_pipeline(manual_jobs=[job])
 
-        return jsonify({
+    return jsonify({
         "status": "success",
         "message": f"Job '{title}' added and processed!",
         "job": job
