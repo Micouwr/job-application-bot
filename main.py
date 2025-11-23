@@ -253,31 +253,35 @@ def main():
     
     bot = JobApplicationBot()
     
-if args.interactive:
-    bot.run_interactive()
-elif args.review:
-    bot.review_pending()
-elif args.stats:
-    stats = bot.db.get_statistics()
-    print("\n=== STATISTICS ===")
-    print(f"Total Jobs: {stats['total_jobs']}")
-    print(f"High Matches: {stats['high_matches']}")
-    print(f"Avg Match Score: {stats['avg_match_score']*100:.1f}%")
-    print("\nBy Status:")
-    for status, count in stats['by_status'].items():
-        print(f"  {status}: {count}")
-else:
-    # Default: Show usage
-    print("\n" + "=" * 80)
-    print("JOB APPLICATION BOT")
-    print("=" * 80)
-    print("\nUsage:")
-    print("  python main.py --interactive    # Add jobs interactively")
-    print("  python main.py --review         # Review pending applications")
-    print("  python main.py --stats          # Show statistics")
-    print("\nOr use as a library:")
-    print("  from main import JobApplicationBot")
-    print("  bot = JobApplicationBot()")
-    print("  bot.add_manual_job(...)")
-    print("  bot.run_pipeline()")
-    print("=" * 80 + "\n")
+   if args.interactive:
+        bot.run_interactive()
+    elif args.review:
+        bot.review_pending()
+    elif args.stats:
+        stats = bot.db.get_statistics()
+        print("\n=== STATISTICS ===")
+        print(f"Total Jobs: {stats['total_jobs']}")
+        print(f"High Matches: {stats['high_matches']}")
+        print(f"Avg Match Score: {stats['avg_match_score']*100:.1f}%")
+        print("\nBy Status:")
+        for status, count in stats['by_status'].items():
+            print(f"  {status}: {count}")
+    else:
+        # Default: Show usage
+        print("\n" + "=" * 80)
+        print("JOB APPLICATION BOT")
+        print("=" * 80)
+        print("\nUsage:")
+        print("  python main.py --interactive    # Add jobs interactively")
+        print("  python main.py --review         # Review pending applications")
+        print("  python main.py --stats          # Show statistics")
+        print("\nOr use as a library:")
+        print("  from main import JobApplicationBot")
+        print("  bot = JobApplicationBot()")
+        print("  bot.add_manual_job(...)")
+        print("  bot.run_pipeline()")
+        print("=" * 80 + "\n")
+
+
+if __name__ == "__main__":
+    main()
