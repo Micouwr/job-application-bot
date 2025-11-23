@@ -4,6 +4,7 @@ Job Application Bot - Main Entry Point
 Author: Ryan Micou
 """
 
+import json
 import logging
 import sys
 from datetime import datetime
@@ -199,6 +200,7 @@ class JobApplicationBot:
                 company = "Unknown"
                 print("ℹ️  Using default company: Unknown")
 
+            url = input("Job URL: ").strip()
             location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
 
             print("\nPaste job description (press Enter twice when done):")
@@ -239,14 +241,14 @@ class JobApplicationBot:
             print(f"   Location: {app['location']}")
             print(f"   URL: {app['url']}")
 
-            import json
-
-            changes = (
-        json.loads(app["changes_summary"]) if app["changes_summary"] else []
-    )
-except json.JSONDecodeError:
-    changes = []
-    logger.warning(f"Invalid JSON in changes_summary for {app['title']}")
+            try:
+                changes = (
+                    json.loads(app["changes_summary"]) if app["changes_summary"] else []
+                )
+            except json.JSONDecodeError:
+                changes = []
+                logger.warning(f"Invalid JSON in changes_summary for {app['title']}")
+            
             print(f"   Changes: {', '.join(changes[:2])}")
             print()
 
@@ -268,24 +270,25 @@ except json.JSONDecodeError:
             job: The job dictionary.
             application: The application dictionary, containing the resume and cover letter.
         """
-        safe_company = "".join(
-            c for c in job["company"] if c.isalnum() or c in (" ", "-", "_")
-        ).strip()
-        timestamp = datetime.now().strftime("%Y%m%d")
+        try:
+            safe_company = "".join(
+                c for c in job["company"] if c.isalnum() or c in (" ", "-", "_")
+            ).strip()
+            timestamp = datetime.now().strftime("%Y%m%d")
 
-        resume_file = RESUMES_DIR / f"{safe_company}_{timestamp}_resume.txt"
-    resume_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(resume_file, "w", encoding="utf-8") as f:
-        f.write(application["resume_text"])
-    
-    cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
-    cover_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(cover_file, "w", encoding="utf-8") as f:
-        f.write(application["cover_letter"])
-    
-    logger.info(f"  Saved to: {resume_file.name} and {cover_file.name}")
-except IOError as e:
-    logger.error(f"  Failed to save application files: {e}")
+            resume_file = RESUMES_DIR / f"{safe_company}_{timestamp}_resume.txt"
+            resume_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(resume_file, "w", encoding="utf-8") as f:
+                f.write(application["resume_text"])
+            
+            cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
+            cover_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(cover_file, "w", encoding="utf-8") as f:
+                f.write(application["cover_letter"])
+            
+            logger.info(f"  Saved to: {resume_file.name} and {cover_file.name}")
+        except IOError as e:
+            logger.error(f"  Failed to save application files: {e}")
 
     def _print_summary(self) -> None:
         """Prints a summary of the pipeline's execution."""
