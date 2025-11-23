@@ -21,7 +21,7 @@ for directory in [DATA_DIR, LOGS_DIR, OUTPUT_DIR, RESUMES_DIR, COVER_LETTERS_DIR
     directory.mkdir(parents=True, exist_ok=True)
 
 # API Keys
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY")
 
 # Job Search Settings
@@ -83,7 +83,7 @@ MATCHING = {
 TAILORING = {
     "max_tokens": 4000,
     "temperature": 0.7,
-    "model": "claude-sonnet-4-20250514"
+    "model": "gemini-1.5-pro"   # updated to Gemini model
 }
 
 # Resume Data Structure
@@ -163,13 +163,13 @@ def validate_config():
     """Validate that all required configuration is present"""
     errors = []
     
-    if not ANTHROPIC_API_KEY:
-        errors.append("ANTHROPIC_API_KEY is not set in .env file")
+    if not GEMINI_API_KEY:
+        errors.append("GEMINI_API_KEY is not set in .env file")
     
     if not JOB_LOCATION:
         errors.append("JOB_LOCATION is not set")
     
     if errors:
-        raise ValueError(f"Configuration errors:\n" + "\n".join(f"- {e}" for e in errors))
+        raise ValueError("Configuration errors:\n" + "\n".join(f"- {e}" for e in errors))
     
     return True
