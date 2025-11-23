@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config.settings import (
     validate_config, JOB_KEYWORDS, JOB_LOCATION, 
-    MAX_JOBS_PER_PLATFORM, MATCH_THRESHOLD, LOG_FILE, RESUMES_DIR, COVER_LETTERS_DIR
+    MAX_JOBS_PER_PLATFORM, MATCH_THRESHOLD, LOG_FILE, RESUMES_DIR, COVER_LETTERS_DIR,
+    RESUME_DATA
 )
 from database import JobDatabase
 from scraper import JobScraper
@@ -54,7 +55,7 @@ class JobApplicationBot:
         self.db = JobDatabase()
         self.scraper = JobScraper()
         self.matcher = JobMatcher()
-        self.tailor = ResumeTailor()
+        self.tailor = ResumeTailor(RESUME_DATA)   # ✅ pass resume data
         
         logger.info("✓ All components initialized")
     
