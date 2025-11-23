@@ -4,7 +4,7 @@ Resume tailoring engine - Generates customized narratives for job applications u
 
 import logging
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -133,7 +133,7 @@ class ResumeTailor:
                 resume_parts.append(f"**{key.title()}**\n{value}")
         return "\n".join(resume_parts)
 
-    def _parse_response(self, response_text: str) -> Dict[str, any]:
+    def _parse_response(self, response_text: str) -> Dict[str, Any]:
         """
         Parses the Gemini API response to extract the tailored content.
         """
