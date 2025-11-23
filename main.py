@@ -260,4 +260,5 @@ def main():
     elif args.stats:
         stats = bot.db.get_statistics()
         print("\n=== STATISTICS ===")
-        print(f"Total
+        print(f"Total Jobs: {stats['total_jobs']}")
+
