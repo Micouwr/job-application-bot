@@ -253,7 +253,7 @@ def main():
     
     bot = JobApplicationBot()
     
-    if args.interactive:
+if args.interactive:
     bot.run_interactive()
 elif args.review:
     bot.review_pending()
