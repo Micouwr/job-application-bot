@@ -187,22 +187,23 @@ class JobApplicationBot:
             print("\n" + "-" * 40)
             title = input("Job Title (or 'done'): ").strip()
 
-if title.lower() == "done":
-    break
+            if title.lower() == "done":
+                break
 
-if not title:
-    print("❌ Job title cannot be empty. Please try again.")
-    continue
+            if not title:
+                print("❌ Job title cannot be empty. Please try again.")
+                continue
 
-company = input("Company: ").strip()
-if not company:
-    company = "Unknown"
-    print("ℹ️  Using default company: Unknown")
-location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
+            company = input("Company: ").strip()
+            if not company:
+                company = "Unknown"
+                print("ℹ️  Using default company: Unknown")
 
-print("\nPaste job description (press Enter twice when done):")
-description_lines = []
-while True:
+            location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
+
+            print("\nPaste job description (press Enter twice when done):")
+            description_lines = []
+            while True:
                 line = input()
                 if line == "":
                     break
