@@ -251,4 +251,4 @@ def demo_matcher():
         print(f"Job: {job['title']} at {job['company']}")
         print(f"Match Score: {result['match_score']*100:.1f}%")
         print(f"Recommendation: {result['recommendation']}")
-        print
+        print()
