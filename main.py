@@ -198,11 +198,11 @@ company = input("Company: ").strip()
 if not company:
     company = "Unknown"
     print("ℹ️  Using default company: Unknown")
-            location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
+location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
 
-            print("\nPaste job description (press Enter twice when done):")
-            description_lines = []
-            while True:
+print("\nPaste job description (press Enter twice when done):")
+description_lines = []
+while True:
                 line = input()
                 if line == "":
                     break
