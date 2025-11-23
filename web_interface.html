@@ -468,5 +468,30 @@ Description: (paste full description)`);
             `);
         }, 1000);
     </script>
+    <script>
+document.getElementById("jobForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const formData = new FormData();
+    formData.append("title", document.getElementById("title").value);
+    formData.append("company", document.getElementById("company").value);
+    formData.append("url", document.getElementById("url").value);
+    formData.append("location", document.getElementById("location").value);
+    formData.append("description", document.getElementById("description").value);
+
+    fetch("/api/add_job", {
+        method: "POST",
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert("✅ " + data.message);
+    })
+    .catch(error => {
+        console.error("Error adding job:", error);
+        alert("❌ Failed to add job. Please try again.");
+    });
+});
+</script>
 </body>
 </html>
