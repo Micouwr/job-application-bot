@@ -14,7 +14,7 @@ lxml==4.9.3
 pandas==2.1.4
 numpy==1.26.2
 
-# Database
+# Database (sqlite3 is built into Python)
 
 # Utilities
 python-dateutil==2.8.2
