@@ -33,9 +33,9 @@ MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.80"))
 
 # Your Information
 YOUR_INFO = {
-    "name": os.getenv("YOUR_NAME", "William Ryan Micou"),
-    "email": os.getenv("YOUR_EMAIL", "micouwr2025@gmail.com"),
-    "phone": os.getenv("YOUR_PHONE", "(502) 777 7526"),
+    "name": os.getenv("YOUR_NAME"),
+    "email": os.getenv("YOUR_EMAIL"),
+    "phone": os.getenv("YOUR_PHONE"),
     "linkedin": os.getenv("YOUR_LINKEDIN", "linkedin.com/in/ryanmicou"),
     "github": os.getenv("YOUR_GITHUB", "github.com/Micouwr"),
     "location": JOB_LOCATION,
