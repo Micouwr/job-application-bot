@@ -1,4 +1,3 @@
-cat > app.py << 'EOF'
 from flask import Flask, render_template_string
 import json
 import os
@@ -35,4 +34,3 @@ def get_jobs():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-EOF
