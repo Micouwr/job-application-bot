@@ -38,13 +38,13 @@ playwright install chromium
 # Copy .env template and add your API key
 cp .env.example .env
 
-# Edit .env and add your Anthropic API key
-# Get one from: https://console.anthropic.com/
+# Edit .env and add your Gemini API key
+# Get one from: https://makersuite.google.com/app/apikey
 ```
 
 Edit `.env` file:
 ```bash
-ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 ### 3. Run Interactive Mode
@@ -148,8 +148,8 @@ job-application-bot/
 Edit `.env` file to customize:
 
 ```bash
-# Your Anthropic API Key (REQUIRED)
-ANTHROPIC_API_KEY=your_key_here
+# Your Gemini API Key (REQUIRED)
+GEMINI_API_KEY=your_key_here
 
 # Job Search Settings
 JOB_LOCATION=Louisville, KY
@@ -240,12 +240,12 @@ WHERE a.status = 'pending_review';
 
 ## 🔧 Troubleshooting
 
-### "ANTHROPIC_API_KEY not found"
+### "GEMINI_API_KEY not found"
 
 Make sure you:
 1. Created `.env` file in project root
-2. Added your API key: `ANTHROPIC_API_KEY=sk-ant-...`
-3. API key is valid (test at https://console.anthropic.com/)
+2. Added your API key: `GEMINI_API_KEY=your-gemini-api-key-here`
+3. API key is valid (test at https://makersuite.google.com/app/apikey)
 
 ### "No jobs met the match threshold"
 

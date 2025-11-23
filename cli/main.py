@@ -5,8 +5,9 @@ Thin CLI wrapper that uses the JobApplicationBot library.
 This file keeps previous CLI behavior but delegates to the refactored app.
 """
 import argparse
-import sys
 import logging
+import sys
+
 from app import JobApplicationBot
 
 logging.basicConfig(level=logging.INFO)
@@ -16,9 +17,13 @@ logger = logging.getLogger(__name__)
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="job-application-bot")
     parser.add_argument("--job-file", help="Path to job description text file")
-    parser.add_argument("--resume-files", nargs="*", help="One or more resume text files")
+    parser.add_argument(
+        "--resume-files", nargs="*", help="One or more resume text files"
+    )
     parser.add_argument("--tailor", action="store_true", help="Tailor resume to job")
-    parser.add_argument("--analyze", action="store_true", help="Analyze resumes for job")
+    parser.add_argument(
+        "--analyze", action="store_true", help="Analyze resumes for job"
+    )
     args = parser.parse_args(argv)
 
     bot = JobApplicationBot()

@@ -2,7 +2,7 @@
 
 # Core
 python-dotenv==1.0.0
-anthropic==0.34.2
+google-generativeai==0.8.5
 
 # Web Scraping
 playwright==1.40.0
@@ -15,7 +15,6 @@ pandas==2.1.4
 numpy==1.26.2
 
 # Database
-sqlite3  # Built into Python
 
 # Utilities
 python-dateutil==2.8.2
@@ -25,3 +24,16 @@ tqdm==4.66.1
 PyPDF2==3.0.1
 python-docx==1.1.0
 reportlab==4.0.7
+
+# Testing
+pytest==8.0.0
+
+# Packaging
+PyInstaller==6.0.0
+
+# Code Quality
+black==24.3.0
+isort==5.12.0
+
+# GUI Automation
+PyAutoGUI==0.9.54
