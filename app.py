@@ -46,7 +46,11 @@ def add_job():
     job = bot.add_manual_job(title, company, url, description, location)
     bot.run_pipeline(manual_jobs=[job])
 
-    return json.dumps({"status": "added", "job": job})
+        return jsonify({
+        "status": "success",
+        "message": f"Job '{title}' added and processed!",
+        "job": job
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
