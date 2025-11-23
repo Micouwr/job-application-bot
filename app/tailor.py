@@ -1,8 +1,9 @@
 # app/tailor.py
 from __future__ import annotations
-from typing import Optional
-import time
+
 import logging
+import time
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

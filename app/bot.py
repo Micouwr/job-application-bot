@@ -1,11 +1,12 @@
 # app/bot.py
 from __future__ import annotations
-from typing import Dict, Optional, List, Tuple
-import logging
 
-from .matcher import Matcher
-from .tailor import Tailor, APIClient
+import logging
+from typing import Dict, List, Optional, Tuple
+
 from .database import Database
+from .matcher import Matcher
+from .tailor import APIClient, Tailor
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,9 @@ class JobApplicationBot:
         self.tailor = Tailor(api_client)
         self.db = Database(db_path) if db_path else Database()
 
-    def analyze_job(self, job_text: str, resumes: Dict[str, str]) -> List[Tuple[str, float]]:
+    def analyze_job(
+        self, job_text: str, resumes: Dict[str, str]
+    ) -> List[Tuple[str, float]]:
         """
         Score a job against a set of resumes and return top matches.
 
@@ -57,7 +60,9 @@ class JobApplicationBot:
         logger.info("Tailored resume (len=%s)", len(result))
         return result
 
-    def apply_to_job(self, resume_text: str, job_text: str, cover_letter: Optional[str] = None) -> Dict[str, str]:
+    def apply_to_job(
+        self, resume_text: str, job_text: str, cover_letter: Optional[str] = None
+    ) -> Dict[str, str]:
         """
         Simulate or execute the "apply" flow.
 
@@ -66,8 +71,13 @@ class JobApplicationBot:
         Replace with the real application flow (API posting, email, ATS submission).
         """
         # TODO: integrate with actual application mechanism
-        status = {"status": "queued", "message": "Application recorded locally (simulate)."}
-        record = f"resume_len={len(resume_text)}; cover_letter_len={len(cover_letter or '')}"
+        status = {
+            "status": "queued",
+            "message": "Application recorded locally (simulate).",
+        }
+        record = (
+            f"resume_len={len(resume_text)}; cover_letter_len={len(cover_letter or '')}"
+        )
         self.db.save_history("apply", job_text, record)
         logger.info("Apply requested; %s", status)
         return status

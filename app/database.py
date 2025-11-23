@@ -1,10 +1,11 @@
 # app/database.py
 from __future__ import annotations
-import sqlite3
-from typing import Iterator, List, Dict, Any, Optional
+
 import contextlib
 import logging
 import os
+import sqlite3
+from typing import Any, Dict, Iterator, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,12 @@ class Database:
             )
             rows = cur.fetchall()
         return [
-            {"id": r[0], "timestamp": r[1], "action": r[2], "input_text": r[3], "result_text": r[4]}
+            {
+                "id": r[0],
+                "timestamp": r[1],
+                "action": r[2],
+                "input_text": r[3],
+                "result_text": r[4],
+            }
             for r in rows
         ]
