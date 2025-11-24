@@ -136,7 +136,7 @@ class JobDatabase:
 
     def insert_job(self, job: Dict) -> bool:
         """
-        Inserts a new job listing into the database.
+        Inserts a new job listing into the database, preventing duplicates based on URL.
 
         Args:
             job: A dictionary containing the job details.
@@ -146,6 +146,11 @@ class JobDatabase:
         """
         try:
             cursor = self.conn.cursor()
+            cursor.execute("SELECT id FROM jobs WHERE url = ?", (job["url"],))
+            if cursor.fetchone():
+                logger.warning(f"Job already exists: {job['url']}")
+                return False
+
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO jobs 

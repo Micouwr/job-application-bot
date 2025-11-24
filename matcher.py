@@ -3,7 +3,8 @@ Job matching engine - Scores jobs against resume
 """
 
 import logging
-from typing import Dict, List, Tuple
+import re
+from typing import Dict, List, Set, Tuple
 
 from config.settings import MATCHING, RESUME_DATA
 
@@ -17,6 +18,20 @@ class JobMatcher:
         self.resume = resume_data or RESUME_DATA
         self.all_skills = self._extract_all_skills()
         self.experience_keywords = self._extract_experience_keywords()
+        self.keywords = {
+            "help desk": 0,
+            "service desk": 0,
+            "infrastructure": 0,
+            "architect": 0,
+            "cloud": 0,
+            "ai": 0,
+            "governance": 0,
+            "training": 0,
+            "leadership": 0,
+            "senior": 0,
+            "manager": 0,
+        }
+        self.universe_of_skills = self.all_skills.union(set(self.keywords.keys()))
 
     def _extract_all_skills(self) -> set:
         """Extract all skills from resume"""
@@ -111,21 +126,40 @@ class JobMatcher:
     def _calculate_skills_match(
         self, job_text: str
     ) -> Tuple[float, List[str], List[str]]:
-        """Calculate skills match score"""
-        job_text_lower = job_text.lower()
-        matched_skills = [skill for skill in self.all_skills if skill in job_text_lower]
+        """Calculate skills match correctly - based on what job requires"""
+        # Step 1: Identify what skills the job actually asks for
+        job_skills = self._extract_job_skills(job_text)
 
-        if not self.all_skills:
+        # Step 2: Which of those required skills do I have?
+        matched_skills = job_skills.intersection(self.all_skills)
+
+        # Step 3: Which required skills am I missing? (This is the key insight!)
+        missing_skills = job_skills - self.all_skills
+
+        # Step 4: Score = how many required skills I have / total required
+        if not job_skills:  # Job has no recognizable skills
             return 0.0, [], []
 
-        score = len(matched_skills) / len(self.all_skills)
-        missing_skills = list(self.all_skills - set(matched_skills))
+        score = len(matched_skills) / len(job_skills)
 
         return (
             score,
             [s.title() for s in matched_skills],
             [s.title() for s in missing_skills],
         )
+
+    def _extract_job_skills(self, job_text: str) -> Set[str]:
+        """Extract skills that the job actually requires from the description"""
+        job_text_lower = job_text.lower()
+        job_skills = set()
+
+        # Check each known skill against job description with word boundaries
+        for skill in self.all_skills:
+            pattern = r"\b" + re.escape(skill.lower()) + r"\b"
+            if re.search(pattern, job_text_lower):
+                job_skills.add(skill.lower())
+
+        return job_skills
 
     def _calculate_experience_match(self, job_text: str) -> Tuple[float, List[str]]:
         """Calculate experience relevance"""
@@ -174,20 +208,7 @@ class JobMatcher:
 
     def _calculate_keyword_match(self, job_text: str) -> Tuple[float, Dict[str, int]]:
         """Calculate keyword matches"""
-        keywords = {
-            "help desk": 0,
-            "service desk": 0,
-            "infrastructure": 0,
-            "architect": 0,
-            "cloud": 0,
-            "ai": 0,
-            "governance": 0,
-            "training": 0,
-            "leadership": 0,
-            "senior": 0,
-            "manager": 0,
-        }
-
+        keywords = self.keywords.copy()
         for keyword in keywords:
             keywords[keyword] = job_text.count(keyword)
 

@@ -22,6 +22,7 @@ def test_insert_job(db):
         "title": "Software Engineer",
         "company": "Tech Corp",
         "source": "linkedin",
+        "url": "https://example.com",
     }
     assert db.insert_job(job)
     cursor = db.conn.cursor()
@@ -36,6 +37,7 @@ def test_update_match_score(db):
         "title": "Software Engineer",
         "company": "Tech Corp",
         "source": "linkedin",
+        "url": "https://example.com",
     }
     db.insert_job(job)
     match_result = {"match_score": 0.9}
@@ -52,6 +54,7 @@ def test_save_application(db):
         "title": "Software Engineer",
         "company": "Tech Corp",
         "source": "linkedin",
+        "url": "https://example.com",
     }
     db.insert_job(job)
     assert db.save_application("123", "resume", "cover_letter", ["changes"])
@@ -67,6 +70,7 @@ def test_get_pending_reviews(db):
         "title": "Software Engineer",
         "company": "Tech Corp",
         "source": "linkedin",
+        "url": "https://example.com",
     }
     db.insert_job(job)
     db.save_application("123", "resume", "cover_letter", ["changes"])
@@ -82,12 +86,14 @@ def test_get_all_jobs(db):
         "title": "Software Engineer",
         "company": "Tech Corp",
         "source": "linkedin",
+        "url": "https://example.com",
     }
     job2 = {
         "id": "456",
         "title": "Data Scientist",
         "company": "Data Corp",
         "source": "indeed",
+        "url": "https://example2.com",
     }
     db.insert_job(job1)
     db.insert_job(job2)
@@ -103,6 +109,7 @@ def test_get_application_details(db):
         "company": "Tech Corp",
         "description": "Test description",
         "source": "linkedin",
+        "url": "https://example.com",
     }
     db.insert_job(job)
     db.save_application("123", "resume", "cover_letter", ["changes"])
@@ -118,6 +125,7 @@ def test_update_status(db):
         "title": "Software Engineer",
         "company": "Tech Corp",
         "source": "linkedin",
+        "url": "https://example.com",
     }
     db.insert_job(job)
     db.save_application("123", "resume", "cover_letter", ["changes"])

@@ -12,6 +12,7 @@ def test_add_manual_job():
         title="Software Engineer",
         company="Tech Corp",
         url="https://example.com",
+        description="Test description",
     )
     assert job["title"] == "Software Engineer"
     assert job["company"] == "Tech Corp"

@@ -58,6 +58,9 @@ class JobScraper:
                 location="Louisville, KY"
             )
         """
+        if not title or not description:
+            raise ValueError("Job title and description cannot be empty.")
+
         # Generate unique ID from URL
         job_id = hashlib.md5(url.encode()).hexdigest()[:12]
 
