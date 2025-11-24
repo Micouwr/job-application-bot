@@ -35,3 +35,20 @@ def test_skills_match_exact(job_matcher):
     assert "Python" in matched
     assert "Aws" in matched
     assert not missing
+
+
+def test_experience_match(job_matcher):
+    """Tests that experience is correctly matched."""
+    job_text = "software engineer"
+    score, relevant_exp = job_matcher._calculate_experience_match(job_text)
+    assert score > 0
+    assert "Software Engineer at Tech Corp" in relevant_exp[0]
+
+
+def test_keyword_match(job_matcher):
+    """Tests that keywords are correctly matched."""
+    job_text = "help desk leadership"
+    score, keyword_matches = job_matcher._calculate_keyword_match(job_text)
+    assert score > 0
+    assert "help desk" in keyword_matches
+    assert "leadership" in keyword_matches

@@ -1,7 +1,6 @@
 import json
-import os
 
-from flask import Flask, request
+from flask import Flask, jsonify, request
 
 from config.settings import JOB_LOCATION
 from database import JobDatabase

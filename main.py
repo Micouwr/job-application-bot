@@ -16,11 +16,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config.settings import (
     COVER_LETTERS_DIR,
-    JOB_KEYWORDS,
     JOB_LOCATION,
     LOG_FILE,
     MATCH_THRESHOLD,
-    MAX_JOBS_PER_PLATFORM,
     RESUME_DATA,
     RESUMES_DIR,
     validate_config,
@@ -130,7 +128,7 @@ class JobApplicationBot:
             try:
                 application = self.tailor.tailor_application(job, match)
 
-                # Save to database
+                # Save the application with the tailored content
                 self.db.save_application(
                     job["id"],
                     application["resume_text"],
@@ -145,6 +143,8 @@ class JobApplicationBot:
 
             except Exception as e:
                 logger.error(f"  ✗ Error tailoring application: {e}")
+                # Save a shell application so it can be tracked
+                self.db.save_application(job["id"], "", "", [])
 
         # Step 4: Show summary
         self._print_summary()
@@ -248,7 +248,7 @@ class JobApplicationBot:
             except json.JSONDecodeError:
                 changes = []
                 logger.warning(f"Invalid JSON in changes_summary for {app['title']}")
-            
+
             print(f"   Changes: {', '.join(changes[:2])}")
             print()
 
@@ -280,12 +280,14 @@ class JobApplicationBot:
             resume_file.parent.mkdir(parents=True, exist_ok=True)
             with open(resume_file, "w", encoding="utf-8") as f:
                 f.write(application["resume_text"])
-            
-            cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
+
+            cover_file = (
+                COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
+            )
             cover_file.parent.mkdir(parents=True, exist_ok=True)
             with open(cover_file, "w", encoding="utf-8") as f:
                 f.write(application["cover_letter"])
-            
+
             logger.info(f"  Saved to: {resume_file.name} and {cover_file.name}")
         except IOError as e:
             logger.error(f"  Failed to save application files: {e}")

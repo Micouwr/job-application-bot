@@ -3,6 +3,6 @@
 
 echo "Building the Job Application Bot executable..."
 
-pyinstaller --onefile --windowed --name="JobApp" gui_app.py
+pyinstaller --onefile --windowed --name="JobApp" --icon="assets/icon.ico" gui_app.py
 
 echo "Build complete. The executable can be found in the 'dist/' directory."

@@ -4,7 +4,7 @@ Resume tailoring engine - Generates customized narratives for job applications u
 
 import logging
 import os
-from typing import Dict, List, Tuple, Any
+from typing import Any, Dict
 
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -37,7 +37,9 @@ class ResumeTailor:
         else:
             self.model = None
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
+    )
     def tailor_application(self, job: Dict, match: Dict) -> Dict:
         """
         Generates a tailored resume and cover letter for a given job application.

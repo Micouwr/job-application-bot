@@ -126,27 +126,27 @@ def demo_scraper():
     scraper = JobScraper()
 
     # Example 1: Add a job you found on LinkedIn
-    job1 = scraper.add_manual_job(
+    scraper.add_manual_job(
         title="Senior IT Infrastructure Architect",
         company="Example Tech Corp",
         url="https://www.linkedin.com/jobs/view/123456789",
         description="""
-        We're looking for a Senior IT Infrastructure Architect with 10+ years experience.
-        
+        We're looking for a Senior IT Infrastructure Architect with 10+ years of experience.
+
         Requirements:
         - AWS Cloud experience
         - Help desk management
         - Network security
         - AI/ML knowledge preferred
-        
-        This is a remote position based in Louisville, KY area.
+
+        This is a remote position based in the Louisville, KY area.
         """,
         location="Louisville, KY (Remote)",
         source="linkedin",
     )
 
     # Example 2: Quick add from URL
-    job2 = scraper.add_from_url(
+    scraper.add_from_url(
         url="https://www.indeed.com/viewjob?jk=abc123",
         title="Help Desk Manager",
         company="Enterprise Solutions",

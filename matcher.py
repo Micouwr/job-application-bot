@@ -133,26 +133,30 @@ class JobMatcher:
         score = 0.0
 
         # Key terms that indicate relevance
-        senior_terms = ['senior', 'lead', 'architect', 'manager', 'director']
-        infrastructure_terms = ['infrastructure', 'network', 'systems', 'architecture']
-        support_terms = ['help desk', 'service desk', 'support', 'technical']
+        senior_terms = ["senior", "lead", "architect", "manager", "director"]
+        infrastructure_terms = ["infrastructure", "network", "systems", "architecture"]
+        support_terms = ["help desk", "service desk", "support", "technical"]
 
         for exp in self.resume["experience"]:
             relevance = 0
             exp_title_lower = exp["title"].lower()
-            
+
             # Check for exact title match (rare but best)
             if exp_title_lower in job_text:
                 relevance += 0.5
-            
+
             # Check for senior-level indicators
             if any(term in exp_title_lower for term in senior_terms):
                 if any(term in job_text for term in senior_terms):
                     relevance += 0.3
-            
+
             # Check for infrastructure/technical role overlap
-            if any(term in exp_title_lower for term in infrastructure_terms + support_terms):
-                if any(term in job_text for term in infrastructure_terms + support_terms):
+            if any(
+                term in exp_title_lower for term in infrastructure_terms + support_terms
+            ):
+                if any(
+                    term in job_text for term in infrastructure_terms + support_terms
+                ):
                     relevance += 0.2
 
             # Check for skill matches (existing logic)

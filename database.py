@@ -33,6 +33,12 @@ class JobDatabase:
         self.conn: Optional[sqlite3.Connection] = None
         self.init_database()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def init_database(self) -> None:
         """Initializes the database with all the required tables."""
         self.conn = sqlite3.connect(str(self.db_path))
@@ -83,7 +89,7 @@ class JobDatabase:
             """
             CREATE TABLE IF NOT EXISTS applications (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                job_id TEXT NOT NULL,
+                job_id TEXT NOT NULL UNIQUE,
                 tailored_resume TEXT,
                 cover_letter TEXT,
                 changes_summary TEXT,
@@ -234,7 +240,7 @@ class JobDatabase:
         self, job_id: str, resume: str, cover_letter: str, changes: List[str]
     ) -> bool:
         """
-        Saves a tailored application to the database.
+        Saves or updates a tailored application in the database.
 
         Args:
             job_id: The ID of the job the application is for.
@@ -249,11 +255,21 @@ class JobDatabase:
             cursor = self.conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO applications
-                (job_id, tailored_resume, cover_letter, changes_summary, status)
+                INSERT INTO applications (job_id, tailored_resume, cover_letter, changes_summary, status)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(job_id) DO UPDATE SET
+                    tailored_resume = excluded.tailored_resume,
+                    cover_letter = excluded.cover_letter,
+                    changes_summary = excluded.changes_summary,
+                    status = excluded.status
             """,
-                (job_id, resume, cover_letter, json.dumps(changes), "pending_review"),
+                (
+                    job_id,
+                    resume,
+                    cover_letter,
+                    json.dumps(changes),
+                    "pending_review",
+                ),
             )
 
             self.conn.commit()
@@ -263,45 +279,6 @@ class JobDatabase:
             return True
         except Exception as e:
             logger.error(f"Error saving application: {e}")
-            return False
-
-    def update_status(
-        self, job_id: str, status: str, notes: Optional[str] = None
-    ) -> bool:
-        """
-        Updates the status of an application.
-
-        Args:
-            job_id: The ID of the job to update.
-            status: The new status of the application.
-            notes: Optional notes to add to the application.
-
-        Returns:
-            True if the status was updated successfully, False otherwise.
-        """
-        try:
-            cursor = self.conn.cursor()
-
-            # Update application
-            cursor.execute(
-                """
-                UPDATE applications
-                SET status = ?, 
-                    applied_at = CASE WHEN ? = 'applied' THEN CURRENT_TIMESTAMP ELSE applied_at END,
-                    notes = COALESCE(?, notes)
-                WHERE job_id = ?
-            """,
-                (status, status, notes, job_id),
-            )
-
-            # Update job status
-            cursor.execute("UPDATE jobs SET status = ? WHERE id = ?", (status, job_id))
-
-            self.conn.commit()
-            self.log_activity(job_id, "status_change", f"Status: {status}")
-            return True
-        except Exception as e:
-            logger.error(f"Error updating status: {e}")
             return False
 
     def get_pending_reviews(self) -> List[Dict]:
@@ -325,6 +302,68 @@ class JobDatabase:
         )
 
         return [dict(row) for row in cursor.fetchall()]
+
+    def get_all_jobs(self, search_term: str = "") -> List[Dict]:
+        """
+        Gets all jobs from the database, optionally filtering by a search term.
+
+        Args:
+            search_term: A string to filter jobs by title or company.
+
+        Returns:
+            A list of dictionaries, where each dictionary represents a job.
+        """
+        cursor = self.conn.cursor()
+
+        query = """
+            SELECT j.*, a.status as application_status
+            FROM jobs j
+            LEFT JOIN applications a ON j.id = a.job_id
+        """
+        params = []
+
+        if search_term:
+            query += " WHERE j.title LIKE ? OR j.company LIKE ?"
+            params.extend([f"%{search_term}%", f"%{search_term}%"])
+
+        query += " ORDER BY j.scraped_at DESC"
+
+        cursor.execute(query, params)
+
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_application_details(self, job_id: str) -> Optional[Dict]:
+        """
+        Gets the details of a specific application.
+
+        Args:
+            job_id: The ID of the job to retrieve details for.
+
+        Returns:
+            A dictionary containing the application details, or None if not found.
+        """
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            SELECT j.description, a.tailored_resume, a.cover_letter
+            FROM jobs j
+            LEFT JOIN applications a ON j.id = a.job_id
+            WHERE j.id = ?
+            """,
+            (job_id,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_status(self, job_id: str, new_status: str) -> bool:
+        """Updates the status of a given application."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "UPDATE applications SET status = ? WHERE job_id = ?",
+            (new_status, job_id),
+        )
+        self.conn.commit()
+        return cursor.rowcount > 0
 
     def get_statistics(self) -> Dict:
         """
