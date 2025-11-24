@@ -14,7 +14,7 @@ def main():
     Launches the Tkinter GUI for the Job Application Bot.
     """
     root = tk.Tk()
-    JobAppTkinter(root)
+    app = JobAppTkinter(root)
     root.mainloop()
 
 

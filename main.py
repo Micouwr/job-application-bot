@@ -16,9 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config.settings import (
     COVER_LETTERS_DIR,
+    JOB_KEYWORDS,
     JOB_LOCATION,
     LOG_FILE,
     MATCH_THRESHOLD,
+    MAX_JOBS_PER_PLATFORM,
     RESUME_DATA,
     RESUMES_DIR,
     validate_config,
@@ -128,7 +130,7 @@ class JobApplicationBot:
             try:
                 application = self.tailor.tailor_application(job, match)
 
-                # Save the application with the tailored content
+                # Save to database
                 self.db.save_application(
                     job["id"],
                     application["resume_text"],
@@ -143,8 +145,6 @@ class JobApplicationBot:
 
             except Exception as e:
                 logger.error(f"  ✗ Error tailoring application: {e}")
-                # Save a shell application so it can be tracked
-                self.db.save_application(job["id"], "", "", [])
 
         # Step 4: Show summary
         self._print_summary()
@@ -186,21 +186,28 @@ class JobApplicationBot:
 
         while True:
             print("\n" + "-" * 40)
-            title = input("Job Title (or 'done'): ").strip()
+            url = input("Job URL (or 'done'): ").strip()
 
-            if title.lower() == "done":
+            if url.lower() == "done":
                 break
 
+            if not url:
+                print("❌ Job URL cannot be empty. Please try again.")
+                continue
+
+            # Prevent duplicate entries
+            if self.db.job_exists(url):
+                logger.warning(f"Job with URL {url} already exists. Skipping.")
+                print("ℹ️  This job URL already exists in the database.")
+                continue
+
+            title = input("Job Title: ").strip()
             if not title:
                 print("❌ Job title cannot be empty. Please try again.")
                 continue
 
-            company = input("Company: ").strip()
-            if not company:
-                company = "Unknown"
-                print("ℹ️  Using default company: Unknown")
+            company = input("Company: ").strip() or "Unknown"
 
-            url = input("Job URL: ").strip()
             location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
 
             print("\nPaste job description (press Enter twice when done):")
@@ -281,9 +288,7 @@ class JobApplicationBot:
             with open(resume_file, "w", encoding="utf-8") as f:
                 f.write(application["resume_text"])
 
-            cover_file = (
-                COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
-            )
+            cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
             cover_file.parent.mkdir(parents=True, exist_ok=True)
             with open(cover_file, "w", encoding="utf-8") as f:
                 f.write(application["cover_letter"])

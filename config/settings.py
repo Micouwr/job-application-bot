@@ -3,24 +3,15 @@ Configuration settings for Job Application Bot
 """
 
 import os
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Determine if running as a bundled executable
-if getattr(sys, "frozen", False):
-    # Running as a PyInstaller bundle
-    BASE_DIR = Path(sys.executable).parent
-    # Load .env from executable's directory
-    load_dotenv(BASE_DIR / ".env")
-else:
-    # Running from source
-    BASE_DIR = Path(__file__).resolve().parent.parent
-    # Load .env from project root
-    load_dotenv()
+# Load environment variables
+load_dotenv()
 
-# Writable paths for data, logs, and output
+# Base paths
+BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 LOGS_DIR = BASE_DIR / "logs"
 OUTPUT_DIR = BASE_DIR / "output"

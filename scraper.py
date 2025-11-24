@@ -58,9 +58,6 @@ class JobScraper:
                 location="Louisville, KY"
             )
         """
-        if not title or not description:
-            raise ValueError("Job title and description cannot be empty.")
-
         # Generate unique ID from URL
         job_id = hashlib.md5(url.encode()).hexdigest()[:12]
 
@@ -129,12 +126,12 @@ def demo_scraper():
     scraper = JobScraper()
 
     # Example 1: Add a job you found on LinkedIn
-    scraper.add_manual_job(
+    job1 = scraper.add_manual_job(
         title="Senior IT Infrastructure Architect",
         company="Example Tech Corp",
         url="https://www.linkedin.com/jobs/view/123456789",
         description="""
-        We're looking for a Senior IT Infrastructure Architect with 10+ years of experience.
+        We're looking for a Senior IT Infrastructure Architect with 10+ years experience.
 
         Requirements:
         - AWS Cloud experience
@@ -142,14 +139,14 @@ def demo_scraper():
         - Network security
         - AI/ML knowledge preferred
 
-        This is a remote position based in the Louisville, KY area.
+        This is a remote position based in Louisville, KY area.
         """,
         location="Louisville, KY (Remote)",
         source="linkedin",
     )
 
     # Example 2: Quick add from URL
-    scraper.add_from_url(
+    job2 = scraper.add_from_url(
         url="https://www.indeed.com/viewjob?jk=abc123",
         title="Help Desk Manager",
         company="Enterprise Solutions",

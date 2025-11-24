@@ -4,7 +4,7 @@ Job matching engine - Scores jobs against resume
 
 import logging
 import re
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Tuple
 
 from config.settings import MATCHING, RESUME_DATA
 
@@ -18,20 +18,6 @@ class JobMatcher:
         self.resume = resume_data or RESUME_DATA
         self.all_skills = self._extract_all_skills()
         self.experience_keywords = self._extract_experience_keywords()
-        self.keywords = {
-            "help desk": 0,
-            "service desk": 0,
-            "infrastructure": 0,
-            "architect": 0,
-            "cloud": 0,
-            "ai": 0,
-            "governance": 0,
-            "training": 0,
-            "leadership": 0,
-            "senior": 0,
-            "manager": 0,
-        }
-        self.universe_of_skills = self.all_skills.union(set(self.keywords.keys()))
 
     def _extract_all_skills(self) -> set:
         """Extract all skills from resume"""
@@ -148,13 +134,15 @@ class JobMatcher:
             [s.title() for s in missing_skills],
         )
 
-    def _extract_job_skills(self, job_text: str) -> Set[str]:
+    def _extract_job_skills(self, job_text: str) -> set:
         """Extract skills that the job actually requires from the description"""
         job_text_lower = job_text.lower()
         job_skills = set()
 
         # Check each known skill against job description with word boundaries
         for skill in self.all_skills:
+            # Use regex for whole-word matching to avoid partial matches
+            # e.g., 'ai' in 'training'
             pattern = r"\b" + re.escape(skill.lower()) + r"\b"
             if re.search(pattern, job_text_lower):
                 job_skills.add(skill.lower())
@@ -167,9 +155,9 @@ class JobMatcher:
         score = 0.0
 
         # Key terms that indicate relevance
-        senior_terms = ["senior", "lead", "architect", "manager", "director"]
-        infrastructure_terms = ["infrastructure", "network", "systems", "architecture"]
-        support_terms = ["help desk", "service desk", "support", "technical"]
+        senior_terms = ['senior', 'lead', 'architect', 'manager', 'director']
+        infrastructure_terms = ['infrastructure', 'network', 'systems', 'architecture']
+        support_terms = ['help desk', 'service desk', 'support', 'technical']
 
         for exp in self.resume["experience"]:
             relevance = 0
@@ -185,12 +173,8 @@ class JobMatcher:
                     relevance += 0.3
 
             # Check for infrastructure/technical role overlap
-            if any(
-                term in exp_title_lower for term in infrastructure_terms + support_terms
-            ):
-                if any(
-                    term in job_text for term in infrastructure_terms + support_terms
-                ):
+            if any(term in exp_title_lower for term in infrastructure_terms + support_terms):
+                if any(term in job_text for term in infrastructure_terms + support_terms):
                     relevance += 0.2
 
             # Check for skill matches (existing logic)
@@ -207,16 +191,28 @@ class JobMatcher:
         return min(score, 1.0), relevant_exp
 
     def _calculate_keyword_match(self, job_text: str) -> Tuple[float, Dict[str, int]]:
-        """Calculate keyword matches (presence only, more efficient)"""
-        job_text_lower = job_text.lower()
-        matched_keywords = {}
+        """Calculate keyword matches"""
+        keywords = {
+            "help desk": 0,
+            "service desk": 0,
+            "infrastructure": 0,
+            "architect": 0,
+            "cloud": 0,
+            "ai": 0,
+            "governance": 0,
+            "training": 0,
+            "leadership": 0,
+            "senior": 0,
+            "manager": 0,
+        }
 
-        for keyword in self.keywords:
-            if keyword.lower() in job_text_lower:
-                matched_keywords[keyword] = 1  # Presence only, not count
+        for keyword in keywords:
+            keywords[keyword] = job_text.count(keyword)
 
-        score = len(matched_keywords) / len(self.keywords)
-        return score, matched_keywords
+        matched = sum(1 for count in keywords.values() if count > 0)
+        score = matched / len(keywords)
+
+        return score, {k: v for k, v in keywords.items() if v > 0}
 
     def _check_experience_level(self, job: Dict) -> bool:
         """Check if experience level matches"""
