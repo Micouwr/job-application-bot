@@ -186,28 +186,21 @@ class JobApplicationBot:
 
         while True:
             print("\n" + "-" * 40)
-            url = input("Job URL (or 'done'): ").strip()
+            title = input("Job Title (or 'done'): ").strip()
 
-            if url.lower() == "done":
+            if title.lower() == "done":
                 break
 
-            if not url:
-                print("❌ Job URL cannot be empty. Please try again.")
-                continue
-
-            # Prevent duplicate entries
-            if self.db.job_exists(url):
-                logger.warning(f"Job with URL {url} already exists. Skipping.")
-                print("ℹ️  This job URL already exists in the database.")
-                continue
-
-            title = input("Job Title: ").strip()
             if not title:
                 print("❌ Job title cannot be empty. Please try again.")
                 continue
 
-            company = input("Company: ").strip() or "Unknown"
+            company = input("Company: ").strip()
+            if not company:
+                company = "Unknown"
+                print("ℹ️  Using default company: Unknown")
 
+            url = input("Job URL: ").strip()
             location = input(f"Location [{JOB_LOCATION}]: ").strip() or JOB_LOCATION
 
             print("\nPaste job description (press Enter twice when done):")

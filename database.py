@@ -170,24 +170,6 @@ class JobDatabase:
             logger.error(f"Error inserting job: {e}")
             return False
 
-    def job_exists(self, url: str) -> bool:
-        """
-        Checks if a job with the given URL already exists in the database.
-
-        Args:
-            url: The URL of the job to check.
-
-        Returns:
-            True if the job exists, False otherwise.
-        """
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute("SELECT 1 FROM jobs WHERE url = ? LIMIT 1", (url,))
-            return cursor.fetchone() is not None
-        except Exception as e:
-            logger.error(f"Error checking if job exists: {e}")
-            return False
-
     def update_match_score(self, job_id: str, match_result: Dict) -> bool:
         """
         Updates a job with its match score and other details.

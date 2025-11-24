@@ -139,11 +139,8 @@ class JobMatcher:
         job_text_lower = job_text.lower()
         job_skills = set()
 
-        # Check each known skill against job description with word boundaries
         for skill in self.all_skills:
-            # Use regex for whole-word matching to avoid partial matches
-            # e.g., 'ai' in 'training'
-            pattern = r"\b" + re.escape(skill.lower()) + r"\b"
+            pattern = r'\b' + re.escape(skill.lower()) + r'\b'
             if re.search(pattern, job_text_lower):
                 job_skills.add(skill.lower())
 
