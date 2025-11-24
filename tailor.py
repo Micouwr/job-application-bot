@@ -150,16 +150,15 @@ class ResumeTailor:
                 .split("[END_COVER_LETTER]")[0]
                 .strip()
             )
-            changes = (
+            changes_str = (
                 response_text.split("[START_CHANGES]")[1]
                 .split("[END_CHANGES]")[0]
                 .strip()
-                .split(",")
             )
             return {
                 "resume_text": resume,
                 "cover_letter": cover_letter,
-                "changes": [change.strip() for change in changes if change.strip()],
+                "changes": [change.strip() for change in changes_str.split(",") if change.strip()],
             }
         except IndexError:
             logger.error(
