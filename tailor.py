@@ -156,11 +156,10 @@ class ResumeTailor:
                 .strip()
                 .split(",")
             )
-            changes_list = [c.strip() for c in changes if c.strip()]
             return {
                 "resume_text": resume,
                 "cover_letter": cover_letter,
-                "changes": changes_list,
+                "changes": [change.strip() for change in changes if change.strip()],
             }
         except IndexError:
             logger.error(
