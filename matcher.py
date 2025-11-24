@@ -207,15 +207,16 @@ class JobMatcher:
         return min(score, 1.0), relevant_exp
 
     def _calculate_keyword_match(self, job_text: str) -> Tuple[float, Dict[str, int]]:
-        """Calculate keyword matches"""
-        keywords = self.keywords.copy()
-        for keyword in keywords:
-            keywords[keyword] = job_text.count(keyword)
+        """Calculate keyword matches (presence only, more efficient)"""
+        job_text_lower = job_text.lower()
+        matched_keywords = {}
 
-        matched = sum(1 for count in keywords.values() if count > 0)
-        score = matched / len(keywords)
+        for keyword in self.keywords:
+            if keyword.lower() in job_text_lower:
+                matched_keywords[keyword] = 1  # Presence only, not count
 
-        return score, {k: v for k, v in keywords.items() if v > 0}
+        score = len(matched_keywords) / len(self.keywords)
+        return score, matched_keywords
 
     def _check_experience_level(self, job: Dict) -> bool:
         """Check if experience level matches"""
