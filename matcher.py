@@ -19,6 +19,30 @@ class JobMatcher:
         self.all_skills = self._extract_all_skills()
         self.experience_keywords = self._extract_experience_keywords()
 
+        # Define a set of keywords for matching and universe creation
+        self.keywords = {
+            "help desk",
+            "service desk",
+            "infrastructure",
+            "architect",
+            "cloud",
+            "ai",
+            "governance",
+            "training",
+            "leadership",
+            "senior",
+            "manager",
+            "python",
+            "aws",
+            "javascript",
+            "azure",
+            "project management",
+        }
+        # Create a dictionary from the set for use in keyword matching
+        self.keyword_dict = {k: 0 for k in self.keywords}
+
+        self.universe_of_skills = self.all_skills.union(self.keywords)
+
     def _extract_all_skills(self) -> set:
         """Extract all skills from resume"""
         skills = set()
@@ -139,8 +163,9 @@ class JobMatcher:
         job_text_lower = job_text.lower()
         job_skills = set()
 
-        for skill in self.all_skills:
-            pattern = r'\b' + re.escape(skill.lower()) + r'\b'
+        # Check each known skill against job description with word boundaries
+        for skill in self.universe_of_skills:
+            pattern = r"\b" + re.escape(skill.lower()) + r"\b"
             if re.search(pattern, job_text_lower):
                 job_skills.add(skill.lower())
 
@@ -152,9 +177,9 @@ class JobMatcher:
         score = 0.0
 
         # Key terms that indicate relevance
-        senior_terms = ['senior', 'lead', 'architect', 'manager', 'director']
-        infrastructure_terms = ['infrastructure', 'network', 'systems', 'architecture']
-        support_terms = ['help desk', 'service desk', 'support', 'technical']
+        senior_terms = ["senior", "lead", "architect", "manager", "director"]
+        infrastructure_terms = ["infrastructure", "network", "systems", "architecture"]
+        support_terms = ["help desk", "service desk", "support", "technical"]
 
         for exp in self.resume["experience"]:
             relevance = 0
@@ -170,8 +195,12 @@ class JobMatcher:
                     relevance += 0.3
 
             # Check for infrastructure/technical role overlap
-            if any(term in exp_title_lower for term in infrastructure_terms + support_terms):
-                if any(term in job_text for term in infrastructure_terms + support_terms):
+            if any(
+                term in exp_title_lower for term in infrastructure_terms + support_terms
+            ):
+                if any(
+                    term in job_text for term in infrastructure_terms + support_terms
+                ):
                     relevance += 0.2
 
             # Check for skill matches (existing logic)
@@ -189,25 +218,13 @@ class JobMatcher:
 
     def _calculate_keyword_match(self, job_text: str) -> Tuple[float, Dict[str, int]]:
         """Calculate keyword matches"""
-        keywords = {
-            "help desk": 0,
-            "service desk": 0,
-            "infrastructure": 0,
-            "architect": 0,
-            "cloud": 0,
-            "ai": 0,
-            "governance": 0,
-            "training": 0,
-            "leadership": 0,
-            "senior": 0,
-            "manager": 0,
-        }
+        keywords = self.keyword_dict.copy()
 
         for keyword in keywords:
             keywords[keyword] = job_text.count(keyword)
 
         matched = sum(1 for count in keywords.values() if count > 0)
-        score = matched / len(keywords)
+        score = matched / len(keywords) if keywords else 0
 
         return score, {k: v for k, v in keywords.items() if v > 0}
 

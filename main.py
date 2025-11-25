@@ -14,17 +14,9 @@ from typing import Dict, List, Optional
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config.settings import (
-    COVER_LETTERS_DIR,
-    JOB_KEYWORDS,
-    JOB_LOCATION,
-    LOG_FILE,
-    MATCH_THRESHOLD,
-    MAX_JOBS_PER_PLATFORM,
-    RESUME_DATA,
-    RESUMES_DIR,
-    validate_config,
-)
+from config.settings import (COVER_LETTERS_DIR, JOB_KEYWORDS, JOB_LOCATION,
+                             LOG_FILE, MATCH_THRESHOLD, MAX_JOBS_PER_PLATFORM,
+                             RESUME_DATA, RESUMES_DIR, validate_config)
 from database import JobDatabase
 from matcher import JobMatcher
 from scraper import JobScraper
@@ -262,6 +254,48 @@ class JobApplicationBot:
         self.db.update_status(job_id, "applied")
         logger.info(f"✓ Application approved: {job_id}")
 
+    def approve_interactive(self) -> None:
+        """Runs an interactive session to approve pending applications."""
+        pending = self.db.get_pending_reviews()
+
+        if not pending:
+            print("\nNo applications pending review.")
+            return
+
+        while True:
+            print("\n" + "=" * 80)
+            print("INTERACTIVE APPROVAL")
+            print("=" * 80 + "\n")
+
+            for i, app in enumerate(pending, 1):
+                score = app["match_score"] or 0
+                print(f"[{i}] {app['title']} at {app['company']} ({score*100:.1f}%)")
+
+            print("\nEnter number to approve, 'all', or 'quit'.")
+            choice = input("> ").strip().lower()
+
+            if choice == "quit":
+                break
+            elif choice == "all":
+                for app in pending:
+                    self.approve_application(app["id"])
+                print("\n✅ All pending applications approved.")
+                break
+            else:
+                try:
+                    index = int(choice) - 1
+                    if 0 <= index < len(pending):
+                        job_id = pending[index]["id"]
+                        self.approve_application(job_id)
+                        # Refresh list
+                        pending = self.db.get_pending_reviews()
+                        if not pending:
+                            break
+                    else:
+                        print("❌ Invalid number. Please try again.")
+                except ValueError:
+                    print("❌ Invalid input. Please enter a number, 'all', or 'quit'.")
+
     def _save_application_files(self, job: Dict, application: Dict) -> None:
         """
         Saves the tailored resume and cover letter to files.
@@ -281,7 +315,9 @@ class JobApplicationBot:
             with open(resume_file, "w", encoding="utf-8") as f:
                 f.write(application["resume_text"])
 
-            cover_file = COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
+            cover_file = (
+                COVER_LETTERS_DIR / f"{safe_company}_{timestamp}_cover_letter.txt"
+            )
             cover_file.parent.mkdir(parents=True, exist_ok=True)
             with open(cover_file, "w", encoding="utf-8") as f:
                 f.write(application["cover_letter"])
