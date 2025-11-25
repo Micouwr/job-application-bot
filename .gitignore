@@ -244,3 +244,7 @@ temp/
 
 # Windows
 Thumbs.db
+
+# Don't ignore assets folder (for icons, templates, etc.)
+!assets/
+!assets/*
