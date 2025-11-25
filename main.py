@@ -45,7 +45,7 @@ class JobApplicationBot:
         logger.info("Job Application Bot Starting")
         logger.info("=" * 80)
 
-        # Validate configuration (robust validation now in settings.py)
+        # Validate configuration
         try:
             validate_config()
             logger.info("✓ Configuration validated")
