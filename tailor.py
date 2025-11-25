@@ -4,7 +4,7 @@ Resume tailoring engine - Generates customized narratives for job applications u
 
 import logging
 import os
-from typing import Dict, List, Tuple, Any
+from typing import Any, Dict, List, Tuple
 
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -37,7 +37,9 @@ class ResumeTailor:
         else:
             self.model = None
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
+    )
     def tailor_application(self, job: Dict, match: Dict) -> Dict:
         """
         Generates a tailored resume and cover letter for a given job application.
@@ -138,6 +140,7 @@ class ResumeTailor:
     def _parse_response(self, response_text: str) -> Dict[str, Any]:
         """
         Parses the Gemini API response to extract the tailored content.
+        Raises ValueError if the response is malformed.
         """
         try:
             resume = (
@@ -155,21 +158,21 @@ class ResumeTailor:
                 .split("[END_CHANGES]")[0]
                 .strip()
             )
+
+            changes = [
+                change.strip() for change in changes_str.split(",") if change.strip()
+            ]
+
             return {
                 "resume_text": resume,
                 "cover_letter": cover_letter,
-                "changes": [change.strip() for change in changes_str.split(",") if change.strip()],
+                "changes": changes,
             }
-        except IndexError:
+        except IndexError as e:
             logger.error(
-                "Failed to parse Gemini response. It might be incomplete or malformed."
+                "Failed to parse Gemini response. It is missing one of the required tags."
             )
-            # Return a default or error structure
-            return {
-                "resume_text": "Error: Could not parse tailored resume.",
-                "cover_letter": "Error: Could not parse cover letter.",
-                "changes": ["Error in parsing response"],
-            }
+            raise ValueError("Malformed response from Gemini API") from e
 
 
 # Demo usage

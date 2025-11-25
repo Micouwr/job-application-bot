@@ -130,19 +130,23 @@ class JobDatabase:
 
     def insert_job(self, job: Dict) -> bool:
         """
-        Inserts a new job listing into the database.
+        Inserts a new job listing into the database, preventing duplicates by URL.
 
         Args:
             job: A dictionary containing the job details.
 
         Returns:
-            True if the insertion was successful, False otherwise.
+            True if the insertion was successful, False if the job already exists or an error occurred.
         """
+        if self.job_exists(job.get("url", "")):
+            logger.warning(f"Job with URL {job.get('url')} already exists. Skipping.")
+            return False
+
         try:
             cursor = self.conn.cursor()
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO jobs 
+                INSERT INTO jobs
                 (id, title, company, location, description, requirements, url, 
                  salary, job_type, experience_level, source, scraped_at, raw_data)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -166,8 +170,23 @@ class JobDatabase:
             self.conn.commit()
             self.log_activity(job["id"], "job_added", f"Added: {job['title']}")
             return True
+        except sqlite3.IntegrityError:
+            logger.warning(f"Job with ID {job['id']} already exists. Skipping.")
+            return False
         except Exception as e:
             logger.error(f"Error inserting job: {e}")
+            return False
+
+    def job_exists(self, url: str) -> bool:
+        """Checks if a job with the given URL already exists."""
+        if not url:
+            return False
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT 1 FROM jobs WHERE url = ?", (url,))
+            return cursor.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Error checking if job exists: {e}")
             return False
 
     def update_match_score(self, job_id: str, match_result: Dict) -> bool:
