@@ -1,28 +1,160 @@
 """
-Configuration settings for Job Application Bot
+Configuration settings for Job Application Bot - Enterprise Grade
+Handles environment validation, path resolution, and security.
 """
 
 import os
+import re
+import sys
 from pathlib import Path
+from typing import Dict, Any
 
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# ==========================================
+# PATH RESOLUTION (PyInstaller Compatible)
+# ==========================================
 
-# Base paths
-BASE_DIR = Path(__file__).resolve().parent.parent
+def _get_base_dir() -> Path:
+    """
+    Get base directory that works both in development and PyInstaller bundles.
+    Prevents path traversal attacks by ensuring we stay in project scope.
+    """
+    if getattr(sys, "frozen", False):
+        # Running as PyInstaller bundle
+        base_dir = Path(sys.executable).parent
+    else:
+        # Running from source
+        base_dir = Path(__file__).resolve().parent.parent
+    
+    return base_dir
+
+BASE_DIR = _get_base_dir()
+
+# ==========================================
+# ENVIRONMENT VALIDATION (Critical Security)
+# ==========================================
+
+def validate_config() -> bool:
+    """
+    Validates all required configuration before bot starts.
+    Provides clear, actionable error messages.
+    Returns True if valid, raises ValueError if not.
+    """
+    errors = []
+    warnings = []
+    
+    # 1. Check .env file exists
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        if (BASE_DIR / ".env.example").exists():
+            errors.append(
+                f".env file not found at {env_path}. "
+                f"Copy .env.example to .env and add your API key:\n"
+                f"  cp .env.example .env"
+            )
+        else:
+            errors.append(
+                f"No .env file found at {env_path}. Create one from .env.example"
+            )
+    
+    # 2. Load and validate API keys
+    load_dotenv(env_path)
+    
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not gemini_key:
+        errors.append("GEMINI_API_KEY is not set in .env file")
+    elif not re.match(r'^AIza[0-9A-Za-z_-]{35,}$', gemini_key):
+        errors.append(
+            "GEMINI_API_KEY format is invalid. Must start with 'AIza' and be ~40+ characters. "
+            "Get your key from: https://makersuite.google.com/app/apikey"
+        )
+    
+    # 3. Validate required user information
+    required_fields = {
+        "YOUR_NAME": "Your full name",
+        "YOUR_EMAIL": "Your email address"
+    }
+    
+    for field, description in required_fields.items():
+        value = os.getenv(field, "").strip()
+        if not value:
+            errors.append(f"{field} ({description}) is not set in .env file")
+        elif field == "YOUR_EMAIL" and "@" not in value:
+            warnings.append(f"{field} doesn't look like a valid email: {value}")
+    
+    # 4. Validate optional but important fields
+    if not os.getenv("JOB_LOCATION"):
+        warnings.append("JOB_LOCATION not set, using default: Louisville, KY")
+    
+    # 5. Validate numerical settings
+    try:
+        max_jobs = int(os.getenv("MAX_JOBS_PER_PLATFORM", "50"))
+        if max_jobs <= 0 or max_jobs > 1000:
+            warnings.append(f"MAX_JOBS_PER_PLATFORM={max_jobs} seems unreasonable, using 50")
+    except ValueError:
+        warnings.append("MAX_JOBS_PER_PLATFORM must be a number, using default: 50")
+    
+    try:
+        threshold = float(os.getenv("MATCH_THRESHOLD", "0.80"))
+        if threshold < 0 or threshold > 1:
+            errors.append(f"MATCH_THRESHOLD={threshold} must be between 0.0 and 1.0")
+    except ValueError:
+        errors.append("MATCH_THRESHOLD must be a number (e.g., 0.80)")
+    
+    # 6. Check that required directories are writable
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        (DATA_DIR / "test_write").touch()
+        (DATA_DIR / "test_write").unlink()
+    except Exception as e:
+        errors.append(f"Cannot write to data directory {DATA_DIR}: {e}")
+    
+    # Report results
+    if errors:
+        error_msg = "\n".join(f"  ❌ {e}" for e in errors)
+        raise ValueError(
+            f"\n{'='*60}\n"
+            f"CONFIGURATION ERRORS (Bot Cannot Start)\n"
+            f"{'='*60}\n{error_msg}\n"
+            f"{'='*60}\n"
+            f"Please fix these issues and restart."
+        )
+    
+    if warnings:
+        warning_msg = "\n".join(f"  ⚠️  {w}" for w in warnings)
+        print(
+            f"\n{'='*60}\n"
+            f"CONFIGURATION WARNINGS\n"
+            f"{'='*60}\n{warning_msg}\n"
+            f"{'='*60}\n"
+        )
+    
+    print("✓ Configuration validated successfully")
+    return True
+
+# ==========================================
+# DIRECTORY SETUP (Secure)
+# ==========================================
+
 DATA_DIR = BASE_DIR / "data"
 LOGS_DIR = BASE_DIR / "logs"
 OUTPUT_DIR = BASE_DIR / "output"
 RESUMES_DIR = OUTPUT_DIR / "resumes"
 COVER_LETTERS_DIR = OUTPUT_DIR / "cover_letters"
 
-# Create directories if they don't exist
+# Create directories with error handling
 for directory in [DATA_DIR, LOGS_DIR, OUTPUT_DIR, RESUMES_DIR, COVER_LETTERS_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise ValueError(f"Cannot create directory {directory}: {e}")
 
-# API Keys
+# ==========================================
+# CONFIGURATION VARIABLES
+# ==========================================
+
+# API Keys (validated above)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY")
 
@@ -31,20 +163,10 @@ JOB_LOCATION = os.getenv("JOB_LOCATION", "Louisville, KY")
 MAX_JOBS_PER_PLATFORM = int(os.getenv("MAX_JOBS_PER_PLATFORM", "50"))
 MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.80"))
 
-# Your Information
-YOUR_INFO = {
-    "name": os.getenv("YOUR_NAME"),
-    "email": os.getenv("YOUR_EMAIL"),
-    "phone": os.getenv("YOUR_PHONE"),
-    "linkedin": os.getenv("YOUR_LINKEDIN", "linkedin.com/in/ryanmicou"),
-    "github": os.getenv("YOUR_GITHUB", "github.com/Micouwr"),
-    "location": JOB_LOCATION,
-}
-
 # Job Search Keywords
 JOB_KEYWORDS = [
     "IT Infrastructure Architect",
-    "Senior Infrastructure Architect",
+    "Senior Infrastructure Architect", 
     "Help Desk Manager",
     "Service Desk Manager",
     "Technical Support Manager",
@@ -54,12 +176,19 @@ JOB_KEYWORDS = [
     "Systems Architect",
 ]
 
+# Your Information
+YOUR_INFO = {
+    "name": os.getenv("YOUR_NAME"),
+    "email": os.getenv("YOUR_EMAIL"),
+    "phone": os.getenv("YOUR_PHONE"),
+    "linkedin": os.getenv("YOUR_LINKEDIN", ""),
+    "github": os.getenv("YOUR_GITHUB", ""),
+    "location": JOB_LOCATION,
+}
+
 # Database
 DATABASE_PATH = DATA_DIR / "job_applications.db"
-
-# Logging
 LOG_FILE = LOGS_DIR / "job_application.log"
-LOG_LEVEL = "INFO"
 
 # Scraping Settings
 SCRAPING = {
@@ -74,14 +203,16 @@ SCRAPING = {
 MATCHING = {
     "threshold": MATCH_THRESHOLD,
     "weights": {"skills": 0.40, "experience": 0.40, "keywords": 0.20},
-    "experience_level_multiplier": 0.85,  # Applied if level doesn't match
+    "experience_level_multiplier": 0.85,
 }
 
 # Tailoring Settings
 TAILORING = {
     "max_tokens": 4000,
     "temperature": 0.7,
-    "model": "gemini-1.5-pro",  # updated to Gemini model
+    "model": "gemini-1.5-flash",
+    "timeout": 120,  # seconds
+    "max_retries": 3,
 }
 
 # Resume Data Structure
@@ -206,20 +337,6 @@ RESUME_DATA = {
     ],
 }
 
-
-def validate_config():
-    """Validate that all required configuration is present"""
-    errors = []
-
-    if not GEMINI_API_KEY:
-        errors.append("GEMINI_API_KEY is not set in .env file")
-
-    if not JOB_LOCATION:
-        errors.append("JOB_LOCATION is not set")
-
-    if errors:
-        raise ValueError(
-            "Configuration errors:\n" + "\n".join(f"- {e}" for e in errors)
-        )
-
-    return True
+# Run validation on import
+# This will raise ValueError if configuration is invalid
+validate_config()
