@@ -12,7 +12,7 @@ from contextlib import contextmanager
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Text, Float, DateTime, ForeignKey, 
-    Boolean, Index, event
+    Boolean, Index, event, func
 )
 from sqlalchemy.orm import sessionmaker, relationship, Session, declarative_base
 from sqlalchemy.pool import StaticPool
@@ -22,6 +22,12 @@ from config.settings import DATABASE_PATH
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
+
+
+# Custom Exceptions
+class JobNotFoundError(Exception):
+    """Raised when a job ID is not found in the database"""
+    pass
 
 
 # Database Models
@@ -43,11 +49,12 @@ class Job(Base):
     match_score = Column(Float)
     status = Column(String, default="new", index=True)
     raw_data = Column(Text)
+    is_deleted = Column(Boolean, default=False)  # Soft delete flag
     
     # Relationships
-    match_details = relationship("MatchDetail", back_populates="job", cascade="all, delete-orphan")
-    applications = relationship("Application", back_populates="job", cascade="all, delete-orphan")
-    activity_logs = relationship("ActivityLog", back_populates="job", cascade="all, delete-orphan")
+    match_details = relationship("MatchDetail", back_populates="job", cascade="all")  # Keep orphans for history
+    applications = relationship("Application", back_populates="job", cascade="all")
+    activity_logs = relationship("ActivityLog", back_populates="job", cascade="all")
     
     __table_args__ = (
         Index('idx_jobs_company_title', 'company', 'title'),
@@ -118,12 +125,12 @@ class ActivityLog(Base):
     job = relationship("Job", back_populates="activity_logs")
     
     def to_dict(self) -> Dict[str, Any]:
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns]
 
 
 class JobDatabase:
     """
-    ✅ QoL: Enhanced database class with SQLAlchemy ORM, connection pooling, and backups.
+    Enhanced database class with SQLAlchemy ORM, connection pooling, and backups.
     """
     
     def __init__(self, db_path: Optional[Path] = None):
@@ -132,7 +139,8 @@ class JobDatabase:
             f"sqlite:///{self.db_path}",
             poolclass=StaticPool,
             connect_args={"check_same_thread": False},
-            echo=False
+            echo=False,
+            pool_pre_ping=True,  # Verify connections before using
         )
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
@@ -147,8 +155,13 @@ class JobDatabase:
         logger.info(f"✓ Database initialized at {self.db_path}")
 
     @contextmanager
-    def get_session(self) -> Session:
-        """✅ QoL: Context manager for safe session handling"""
+    def get_session(self, timeout: Optional[int] = 30) -> Session:
+        """
+        Context manager for safe session handling with optional timeout
+        
+        Args:
+            timeout: Optional query timeout in seconds
+        """
         session = self.Session()
         try:
             yield session
@@ -160,18 +173,29 @@ class JobDatabase:
             session.close()
 
     def insert_job(self, job: Dict[str, Any]) -> bool:
-        """ Insert a new job listing """
+        """Insert a new job listing"""
         try:
             with self.get_session() as session:
-                # Check if job exists
+                # Check for existing job first
                 existing = session.query(Job).filter_by(id=job["id"]).first()
                 if existing:
+                    if existing.is_deleted:
+                        logger.info(f"Job {job['id']} was soft-deleted, restoring")
+                        existing.is_deleted = False
+                    
                     logger.info(f"Job {job['id']} already exists, updating")
                     # Update existing record
                     for key, value in job.items():
                         if hasattr(existing, key):
                             setattr(existing, key, value)
                 else:
+                    # Validate JSON field sizes before inserting
+                    for json_field in ['raw_data']:
+                        if json_field in job and job[json_field]:
+                            if len(job[json_field]) > 1_000_000:  # 1MB limit
+                                logger.warning(f"Raw data too large for job {job['id']}, truncating")
+                                job[json_field] = job[json_field][:1_000_000]
+                    
                     # Create new job
                     db_job = Job(**{k: v for k, v in job.items() if hasattr(Job, k)})
                     session.add(db_job)
@@ -184,18 +208,28 @@ class JobDatabase:
             return False
 
     def update_match_score(self, job_id: str, match_result: Dict[str, Any]) -> bool:
-        """  Update job with match score and details """
+        """Update job with match score and details"""
         try:
             with self.get_session() as session:
-                # Update job score and status
-                job = session.query(Job).filter_by(id=job_id).first()
+                # Use exception instead of returning False
+                job = session.query(Job).filter_by(id=job_id, is_deleted=False).first()
                 if not job:
-                    logger.error(f"Job {job_id} not found")
-                    return False
+                    raise JobNotFoundError(f"Job {job_id} not found or has been deleted")
                 
                 job.match_score = match_result["match_score"]
                 job.status = "matched" if match_result["match_score"] >= 0.80 else "low_match"
 
+                # Validate JSON size before storing
+                json_fields = ['matched_skills', 'missing_skills', 'relevant_experience', 'strengths', 'gaps']
+                total_json_size = 0
+                for field in json_fields:
+                    if field in match_result and match_result[field]:
+                        json_str = json.dumps(match_result[field])
+                        total_json_size += len(json_str)
+                        if total_json_size > 500_000:  # 500KB limit for all fields
+                            logger.warning(f"Match details too large for job {job_id}, truncating")
+                            match_result[field] = match_result[field][:10]  # Keep only first 10 items
+                
                 # Update or create match details
                 match_detail = session.query(MatchDetail).filter_by(job_id=job_id).first()
                 if not match_detail:
@@ -213,15 +247,26 @@ class JobDatabase:
                                      f"Match: {match_result['match_score']*100:.1f}%")
                 
                 return True
+        except JobNotFoundError:
+            raise  # Re-raise to let caller handle
         except Exception as e:
             logger.error(f"Error updating match score: {e}")
             return False
 
     def save_application(self, job_id: str, resume: str, cover_letter: str, 
                         changes: List[str]) -> bool:
-        """  Save a tailored application """
+        """Save a tailored application"""
         try:
             with self.get_session() as session:
+                # Validate text field sizes
+                if len(resume) > 5_000_000:  # 5MB limit
+                    logger.warning(f"Resume too large for job {job_id}, truncating")
+                    resume = resume[:5_000_000]
+                
+                if len(cover_letter) > 5_000_000:  # 5MB limit
+                    logger.warning(f"Cover letter too large for job {job_id}, truncating")
+                    cover_letter = cover_letter[:5_000_000]
+                
                 application = Application(
                     job_id=job_id,
                     tailored_resume=resume,
@@ -244,17 +289,21 @@ class JobDatabase:
             return False
 
     def update_status(self, job_id: str, status: str, notes: Optional[str] = None) -> bool:
-        """ Update application status """
+        """Update application status"""
         try:
             with self.get_session() as session:
-                # Update application
-                application = session.query(Application).filter_by(job_id=job_id).first()
-                if application:
-                    application.status = status
-                    if status == "applied":
-                        application.applied_at = datetime.now()
-                    if notes:
-                        application.notes = f"{application.notes or ''}\n{notes}".strip()
+                # Use exception for not found
+                application = session.query(Application).join(Job).filter(
+                    Application.job_id == job_id, Job.is_deleted == False
+                ).first()
+                if not application:
+                    raise JobNotFoundError(f"Application for job {job_id} not found")
+                
+                application.status = status
+                if status == "applied":
+                    application.applied_at = datetime.now()
+                if notes:
+                    application.notes = f"{application.notes or ''}\n{notes}".strip()
                 
                 # Update job status
                 job = session.query(Job).filter_by(id=job_id).first()
@@ -263,19 +312,24 @@ class JobDatabase:
                 
                 self._log_activity(session, job_id, "status_change", f"Status: {status}")
                 return True
+        except JobNotFoundError:
+            raise
         except Exception as e:
             logger.error(f"Error updating status: {e}")
             return False
 
     def get_pending_reviews(self) -> List[Dict[str, Any]]:
-        """ Get all applications pending review """
+        """Get all applications pending review"""
         try:
             with self.get_session() as session:
                 query = session.query(Job, Application, MatchDetail).join(
                     Application, Job.id == Application.job_id
                 ).outerjoin(
                     MatchDetail, Job.id == MatchDetail.job_id
-                ).filter(Application.status == "pending_review").order_by(Job.match_score.desc())
+                ).filter(
+                    Application.status == "pending_review", 
+                    Job.is_deleted == False
+                ).order_by(Job.match_score.desc())
                 
                 results = []
                 for job, application, match_detail in query.all():
@@ -291,13 +345,15 @@ class JobDatabase:
             return []
 
     def get_statistics(self) -> Dict[str, Any]:
-        """  Get comprehensive statistics """
+        """Get comprehensive statistics"""
         try:
             with self.get_session() as session:
                 stats = {}
                 
-                stats["total_jobs"] = session.query(Job).count()
-                stats["high_matches"] = session.query(Job).filter(Job.match_score >= 0.80).count()
+                stats["total_jobs"] = session.query(Job).filter(Job.is_deleted == False).count()
+                stats["high_matches"] = session.query(Job).filter(
+                    Job.match_score >= 0.80, Job.is_deleted == False
+                ).count()
                 
                 # Status breakdown
                 status_counts = session.query(Application.status, 
@@ -306,9 +362,9 @@ class JobDatabase:
                 stats["by_status"] = {status: count for status, count in status_counts}
                 
                 # Average match score
-                from sqlalchemy.sql import func
                 avg_score = session.query(func.avg(Job.match_score)).filter(
-                    Job.match_score.isnot(None)).scalar()
+                    Job.match_score.isnot(None), Job.is_deleted == False
+                ).scalar()
                 stats["avg_match_score"] = round(avg_score, 3) if avg_score else 0
                 
                 # Recent activity
@@ -322,23 +378,24 @@ class JobDatabase:
             return {"total_jobs": 0, "high_matches": 0, "by_status": {}, "avg_match_score": 0}
 
     def get_all_jobs(self) -> List[Dict[str, Any]]:
-        """  QoL: Get all jobs for export """
+        """QoL: Get all jobs for export"""
         try:
             with self.get_session() as session:
-                jobs = session.query(Job).all()
+                jobs = session.query(Job).filter(Job.is_deleted == False).all()
                 return [job.to_dict() for job in jobs]
         except Exception as e:
             logger.error(f"Error fetching all jobs: {e}")
             return []
 
     def search_jobs(self, query: str) -> List[Dict[str, Any]]:
-        """  QoL: Full-text search across job descriptions """
+        """QoL: Full-text search across job descriptions"""
         try:
             with self.get_session() as session:
                 jobs = session.query(Job).filter(
                     (Job.title.contains(query)) |
                     (Job.description.contains(query)) |
-                    (Job.company.contains(query))
+                    (Job.company.contains(query)),
+                    Job.is_deleted == False
                 ).all()
                 return [job.to_dict() for job in jobs]
         except Exception as e:
@@ -346,7 +403,7 @@ class JobDatabase:
             return []
 
     def _log_activity(self, session: Session, job_id: str, action: str, details: str) -> None:
-        """  Log an activity (internal method with session) """
+        """Log an activity (internal method with session)"""
         try:
             log = ActivityLog(job_id=job_id, action=action, details=details)
             session.add(log)
@@ -355,7 +412,7 @@ class JobDatabase:
 
     def create_backup(self, backup_path: Optional[Path] = None) -> Optional[Path]:
         """
-        ✅ QoL: Create a backup of the database
+        QoL: Create a backup of the database
         """
         if not backup_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -371,8 +428,27 @@ class JobDatabase:
             return None
 
     def close(self) -> None:
-        """  Close the database connection """
+        """Close the database connection"""
         # SQLAlchemy handles this automatically with context managers
+
+    def soft_delete_job(self, job_id: str) -> bool:
+        """
+        QoL: Soft delete a job (keeps history but hides from queries)
+        """
+        try:
+            with self.get_session() as session:
+                job = session.query(Job).filter_by(id=job_id).first()
+                if not job:
+                    raise JobNotFoundError(f"Job {job_id} not found")
+                
+                job.is_deleted = True
+                self._log_activity(session, job_id, "soft_delete", "Job archived")
+                return True
+        except JobNotFoundError:
+            raise
+        except Exception as e:
+            logger.error(f"Error soft deleting job: {e}")
+            return False
 
 
 # Helper function at module level
@@ -395,3 +471,5 @@ if __name__ == "__main__":
     stats = db.get_statistics()
     print("\n=== Database Statistics ===")
     print(f"Total jobs: {stats['total_jobs']}")
+    print(f"High matches: {stats['high_matches']}")
+    print(f"Average match score: {stats['avg_match_score']*100:.1f}%")
