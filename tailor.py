@@ -40,7 +40,7 @@ class ResumeTailor:
         else:
             try:
                 self.model = genai.GenerativeModel(Config.TAILORING["model"])
-                logger.info("✓ Gemini model initialized")
+                logger.info("Gemini model initialized")
             except Exception as e:
                 logger.error(f"Failed to initialize Gemini model: {e}")
                 self.model = None
@@ -91,7 +91,7 @@ class ResumeTailor:
             if not self._validate_tailored_content(tailored_content):
                 raise ValueError("Generated content validation failed")
             
-            logger.info(f"  ✓ Tailored application for {job.get('title', 'Unknown')}")
+            logger.info(f"Tailored application for {job.get('title', 'Unknown')}")
             
             return tailored_content
             
@@ -122,24 +122,24 @@ class ResumeTailor:
         relevant_exp = '; '.join(match.get('relevant_experience', [])[:3])
         
         prompt = f"""
-**PERSONALIZATION TASK**
+PERSONALIZATION TASK
 
 Adapt the candidate's resume/CV and create a cover letter for this specific role.
 
-**TARGET JOB:**
+TARGET JOB:
 - Title: {job_title}
 - Company: {company}
 - Description: {description[:2000]}  # Truncate very long descriptions
 
-**MATCH ANALYSIS:**
+MATCH ANALYSIS:
 - Overall Match: {match_score:.1f}%
-- Key Matched Skills: {matched_skills}
+- Matched Skills: {matched_skills}
 - Relevant Experience: {relevant_exp}
 
-**CANDIDATE RESUME:**
+CANDIDATE RESUME:
 {resume_str}
 
-**CRITICAL INSTRUCTIONS:**
+CRITICAL INSTRUCTIONS:
 1. RESUME CUSTOMIZATION:
    - Rewrite the summary to emphasize alignment with this role
    - Reorder bullet points to prioritize relevant achievements
@@ -317,7 +317,7 @@ def demo_tailor():
     logging.basicConfig(level=logging.INFO)
     
     if not GEMINI_CONFIGURED:
-        print("❌ Gemini API not configured. Set GEMINI_API_KEY in .env")
+        print("Gemini API not configured. Set GEMINI_API_KEY in .env")
         return
     
     # Sample job
@@ -336,6 +336,14 @@ def demo_tailor():
         - AWS Certified
         - Leadership experience
         - Python scripting skills
+        - Help desk/service desk leadership
+        
+        Preferred:
+        - ISO/IEC 42001 familiarity
+        - Network security expertise
+        - Cisco Meraki experience
+        
+        This is a remote position.
         """,
     }
     
@@ -372,10 +380,10 @@ def demo_tailor():
         print("CHANGES MADE")
         print("="*80)
         for change in result["changes"]:
-            print(f"• {change}")
+            print(f"- {change}")
             
     except Exception as e:
-        print(f"❌ Demo failed: {e}")
+        print(f"Demo failed: {e}")
         logging.error(e, exc_info=True)
 
 if __name__ == "__main__":
