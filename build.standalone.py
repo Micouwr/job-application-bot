@@ -2,19 +2,16 @@
 """
 build_standalone.py - Production build script for Job Application Bot GUI
 
-Creates standalone executable with:
-- Single-file bundling (onefile)
-- Native OS integration (windowed, icons)
-- Desktop shortcuts
-- Cross-platform support (Windows, macOS, Linux)
-- Hidden imports for complex packages
-- Resource file bundling (.env, configs, data dirs)
-- Automatic icon conversion from assets/icon.png
+Features:
+- Smart icon detection (uses existing .ico/icns, falls back to .png)
+- Automatic conversion via Pillow (macOS/Linux)
+- Cross-platform support with native icon formats
+- Desktop shortcuts and .desktop entries
+- Full resource bundling (.env, configs, data dirs)
+- Professional Windows version metadata
 
 USAGE:
-    python build_standalone.py
-    python build_standalone.py --clean  # Force clean build
-    python build_standalone.py --no-shortcut  # Skip desktop shortcuts
+    python build_standalone.py --clean
 """
 
 import argparse
@@ -38,45 +35,64 @@ def clean_build_artifacts():
         spec_file.unlink()
         print(f"   Removed {spec_file.name}")
 
-def convert_icon_if_needed() -> Optional[Path]:
+def find_best_icon_for_platform() -> Optional[Path]:
     """
-    Checks for assets/icon.png and converts to platform-specific format.
-    Returns path to converted icon or None if conversion fails.
+    Finds the best icon for the current platform:
+    1. Checks for existing platform-specific icon (.ico/.icns)
+    2. Falls back to source icon.png
+    3. Attempts conversion if needed
+    Returns Path to icon file or None.
     """
     assets_dir = Path("assets")
-    source_icon = assets_dir / "icon.png"
+    assets_dir.mkdir(exist_ok=True)
     
-    # Check if source icon exists
-    if not source_icon.exists():
-        print(f"⚠️  Source icon not found: {source_icon}")
-        print("   For best results, place a 256x256 PNG in ./assets/icon.png")
-        return None
-    
-    print(f"✅ Found source icon: {source_icon}")
-    
-    # Platform-specific icon formats
     is_windows = sys.platform.startswith('win')
     is_macos = sys.platform == 'darwin'
     
-    if is_windows:
-        target_icon = assets_dir / "icon.ico"
-        if convert_png_to_ico(source_icon, target_icon):
-            return target_icon
-    elif is_macos:
-        target_icon = assets_dir / "icon.icns"
-        if convert_png_to_icns(source_icon, target_icon):
-            return target_icon
-    else:
-        # Linux can use PNG directly
-        print(f"✅ Using PNG icon for Linux: {source_icon}")
-        return source_icon
+    print(f"🔍 Searching for best icon for {sys.platform}...")
     
+    # WINDOWS: Prioritize existing icon.ico
+    if is_windows:
+        ico_path = assets_dir / "icon.ico"
+        if ico_path.exists():
+            print(f"✅ Found Windows icon: {ico_path}")
+            print("   (Skipping conversion - using existing .ico file)")
+            return ico_path
+    
+    # macOS: Prioritize existing icon.icns
+    elif is_macos:
+        icns_path = assets_dir / "icon.icns"
+        if icns_path.exists():
+            print(f"✅ Found macOS icon: {icns_path}")
+            print("   (Skipping conversion - using existing .icns file)")
+            return icns_path
+    
+    # LINUX: Use PNG directly
+    else:
+        png_path = assets_dir / "icon.png"
+        if png_path.exists():
+            print(f"✅ Using PNG icon for Linux: {png_path}")
+            return png_path
+        else:
+            print("   No icon.png found - build will use default PyInstaller icon")
+            return None
+    
+    # Fallback: try conversion from PNG
+    png_path = assets_dir / "icon.png"
+    if png_path.exists():
+        print(f"✅ Found source icon: {png_path}")
+        if is_windows:
+            return convert_png_to_ico(png_path, assets_dir / "icon.ico")
+        elif is_macos:
+            return convert_png_to_icns(png_path, assets_dir / "icon.icns")
+    
+    print("⚠️  No suitable icon found - build will use default PyInstaller icon")
     return None
 
-def convert_png_to_ico(source: Path, target: Path) -> bool:
+def convert_png_to_ico(source: Path, target: Path) -> Optional[Path]:
     """
     Converts PNG to ICO format using Pillow.
-    Returns True if successful.
+    Returns Path to converted icon or None if failed.
     """
     try:
         from PIL import Image
@@ -93,29 +109,28 @@ def convert_png_to_ico(source: Path, target: Path) -> bool:
             icons.append(icon)
         
         # Save as ICO
-        icons[0].save(target, format='ICO', append_images=icons[1:], sizes=[(s[0], s[1]) for s in sizes])
+        icons[0].save(target, format='ICO', append_images=icons[1:], 
+                     sizes=[(s[0], s[1]) for s in sizes])
         
         print(f"✅ Created Windows icon: {target}")
-        return True
+        return target
         
     except ImportError:
         print("   ⚠️  Pillow not installed. Install: pip install Pillow")
-        print(f"   You can manually convert {source} to .ico online")
-        return False
+        return None
     except Exception as e:
         print(f"   ❌ Failed to convert PNG to ICO: {e}")
-        print(f"   You can manually convert {source} to .ico online")
-        return False
+        return None
 
-def convert_png_to_icns(source: Path, target: Path) -> bool:
+def convert_png_to_icns(source: Path, target: Path) -> Optional[Path]:
     """
     Converts PNG to ICNS format using iconutil (macOS native).
-    Returns True if successful.
+    Returns Path to converted icon or None if failed.
     """
     try:
         if sys.platform != 'darwin':
             print("   ⚠️  ICNS conversion requires macOS")
-            return False
+            return None
         
         print("🔄 Converting PNG to ICNS format...")
         
@@ -140,11 +155,11 @@ def convert_png_to_icns(source: Path, target: Path) -> bool:
             resized.save(iconset_dir / filename)
             
             # Add @2x versions
-            if size[0] <= 256:  # Max 512x512 for @2x
+            if size[0] <= 256:
                 resized_2x = img.resize((size[0]*2, size[1]*2), Image.Resampling.LANCZOS)
                 resized_2x.save(iconset_dir / filename.replace('.png', '@2x.png'))
         
-        # Convert to ICNS
+        # Convert to ICNS using macOS native tool
         subprocess.run(['iconutil', '-c', 'icns', str(iconset_dir)], check=True)
         
         print(f"✅ Created macOS icon: {target}")
@@ -152,112 +167,59 @@ def convert_png_to_icns(source: Path, target: Path) -> bool:
         # Cleanup
         shutil.rmtree(iconset_dir)
         
-        return True
+        return target
         
     except ImportError:
         print("   ⚠️  Pillow not installed. Install: pip install Pillow")
-        print(f"   You can manually convert {source} to .icns")
-        return False
+        return None
     except subprocess.CalledProcessError:
         print("   ⚠️  iconutil failed. Install Xcode Command Line Tools")
-        return False
+        return None
     except Exception as e:
         print(f"   ❌ Failed to convert PNG to ICNS: {e}")
-        print(f"   You can manually convert {source} to .icns online")
-        return False
-
-def check_and_prepare_icon() -> Optional[Path]:
-    """
-    Main function to check and prepare icon for build.
-    Attempts conversion if needed.
-    """
-    assets_dir = Path("assets")
-    assets_dir.mkdir(exist_ok=True)
-    
-    # Check for source PNG
-    source_icon = assets_dir / "icon.png"
-    if not source_icon.exists():
-        print(f"⚠️  No icon.png found in {assets_dir}/")
-        print("   Create a 256x256 PNG and place it in ./assets/icon.png")
-        print("   Build will continue without icon")
         return None
-    
-    # Platform-specific icon handling
-    is_windows = sys.platform.startswith('win')
-    is_macos = sys.platform == 'darwin'
-    
-    if is_windows:
-        icon_path = assets_dir / "icon.ico"
-        if icon_path.exists():
-            print(f"✅ Windows icon exists: {icon_path}")
-            return icon_path
-        else:
-            return convert_png_to_ico(source_icon, icon_path)
-    
-    elif is_macos:
-        icon_path = assets_dir / "icon.icns"
-        if icon_path.exists():
-            print(f"✅ macOS icon exists: {icon_path}")
-            return icon_path
-        else:
-            return convert_png_to_icns(source_icon, icon_path)
-    
-    else:  # Linux
-        # Linux can use PNG directly with some desktop environments
-        print(f"✅ Using PNG icon for Linux: {source_icon}")
-        return source_icon
 
 def get_pyinstaller_command(icon_path: Optional[Path], clean: bool = False) -> List[str]:
     """
     Constructs PyInstaller command with all required parameters.
-    
-    Args:
-        icon_path: Path to icon file
-        clean: Whether to force clean build
     """
     
     # Base command
     cmd = [
-        'gui/tkinter_app.py',           # Main script
-        '--name', 'JobApplicationBot',  # Application name
-        '--onefile',                    # Single executable file
-        '--windowed',                   # No console window (GUI mode)
-        '--noconfirm',                  # Overwrite without prompting
+        'gui/tkinter_app.py',
+        '--name', 'JobApplicationBot',
+        '--onefile',
+        '--windowed',
+        '--noconfirm',
     ]
     
     if clean:
-        cmd.append('--clean')           # Clean cache
+        cmd.append('--clean')
     
-    # Icon (platform-specific)
+    # Add icon if available
     if icon_path:
         cmd.extend(['--icon', str(icon_path)])
         print(f"   Using icon: {icon_path}")
     else:
-        print("   No icon available - build will use default PyInstaller icon")
+        print("   No icon available - using default PyInstaller icon")
     
-    # Add data files and directories
+    # Data files and directories
     separator = ';' if sys.platform.startswith('win') else ':'
     
-    # Core directories and files
     data_mappings = [
         ('config', 'config'),
         ('data', 'data'),
         ('logs', 'logs'),
         ('output', 'output'),
         ('assets', 'assets'),
-        ('.env', '.'),  # Must be in root for config loader
+        ('.env', '.'),
     ]
     
     for src, dest in data_mappings:
         if Path(src).exists():
             cmd.extend(['--add-data', f'{src}{separator}{dest}'])
-            print(f"   Added data: {src} → {dest}")
     
-    # Add individual config file
-    if Path('config/settings.py').exists():
-        cmd.extend(['--add-data', f'config/settings.py{separator}config'])
-    
-    # Hidden imports for packages PyInstaller might miss
+    # Hidden imports
     hidden_imports = [
         'sqlalchemy', 'sqlalchemy.orm', 'sqlalchemy.ext.declarative',
         'google.genai', 'google.genai.types',
@@ -275,14 +237,13 @@ def get_pyinstaller_command(icon_path: Optional[Path], clean: bool = False) -> L
         '--workpath', './build',
     ])
     
-    # macOS-specific: Create .app bundle
+    # Platform-specific options
     if sys.platform == 'darwin':
         cmd.extend([
             '--osx-bundle-identifier', 'com.micouwr.jobapplicationbot',
             '--target-architecture', 'universal2',
         ])
     
-    # Windows-specific: Version info
     if sys.platform.startswith('win'):
         version_file = create_windows_version_file()
         if version_file:
@@ -291,10 +252,7 @@ def get_pyinstaller_command(icon_path: Optional[Path], clean: bool = False) -> L
     return cmd
 
 def create_windows_version_file() -> Optional[Path]:
-    """
-    Creates a version resource file for Windows executables.
-    Makes the .exe look professional in file properties.
-    """
+    """Creates version resource file for Windows."""
     try:
         version_content = """# UTF-8
 VSVersionInfo(
@@ -325,7 +283,7 @@ VSVersionInfo(
         return None
 
 def create_windows_shortcut():
-    """Creates a desktop shortcut for Windows executable."""
+    """Creates Windows desktop shortcut."""
     try:
         import winshell
         from win32com.client import Dispatch
@@ -346,16 +304,14 @@ def create_windows_shortcut():
         shortcut.save()
         
         print(f"🎯 Desktop shortcut created: {shortcut_path}")
-        print(f"   You can now launch from your desktop!")
         
     except ImportError:
         print("💡 Install winshell for auto-shortcut: pip install winshell pywin32")
-        print("   Manual shortcut: Right-click .exe → Send to → Desktop")
     except Exception as e:
         print(f"⚠️  Could not create shortcut: {e}")
 
 def create_linux_desktop_entry():
-    """Creates a .desktop file for Linux systems."""
+    """Creates Linux .desktop file."""
     try:
         applications_dir = Path.home() / ".local/share/applications"
         applications_dir.mkdir(exist_ok=True)
@@ -366,7 +322,6 @@ def create_linux_desktop_entry():
         icon_path = Path("assets/icon.png").absolute()
         exec_path = Path("dist/JobApplicationBot").absolute()
         
-        # Make executable
         if exec_path.exists():
             exec_path.chmod(0o755)
         
@@ -380,68 +335,52 @@ Type=Application
 Categories=Office;Utility;
 StartupNotify=true
 Keywords=job;resume;ai;career;
-X-Desktop-File-Install-Version=0.26
 """
         
         desktop_file.write_text(content)
         desktop_file.chmod(0o755)
         
         print(f"🎯 Linux desktop entry created: {desktop_file}")
-        print(f"   You may need to log out/in to see it in applications menu")
-        print(f"   Or run: update-desktop-database ~/.local/share/applications")
         
     except Exception as e:
         print(f"⚠️  Could not create desktop entry: {e}")
 
 def post_build_instructions():
-    """Prints post-build instructions."""
+    """Prints post-build verification steps."""
     print("\n" + "=" * 60)
-    print("📋 POST-BUILD INSTRUCTIONS")
+    print("📋 POST-BUILD VERIFICATION")
     print("=" * 60)
     
     exe_name = "JobApplicationBot.exe" if sys.platform.startswith('win') else "JobApplicationBot"
     exe_path = Path("dist") / exe_name
     
-    print(f"\n1. Test the executable:")
+    print(f"\n1. 📁 Verify executable exists:")
+    print(f"   ls -lh {exe_path}")
+    print(f"\n2. ✅ Check custom icon is embedded:")
+    if sys.platform.startswith('win'):
+        print(f"   Right-click .exe → Properties → General tab should show icon")
+    elif sys.platform == 'darwin':
+        print(f"   Right-click .app → Get Info should show custom icon")
+    
+    print(f"\n3. 🚀 First run test:")
     print(f"   {exe_path}")
     
-    print(f"\n2. If .env wasn't bundled, copy it manually:")
-    print(f"   cp .env dist/")
-    
-    print(f"\n3. First run checklist:")
-    print(f"   - Launch the application")
+    print(f"\n4. 📄 Upload your new resume:")
+    print(f"   - Launch application")
     print(f"   - Go to 📄 Manage Resumes tab")
-    print(f"   - Upload your new resume")
-    print(f"   - Set it as active")
-    print(f"   - Test tailoring with a job description")
-    
-    if sys.platform.startswith('win'):
-        print(f"\n4. Windows: Desktop shortcut should be created automatically")
-    elif sys.platform == 'darwin':
-        print(f"\n4. macOS: Drag dist/JobApplicationBot.app to Applications folder")
-        print(f"   Then drag to Dock for easy access")
-    else:
-        print(f"\n4. Linux: Desktop entry created in ~/.local/share/applications/")
-        print(f"   Run 'update-desktop-database ~/.local/share/applications' to refresh")
-    
-    print("\n5. For distribution:")
-    print(f"   - Zip the 'dist' folder")
-    print(f"   - Include README.md and license")
-    print(f"   - Create installer with NSIS (Windows) or create-dmg (macOS)")
-    
-    print("\n🎉 Build complete! Your application is ready to demo!")
+    print(f"   - Click ⬆️ Upload New Resume")
+    print(f"   - Select your updated resume")
+    print(f"   - Click ✅ Set as Active")
 
 def verify_environment():
-    """Verifies build environment is ready."""
+    """Verifies build environment."""
     print("🔍 Verifying build environment...")
     
-    # Check Python version
     if sys.version_info < (3, 9):
         print("❌ Python 3.9+ required")
         sys.exit(1)
     print(f"✅ Python {sys.version.split()[0]}")
     
-    # Check PyInstaller
     try:
         import PyInstaller
         print(f"✅ PyInstaller {PyInstaller.__version__}")
@@ -449,39 +388,35 @@ def verify_environment():
         print("❌ PyInstaller not found. Install: pip install pyinstaller")
         sys.exit(1)
     
-    # Check Pillow for icon conversion
     try:
         import PIL.Image
         print(f"✅ Pillow (for icon conversion)")
     except ImportError:
-        print("⚠️  Pillow not installed. Install: pip install Pillow")
-        print("   Build will continue but icon conversion may fail")
+        print("⚠️  Pillow not installed (optional, for icon conversion)")
     
-    # Check main script
     if not Path('gui/tkinter_app.py').exists():
         print("❌ gui/tkinter_app.py not found")
         sys.exit(1)
-    print("✅ Main script found")
+    print("✅ Main GUI script found")
     
-    # Check assets folder
     assets_dir = Path('assets')
-    if not assets_dir.exists():
-        print("⚠️  assets/ folder not found. Creating...")
-        assets_dir.mkdir(exist_ok=True)
+    assets_dir.mkdir(exist_ok=True)
     
-    # Check source icon
-    icon_path = assets_dir / "icon.png"
-    if not icon_path.exists():
-        print("⚠️  assets/icon.png not found. Build will use default PyInstaller icon")
-        print("   Create a 256x256 PNG and save as assets/icon.png")
-    else:
-        print(f"✅ Source icon found: {icon_path}")
+    png_path = assets_dir / "icon.png"
+    ico_path = assets_dir / "icon.ico"
+    icns_path = assets_dir / "icon.icns"
     
-    # Check .env
+    if png_path.exists():
+        print(f"✅ Source icon: {png_path}")
+    if ico_path.exists():
+        print(f"✅ Windows icon: {ico_path} (will be used for Windows builds)")
+    if icns_path.exists():
+        print(f"✅ macOS icon: {icns_path} (will be used for macOS builds)")
+    
     if not Path('.env').exists():
-        print("⚠️  .env file not found. Build will succeed but app won't run without it")
+        print("⚠️  Warning: .env file not found - app won't run without it")
     else:
-        print("✅ .env file found")
+        print("✅ .env configuration file found")
     
     print()
 
@@ -492,9 +427,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python build_standalone.py              # Standard build
   python build_standalone.py --clean      # Force clean build
-  python build_standalone.py --no-shortcut # Skip desktop integration
+  python build_standalone.py --no-shortcut # Skip desktop shortcuts
         """
     )
     parser.add_argument('--clean', action='store_true', help='Force clean build')
@@ -504,42 +438,42 @@ Examples:
     print("🏗️  Building Job Application Bot Standalone Executable")
     print("=" * 60)
     
-    # Pre-build checks
+    # Pre-flight checks
     verify_environment()
     
-    # Clean if requested
+    # Clean build artifacts if requested
     if args.clean:
         clean_build_artifacts()
     
-    # Prepare icon (convert if needed)
-    icon_path = check_and_prepare_icon()
+    # Find and prepare the best available icon
+    icon_path = find_best_icon_for_platform()
     
-    # Get PyInstaller command
+    # Construct PyInstaller command
     pyinstaller_cmd = get_pyinstaller_command(icon_path, clean=args.clean)
     
     print("\n⚙️  Running PyInstaller...")
     print(f"   Command: pyinstaller {' '.join(pyinstaller_cmd)}")
     
     try:
-        # Import and run PyInstaller programmatically
+        # Execute the build
         import PyInstaller.__main__
         PyInstaller.__main__.run(pyinstaller_cmd)
         
         print("\n✅ Build completed successfully!")
         exe_name = "JobApplicationBot.exe" if sys.platform.startswith('win') else "JobApplicationBot"
-        print(f"📁 Executable location: ./dist/{exe_name}")
+        print(f"📁 Executable location: ./{Path('dist') / exe_name}")
         
-        # Create shortcuts/desktop entries
+        # Create desktop integration
         if not args.no_shortcut:
             print("\n🎯 Creating desktop integration...")
             if sys.platform.startswith('win'):
                 create_windows_shortcut()
             elif sys.platform == 'darwin':
-                print("   macOS: Drag .app from ./dist/ to Applications folder")
+                print("   macOS: Drag .app from ./dist/ to Applications folder, then to Dock")
             elif sys.platform.startswith('linux'):
                 create_linux_desktop_entry()
         
-        # Post-build instructions
+        # Print post-build instructions
         post_build_instructions()
         
     except Exception as e:
