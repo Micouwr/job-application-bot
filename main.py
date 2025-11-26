@@ -23,7 +23,7 @@ from config.settings import (
     RESUMES_DIR,
     config,
 )
-from database import JobDatabase, create_backup
+from database import JobDatabase, create_backup, JobNotFoundError  # ✅ Import custom exception
 from matcher import JobMatcher
 from scraper import JobScraper, JobBoardIntegration
 from tailor import ResumeTailor
@@ -135,6 +135,7 @@ class JobApplicationBot:
             return
 
         # Process with progress bar
+        from tqdm import tqdm  # Import here to avoid dependency issues
         for job, match in tqdm(high_matches, desc="Tailoring applications", unit="job"):
             logger.info(f"\nTailoring for: {job['title']} at {job['company']}")
 
@@ -189,7 +190,7 @@ class JobApplicationBot:
         return job
 
     def run_interactive(self) -> None:
-        """  Runs the bot in interactive mode, allowing the user to add jobs one by one. """
+        """ Runs the bot in interactive mode, allowing the user to add jobs one by one. """
         logger.info("\n" + "=" * 80)
         logger.info("INTERACTIVE MODE")
         logger.info("=" * 80 + "\n")
@@ -234,9 +235,9 @@ class JobApplicationBot:
                 print(f"❌ Error: {e}")
 
         if jobs:
-            # Ask for confirmation before processing
-            confirm = input(f"\nProcess {len(jobs)} jobs? [Y/n]: ").strip().lower()
-            if confirm in ('', 'y', 'yes'):
+            # ✅ QoL: Ask for confirmation before processing with retry logic
+            confirm = self._get_user_confirmation(f"\nProcess {len(jobs)} jobs? [Y/n]: ")
+            if confirm:
                 dry_run = input("Dry run (skip API calls)? [y/N]: ").strip().lower() == 'y'
                 logger.info(f"\nProcessing {len(jobs)} jobs...")
                 self.run_pipeline(manual_jobs=jobs, dry_run=dry_run)
@@ -244,6 +245,23 @@ class JobApplicationBot:
                 logger.info("Processing cancelled.")
         else:
             logger.info("No jobs added.")
+
+    def _get_user_confirmation(self, prompt: str, max_retries: int = 3) -> bool:
+        """ ✅ QoL: Get user confirmation with retry logic """
+        for attempt in range(max_retries):
+            response = input(prompt).strip().lower()
+            if response in ('', 'y', 'yes'):
+                return True
+            elif response in ('n', 'no'):
+                return False
+            else:
+                remaining = max_retries - attempt - 1
+                if remaining > 0:
+                    print(f"Invalid input. {remaining} attempts remaining. Please enter Y/n.")
+                else:
+                    print("Too many invalid attempts. Defaulting to 'No'.")
+                    return False
+        return False
 
     def review_pending(self) -> None:
         """ Shows all applications that are pending review. """
@@ -278,8 +296,8 @@ class JobApplicationBot:
             self._export_pending(pending)
 
     def _export_pending(self, pending: List[Dict[str, Any]]) -> None:
-        """  Export pending applications to CSV """
-        import csv
+        """ Export pending applications to CSV """
+        import csv  # Import here to avoid dependency issues
         
         csv_file = Path("output/pending_applications.csv")
         csv_file.parent.mkdir(exist_ok=True)
@@ -337,7 +355,7 @@ class JobApplicationBot:
             logger.error(f"   Failed to save application files: {e}")
 
     def _print_summary(self) -> None:
-        """  Prints a summary of the pipeline's execution. """
+        """ Prints a summary of the pipeline's execution. """
         stats = self.db.get_statistics()
 
         print("\n" + "=" * 80)
@@ -371,7 +389,7 @@ class JobApplicationBot:
             with open(path, 'r') as f:
                 jobs = json.load(f)
         elif path.suffix.lower() == '.csv':
-            import csv
+            import csv  # Import here to avoid dependency issues
             with open(path, 'r') as f:
                 reader = csv.DictReader(f)
                 jobs = list(reader)
@@ -383,7 +401,7 @@ class JobApplicationBot:
         self.run_pipeline(manual_jobs=jobs)
 
     def export_jobs(self, output_file: str = "output/jobs_export.json") -> None:
-        """  Export all jobs to JSON """
+        """ Export all jobs to JSON """
         all_jobs = self.db.get_all_jobs()
         with open(output_file, 'w') as f:
             json.dump(all_jobs, f, indent=2, default=str)
@@ -442,6 +460,7 @@ def main() -> None:
         print("  python main.py review               # Review pending applications")
         print("  python main.py stats                # Show statistics")
         print("  python main.py import jobs.json     # Import jobs from JSON")
+        print("  python main.py export               # Export jobs to JSON")
         print("\n" + "=" * 80)
         sys.exit(0)
 
