@@ -4,6 +4,7 @@ Job scraper module - Enhanced with job board integrations, URL parsing, and smar
 
 import hashlib
 import logging
+import random
 import re
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -20,10 +21,11 @@ class URLValidator:
     
     @staticmethod
     def is_valid_url(url: str) -> bool:
+        """Check if URL is valid"""
         try:
             result = urlparse(url)
             return all([result.scheme, result.netloc])
-        except:
+        except Exception:
             return False
     
     @staticmethod
@@ -49,11 +51,20 @@ class JobBoardIntegration:
     ✅ QoL: Integration class for various job boards using ScraperAPI
     """
     
+    #: ✅ QoL: User-Agent rotation pool to avoid detection
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    ]
+    
     def __init__(self, scraper_api_key: Optional[str] = None):
         self.scraper_api_key = scraper_api_key
         self.session = requests.Session()
+        # ✅ QoL: Set random User-Agent to avoid detection
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "User-Agent": random.choice(self.USER_AGENTS)
         })
         
         # Job board detection patterns
@@ -64,6 +75,34 @@ class JobBoardIntegration:
         }
         
         logger.info(f"✓ JobBoardIntegration initialized")
+
+    def _get_with_headers(self, url: str, **kwargs) -> requests.Response:
+        """
+        ✅ QoL: Make HTTP request with randomized headers to avoid blocking
+        
+        Args:
+            url: URL to fetch
+            **kwargs: Additional arguments for requests.get()
+        
+        Returns:
+            Response object
+        """
+        # Set random User-Agent
+        headers = {
+            "User-Agent": random.choice(self.USER_AGENTS),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Encoding": "gzip, deflate",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+        }
+        
+        # Add any additional headers from kwargs
+        if "headers" in kwargs:
+            headers.update(kwargs.pop("headers"))
+        
+        return self.session.get(url, headers=headers, **kwargs)
 
     def scrape_all(self, keywords: List[str], location: str, max_jobs: int = 50) -> List[Dict[str, Any]]:
         """
@@ -136,7 +175,7 @@ class JobBoardIntegration:
         return job
 
     def _extract_requirements(self, description: str) -> str:
-        """  Extract requirements section from description """
+        """Extract requirements section from description"""
         if not description:
             return ""
         
@@ -188,41 +227,45 @@ class JobBoardIntegration:
         
         combined = f"{title} {description}".lower()
         
-        # Senior indicators
-        senior_indicators = [
-            "senior", "sr.", "sr ", "lead", "principal", "staff", "architect",
-            "manager", "director", "head of", "vp ", "vice president"
-        ]
+        # ✅ QoL: Prioritize explicit indicators in order (junior checked first)
+        level_indicators = {
+            "junior": ["junior", "jr.", "jr ", "entry", "associate", "intern", "trainee", "junior level", "early career"],
+            "mid": ["mid", "intermediate", "mid-level", "ii", "2", "level 2"],
+            "senior": ["senior", "sr.", "sr ", "lead", "principal", "staff", "architect", "manager", "director"],
+        }
         
-        # Junior indicators
-        junior_indicators = [
-            "junior", "jr.", "jr ", "entry", "associate", "intern", "trainee",
-            "junior level", "early career"
-        ]
+        detected_levels = []
         
-        # Mid indicators
-        mid_indicators = ["mid", "intermediate", "mid-level", "ii", "2", "level 2"]
-        
-        # Check senior first (most specific)
-        if any(indicator in combined for indicator in senior_indicators):
-            return "Senior"
-        
-        # Check junior
-        if any(indicator in combined for indicator in junior_indicators):
-            return "Junior"
+        # Check junior first (highest priority to avoid misclassification)
+        if any(indicator in combined for indicator in level_indicators["junior"]):
+            detected_levels.append("junior")
         
         # Check mid
-        if any(indicator in combined for indicator in mid_indicators):
-            return "Mid"
+        if any(indicator in combined for indicator in level_indicators["mid"]):
+            detected_levels.append("mid")
         
-        # Default based on title complexity
-        if len(title.split()) > 4 and any(word in title.lower() for word in ['cloud', 'architect', 'manager']):
-            return "Senior"
+        # Check senior
+        if any(indicator in combined for indicator in level_indicators["senior"]):
+            detected_levels.append("senior")
         
-        return "Unknown"
+        # Check if job is senior-level (what resume indicates)
+        is_senior = "senior" in detected_levels
+        matches = bool(detected_levels)  # True if we could detect a level
+        
+        return {
+            "matches": matches,
+            "detected_levels": detected_levels,
+            "is_senior": is_senior,
+            "multiplier": 1.0 if is_senior else 0.85
+        }
 
     def _extract_salary(self, text: str) -> Optional[str]:
-        """ ✅ QoL: Extract salary information using regex patterns """
+        """
+        ✅ QoL: Extract and normalize salary information using regex patterns
+        
+        Returns:
+            Normalized salary string in format "50000-80000" (annual) or None
+        """
         if not text:
             return None
         
@@ -230,16 +273,37 @@ class JobBoardIntegration:
         
         # Common salary patterns
         patterns = [
-            r'\$[\d,]+\s*(?:k|K)?\s*-\s*\$[\d,]+\s*(?:k|K)?',  # $50k - $80k
-            r'\$[\d,]+\s*(?:k|K)?\s*(?:per year|\/year|\/yr|annual|annually)?',  # $50000 per year
-            r'(?:salary|compensation|pay):\s*\$[\d,]+',  # Salary: $50000
-            r'\d+\s*(?:k|K)\s*-\s*\d+\s*(?:k|K)',  # 50k-80k
+            r'\$([\d,]+)\s*(?:k|K)?\s*-\s*\$([\d,]+)\s*(?:k|K)?',  # $50k - $80k
+            r'\$([\d,]+)\s*(?:k|K)?\s*(?:per year|\/year|\/yr|annual|annually)?',  # $50000 per year
+            r'(?:salary|compensation|pay):\s*\$([\d,]+)',  # Salary: $50000
+            r'([\d,]+)\s*(?:k|K)\s*-\s*([\d,]+)\s*(?:k|K)',  # 50k-80k
+            r'\$([\d,]+)\s*(?:per hour|\/hour|\/hr|hourly)',  # $30 per hour (will be annualized)
         ]
         
         for pattern in patterns:
             match = re.search(pattern, text, re.IGNORECASE)
             if match:
-                return match.group(0)
+                groups = match.groups()
+                if len(groups) == 2:  # Range
+                    try:
+                        # ✅ QoL: Normalize to annual salary, remove "k"
+                        min_salary = float(groups[0].replace('k', '').replace('K', '')) * 1000
+                        max_salary = float(groups[1].replace('k', '').replace('K', '')) * 1000
+                        return f"{int(min_salary)}-{int(max_salary)}"
+                    except ValueError:
+                        continue
+                elif len(groups) == 1:  # Single value
+                    try:
+                        salary = float(groups[0].replace('k', '').replace('K', '')) * 1000
+                        
+                        # ✅ QoL: Check if hourly and annualize (assuming 2080 work hours/year)
+                        if 'hour' in text.lower() or 'hr' in text.lower():
+                            salary = salary * 2080
+                            return f"{int(salary)} (annualized from hourly)"
+                        
+                        return f"{int(salary)}"
+                    except ValueError:
+                        continue
         
         return None
 
@@ -284,18 +348,20 @@ class JobBoardIntegration:
         return list(set(tags))  # Remove duplicates
 
     def _parse_linkedin_job(self, url: str) -> Optional[Dict[str, Any]]:
-        """ ✅ QoL: Parse LinkedIn job page (placeholder) """
+        """✅ QoL: Parse LinkedIn job page (placeholder)"""
         try:
             # TODO: Implement LinkedIn parsing with ScraperAPI
             # This would handle LinkedIn's dynamic content
             logger.info(f"Parsing LinkedIn job: {url}")
+            
+            # For now, return None to trigger manual entry fallback
             return None
         except Exception as e:
             logger.error(f"Failed to parse LinkedIn job: {e}")
             return None
 
     def _parse_indeed_job(self, url: str) -> Optional[Dict[str, Any]]:
-        """ ✅ QoL: Parse Indeed job page (placeholder) """
+        """✅ QoL: Parse Indeed job page (placeholder)"""
         try:
             # TODO: Implement Indeed parsing
             logger.info(f"Parsing Indeed job: {url}")
@@ -316,7 +382,7 @@ class JobBoardIntegration:
 
 
 class JobScraper:
-    """ Legacy scraper class for backward compatibility """
+    """Legacy scraper class for backward compatibility"""
     
     def __init__(self):
         self.jobs: List[Dict[str, Any]] = []
@@ -327,7 +393,7 @@ class JobScraper:
         self, keywords: List[str], location: str, max_jobs: int = 50
     ) -> List[Dict[str, Any]]:
         """
-        ⚠️  Deprecated: Use JobBoardIntegration instead
+        ⚠️ Deprecated: Use JobBoardIntegration instead
         """
         logger.warning(
             "JobScraper.scrape_all() is deprecated. Use JobBoardIntegration.scrape_all() instead."
@@ -372,7 +438,15 @@ class JobScraper:
             return self.add_manual_job(title=title, company=company, url=url, source="url_import")
 
     def _fetch_job_from_url(self, url: str) -> Optional[Dict[str, Any]]:
-        """ ✅ QoL: Fetch job details from URL using BeautifulSoup """
+        """
+        ✅ QoL: Fetch job details from URL using BeautifulSoup with enhanced headers
+        
+        Args:
+            url: Job posting URL
+            
+        Returns:
+            Dictionary with extracted job data or None
+        """
         try:
             # Detect job board
             domain = URLValidator.extract_domain(url)
@@ -385,25 +459,39 @@ class JobScraper:
             elif "glassdoor.com" in domain:
                 return self.integrations._parse_glassdoor_job(url)
             
-            # Generic fallback parser
-            response = requests.get(url, timeout=10)
+            # ✅ Fix: Generic fallback parser with stricter title detection
+            response = self.integrations._get_with_headers(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Try to find title
+            # ✅ Fix: Be more strict - look for h1 only for job title
             title = None
-            title_tags = ['h1', 'h2', 'title']
-            for tag in title_tags:
-                title_elem = soup.find(tag)
-                if title_elem and 'job' in title_elem.get_text().lower():
-                    title = title_elem.get_text().strip()
-                    break
+            title_elem = soup.find('h1')
+            if title_elem:
+                title_text = title_elem.get_text().strip()
+                # ✅ Fix: Filter out obviously wrong titles
+                if any(indicator in title_text.lower() for indicator in ['job', 'career', 'position']):
+                    title = title_text
+            
+            # Try other selectors if h1 didn't work
+            if not title:
+                title_selectors = ['h2', 'title', 'meta[name="title"]']
+                for selector in title_selectors:
+                    elem = soup.find(selector)
+                    if elem:
+                        title = elem.get_text().strip()
+                        break
             
             # Try to find description
             description = ""
-            desc_selectors = ['[class*="description"]', '[class*="job-description"]', 
-                            '#job-description', '.job-description']
+            desc_selectors = [
+                '[class*="description"]', 
+                '[class*="job-description"]', 
+                '#job-description', 
+                '.job-description',
+                '[data-testid="job-description"]',  # Common test ID
+            ]
             
             for selector in desc_selectors:
                 desc_elem = soup.select_one(selector)
@@ -411,9 +499,37 @@ class JobScraper:
                     description = desc_elem.get_text(separator='\n').strip()
                     break
             
+            # ✅ QoL: Try to find location
+            location = ""
+            location_selectors = [
+                '[class*="location"]',
+                '.job-location',
+                '[data-testid="job-location"]',
+            ]
+            for selector in location_selectors:
+                loc_elem = soup.select_one(selector)
+                if loc_elem:
+                    location = loc_elem.get_text().strip()
+                    break
+            
+            # ✅ QoL: Try to find company
+            company = ""
+            company_selectors = [
+                '[class*="company"]',
+                '.job-company',
+                '[data-testid="job-company"]',
+            ]
+            for selector in company_selectors:
+                comp_elem = soup.select_one(selector)
+                if comp_elem:
+                    company = comp_elem.get_text().strip()
+                    break
+            
             return {
                 "title": title,
                 "description": description,
+                "location": location,
+                "company": company,
                 "url": url
             }
             
@@ -453,8 +569,8 @@ This is a remote position based in Louisville, KY area.
         company="Enterprise Solutions",
     )
     
-    logger.info(f"Demo: Added {len(scraper.jobs)} jobs")
-    return scraper.jobs
+    logger.info(f"Demo: Added {len([job1, job2])} jobs")
+    return [job1, job2]
 
 
 if __name__ == "__main__":
@@ -465,4 +581,6 @@ if __name__ == "__main__":
         print(f"  ID: {job['id']}")
         print(f"  Type: {job['job_type']}")
         print(f"  Level: {job['experience_level']}")
+        print(f"  Salary: {job.get('salary', 'Not found')}")
         print(f"  Tags: {job.get('tags', [])}")
+        print()
