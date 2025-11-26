@@ -3,7 +3,6 @@ Configuration settings for Job Application Bot
 """
 
 import os
-import logging
 from pathlib import Path
 from functools import lru_cache
 from typing import Dict, Any
@@ -101,12 +100,12 @@ class Config:
             {
                 "company": "CIMSystem",
                 "title": "Digital Dental Technical Specialist",
-                "dates": "2018–2025",
+                "dates": "2018-2025",
                 "location": "Louisville, KY",
                 "achievements": [
                     "Led 10 person help desk supporting ~150 dealer partners, managing CAD/CAM systems and milling machines",
                     "Built dealer enablement ecosystem: delivered MillBox 101 program, reducing time-to-first-mill by 50%",
-                    "Presented technical sessions at Lab Day West conventions (2023–2024) for audiences of 100+ professionals",
+                    "Presented technical sessions at Lab Day West conventions (2023-2024) for audiences of 100+ professionals",
                 ],
                 "skills_used": [
                     "Help Desk Leadership",
@@ -118,7 +117,7 @@ class Config:
             {
                 "company": "AccuCode",
                 "title": "Network Architect",
-                "dates": "2017–2018",
+                "dates": "2017-2018",
                 "location": "Louisville, KY",
                 "achievements": [
                     "Engineered secure network architecture with Cisco Meraki and Linux imaging, cutting deployment time by 50%",
@@ -135,10 +134,10 @@ class Config:
             {
                 "company": "CompuCom (Contract: Booz Allen Hamilton)",
                 "title": "Service Desk Analyst and Trainer",
-                "dates": "2013–2017",
+                "dates": "2013-2017",
                 "location": "Louisville, KY",
                 "achievements": [
-                    "Delivered Tier 1–2 support for 1,000+ federal and enterprise users",
+                    "Delivered Tier 1-2 support for 1,000+ federal and enterprise users",
                     "Achieved 90% first-contact resolution, reducing escalations",
                     "Developed training curriculum and mentored analysts",
                 ],
@@ -153,7 +152,7 @@ class Config:
             {
                 "name": "AI Triage Bot Prototype",
                 "github": "github.com/Micouwr/AI-TRIAGE_Bot",
-                "dates": "November 2025–Present",
+                "dates": "November 2025-Present",
                 "description": "Developed prototype ticket classification engine in Python aligned with ISO/IEC 42001 transparency principles",
                 "achievements": [
                     "Designed modular system for intelligent routing and PII detection",
@@ -163,7 +162,7 @@ class Config:
         ],
         "certifications": [
             {
-                "name": "ISO/IEC 42001:2023 – AI Management System Fundamentals",
+                "name": "ISO/IEC 42001:2023 - AI Management System Fundamentals",
                 "issuer": "Alison",
                 "date": "November 2025",
             },
@@ -175,7 +174,7 @@ class Config:
         "education": [
             {
                 "institution": "Sullivan University",
-                "program": "CodeLouisville Graduate – Front-End Web Development",
+                "program": "CodeLouisville Graduate - Front-End Web Development",
             },
             {
                 "institution": "Western Kentucky University",
