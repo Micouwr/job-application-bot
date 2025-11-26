@@ -41,10 +41,10 @@ class JobMatcher:
                     if skill:
                         keywords.add(skill.lower().strip())
                 
-                # Add key terms from achievements (nouns and verbs)
+                # Add key terms from achievements
                 for achievement in exp.get("achievements", []):
                     if achievement:
-                        # Extract meaningful words (3+ chars, not common stopwords)
+                        # Extract words (3+ chars, not common stopwords)
                         words = re.findall(r'\b[a-z]{3,}\b', achievement.lower())
                         stopwords = {'the', 'and', 'for', 'with', 'was', 'has', 'had', 'that', 'this'}
                         keywords.update(w for w in words if w not in stopwords)
@@ -60,7 +60,7 @@ class JobMatcher:
             keywords.update([
                 "help desk", "service desk", "infrastructure", "architect", "cloud",
                 "ai", "governance", "training", "leadership", "senior", "manager",
-                "network", "security", "python", "linux", "windows", "aws"
+                "network", "security", "python", "linux"
             ])
             return {k.lower() for k in keywords if k}
         except Exception as e:
