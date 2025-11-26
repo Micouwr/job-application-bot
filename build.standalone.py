@@ -8,10 +8,11 @@ Features:
 - Cross-platform support with native icon formats
 - Desktop shortcuts and .desktop entries
 - Full resource bundling (.env, configs, data dirs)
-- Professional Windows version metadata
+- Version metadata for Windows
+- Post-build instructions
 
 USAGE:
-    python build_standalone.py --clean
+    python3 build_standalone.py --clean
 """
 
 import argparse
@@ -427,8 +428,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python build_standalone.py --clean      # Force clean build
-  python build_standalone.py --no-shortcut # Skip desktop shortcuts
+  python3 build_standalone.py --clean      # Force clean build
+  python3 build_standalone.py --no-shortcut # Skip desktop shortcuts
         """
     )
     parser.add_argument('--clean', action='store_true', help='Force clean build')
