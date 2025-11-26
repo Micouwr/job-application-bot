@@ -242,7 +242,6 @@ def get_pyinstaller_command(icon_path: Optional[Path], clean: bool = False) -> L
     if sys.platform == 'darwin':
         cmd.extend([
             '--osx-bundle-identifier', 'com.micouwr.jobapplicationbot',
-            '--target-architecture', 'universal2',
         ])
     
     if sys.platform.startswith('win'):
