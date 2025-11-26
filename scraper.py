@@ -26,7 +26,7 @@ class JobScraper:
         """
         self.jobs: List[Dict[str, Any]] = []
         self.db = db
-        logger.info("✓ JobScraper initialized")
+        logger.info("JobScraper initialized")
     
     def add_manual_job(
         self,
@@ -301,7 +301,7 @@ class JobScraper:
         - Anti-bot detection handling
         - Captcha solving (if needed)
         
-        Recommended: Use manual entry or official APIs.
+        Recommended: Use manual entry or official job board APIs.
         """
         logger.warning(
             "Automated scraping not fully implemented. "
@@ -376,12 +376,12 @@ def demo_scraper():
     )
     
     if job1:
-        print(f"\n✓ Added job: {job1['title']}")
+        print(f"Added job: {job1['title']}")
     if job2:
-        print(f"✓ Added job: {job2['title']}")
+        print(f"Added job: {job2['title']}")
     
     stats = scraper.get_stats()
-    print(f"\nScraper Stats: {stats}")
+    print(f"Scraper Stats: {stats}")
 
 if __name__ == "__main__":
     demo_scraper()
