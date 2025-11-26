@@ -2,16 +2,43 @@
 Resume tailoring engine - Generates customized narratives for job applications using Gemini AI.
 """
 
+import hashlib
 import json
 import logging
 import os
-from typing import Dict, List, Any
+import time
+from typing import Dict, List, Any, Optional, AsyncGenerator
+from functools import wraps
 
 from google import genai
 from google.genai import types
-from config.settings import RESUME_DATA
+from google.genai.errors import APIError
+from config.settings import RESUME_DATA, TAILORING
+from tqdm import tqdm
+import tiktoken  # For token counting
 
 logger = logging.getLogger(__name__)
+
+
+def retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
+    """Decorator for exponential backoff retry logic"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            delay = initial_delay
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except APIError as e:
+                    if attempt == max_retries - 1:
+                        logger.error(f"Failed after {max_retries} attempts: {e}")
+                        raise
+                    wait_time = delay * (2  ** attempt)
+                    logger.warning(f"Attempt {attempt + 1} failed, retrying in {wait_time}s: {e}")
+                    time.sleep(wait_time)
+            return None
+        return wrapper
+    return decorator
 
 
 class ResumeTailor:
@@ -19,83 +46,24 @@ class ResumeTailor:
     Tailor resume and cover letter for specific job applications using the Gemini AI API.
     """
     
-    def __init__(self, resume: Dict):
-        """Initialize with resume data and Gemini client"""
-        self.resume = resume
-        
-        # Initialize Gemini client
-        try:
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY environment variable not set")
-            
-            self.client = genai.Client(api_key=api_key)
-            self.model_name = "gemini-2.5-flash"  # ✅ Current model
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            self.client = None
-            self.model_name = None
+    # Prompt templates for better maintainability
+    PROMPT_TEMPLATE = """
+*  *Objective: ** Tailor the following resume and generate a cover letter for the given job description.
 
-    def tailor_application(self, job: Dict, match: Dict) -> Dict:
-        """
-        Generates a tailored resume and cover letter for a given job application.
-        
-        Args:
-            job: Job dictionary with title, company, description
-            match: Match results from JobMatcher
-            
-        Returns:
-            Dictionary with resume_text, cover_letter, and changes
-        """
-        if not self.client:
-            raise RuntimeError("Gemini client not initialized. Check API key.")
+**  Job Title:** {{job_title}}
+**  Company:** {{company}}
+**  Job Description:**
+{{job_description}}
 
-        prompt = self._build_prompt(job, match)
-        
-        try:
-            # ✅ CORRECT API call with google-genai
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                    top_p=1.0,
-                    top_k=32,
-                    max_output_tokens=4096,
-                )
-            )
-            
-            if not hasattr(response, 'text') or not response.text:
-                raise ValueError("Empty or invalid response from Gemini API")
-                
-            return self._parse_response(response.text)
-            
-        except Exception as e:
-            logger.error(f"Error generating tailored content: {e}")
-            raise
+**  Match Analysis: **
+- Match Score: {{match_score}}%
+- Matched Skills: {{matched_skills}}
+- Relevant Experience: {{relevant_experience}}
 
-    def _build_prompt(self, job: Dict, match: Dict) -> str:
-        """Build prompt for Gemini API"""
-        resume_str = self._format_resume()
-        
-        return f"""
-**Objective:** Tailor the following resume and generate a cover letter for the given job description.
+**  Resume: **
+{{resume}}
 
-**Job Title:** {job.get('title', 'N/A')}
-**Company:** {job.get('company', 'N/A')}
-**Job Description:**
-{job.get('description', 'N/A')}
-
-**Match Analysis:**
-- Match Score: {match.get('match_score', 0)*100:.1f}%
-- Matched Skills: {', '.join(match.get('matched_skills', []))}
-- Relevant Experience: {'; '.join(match.get('relevant_experience', []))}
-
-**Resume:**
-{resume_str}
-
-**Instructions:**
+**  Instructions: **
 1. Rewrite the resume summary to highlight the most relevant skills and experience for this job.
 2. Reorder the bullet points in the experience section to emphasize achievements that align with the job description.
 3. Do NOT add any new skills, experiences, or achievements. Do NOT fabricate any information.
@@ -114,9 +82,152 @@ class ResumeTailor:
 (Summary of changes made to the resume, as a comma-separated list)
 [END_CHANGES]
 """
+    
+    def __init__(self, resume: Dict):
+        """ Initialize with resume data and Gemini client """
+        self.resume = resume
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")  # For token counting
+        
+        # Initialize Gemini client with robust validation
+        api_key = os.getenv("GEMINI_API_KEY", "").strip()
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable is not set or is empty")
+        if not api_key.startswith("AIza"):
+            raise ValueError("GEMINI_API_KEY must start with 'AIza'")
+        
+        try:
+            self.client = genai.Client(api_key=api_key)
+            self.model_name = TAILORING["model"]
+            logger.info(f"✓ Gemini client initialized with model: {self.model_name}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Gemini client: {e}")
+            self.client = None
+            self.model_name = None
+            raise
+
+    def _count_tokens(self, text: str) -> int:
+        """  Count tokens in text to avoid exceeding model limits """
+        return len(self.tokenizer.encode(text))
+
+    def _validate_prompt(self, prompt: str) -> None:
+        """Validate prompt doesn't exceed token limits"""
+        token_count = self._count_tokens(prompt)
+        max_tokens = TAILORING["max_tokens"]
+        
+        if token_count > 30000:  # Leave buffer for response
+            logger.warning(f"Prompt is very large: {token_count} tokens")
+            raise ValueError(f"Prompt too large: {token_count} tokens (max ~32k total)")
+
+    @retry_with_backoff(max_retries=3, initial_delay=1.0)
+    def tailor_application(self, job: Dict, match: Dict) -> Dict:
+        """
+        Generates a tailored resume and cover letter for a given job application.
+        
+        Args:
+            job: Job dictionary with title, company, description
+            match: Match results from JobMatcher
+            
+        Returns:
+            Dictionary with resume_text, cover_letter, and changes
+        """
+        if not self.client or not self.model_name:
+            raise RuntimeError("Gemini client not properly initialized")
+
+        # Build and validate prompt
+        prompt = self._build_prompt(job, match)
+        self._validate_prompt(prompt)
+        
+        # Check cache first
+        cache_key = self._get_cache_key(job, match)
+        cached_result = self._get_from_cache(cache_key)
+        if cached_result:
+            logger.info("✓ Using cached tailoring result")
+            return cached_result
+        
+        try:
+            logger.info(f"🤖 Generating tailored application for {job['title']}...")
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=TAILORING["temperature"],
+                    top_p=1.0,
+                    top_k=32,
+                    max_output_tokens=TAILORING["max_tokens"],
+                )
+            )
+            
+            if not response or not hasattr(response, 'text') or not response.text:
+                raise ValueError("Empty or invalid response from Gemini API")
+                
+            result = self._parse_response(response.text)
+            self._save_to_cache(cache_key, result)
+            return result
+            
+        except APIError as e:
+            logger.error(f"Gemini API error: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error during generation: {e}")
+            raise
+
+    async def tailor_application_stream(self, job: Dict, match: Dict) -> AsyncGenerator[str, None]:
+        """
+        Streaming version for real-time feedback.
+        
+        Yields chunks of the response as they arrive.
+        """
+        if not self.client or not self.model_name:
+            raise RuntimeError("Gemini client not properly initialized")
+
+        prompt = self._build_prompt(job, match)
+        self._validate_prompt(prompt)
+        
+        try:
+            stream = await self.client.models.generate_content_stream(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=TAILORING["temperature"],
+                    top_p=1.0,
+                    top_k=32,
+                    max_output_tokens=TAILORING["max_tokens"],
+                )
+            )
+            
+            async for chunk in stream:
+                if hasattr(chunk, 'text') and chunk.text:
+                    yield chunk.text
+                    
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            raise
+
+    def _build_prompt(self, job: Dict, match: Dict) -> str:
+        """Build prompt using template"""
+        resume_str = self._format_resume()
+        
+        # Escape braces in resume to prevent f-string issues
+        resume_str = resume_str.replace("{", "{{").replace("}", "}}")
+        
+        return self.PROMPT_TEMPLATE.replace(
+            "{{job_title}}", job.get('title', 'N/A')
+        ).replace(
+            "{{company}}", job.get('company', 'N/A')
+        ).replace(
+            "{{job_description}}", job.get('description', 'N/A')
+        ).replace(
+            "{{match_score}}", f"{match.get('match_score', 0)*100:.1f}"
+        ).replace(
+            "{{matched_skills}}", ', '.join(match.get('matched_skills', []))
+        ).replace(
+            "{{relevant_experience}}", '; '.join(match.get('relevant_experience', []))
+        ).replace(
+            "{{resume}}", resume_str
+        )
 
     def _format_resume(self) -> str:
-        """Format resume data into readable string"""
+        """  Format resume data into readable string """
         resume_parts = []
         
         # Personal info
@@ -148,22 +259,15 @@ class ResumeTailor:
         return "\n".join(resume_parts)
 
     def _parse_response(self, response_text: str) -> Dict[str, Any]:
-        """
-        Parse Gemini API response to extract sections.
-        
-        Args:
-            response_text: Raw text response from Gemini
-            
-        Returns:
-            Dictionary with parsed sections
-        """
+        """ Parse Gemini API response to extract sections. """
         try:
-            # Extract sections using markers
-            resume = self._extract_section(response_text, "START_RESUME", "END_RESUME")
-            cover_letter = self._extract_section(response_text, "START_COVER_LETTER", "END_COVER_LETTER")
-            changes_str = self._extract_section(response_text, "START_CHANGES", "END_CHANGES")
+            # Extract sections using explicit parsing
+            resume = self._extract_section(response_text, "[START_RESUME]", "[END_RESUME]")
+            cover_letter = self._extract_section(response_text, "[START_COVER_LETTER]", "[END_COVER_LETTER]")
+            changes_str = self._extract_section(response_text, "[START_CHANGES]", "[END_CHANGES]")
             
-            changes = [c.strip() for c in changes_str.split(",") if c.strip()]
+            # Handle empty changes properly
+            changes = [c.strip() for c in changes_str.split(",") if c.strip()] if changes_str else []
             
             return {
                 "resume_text": resume,
@@ -180,19 +284,80 @@ class ResumeTailor:
             }
     
     def _extract_section(self, text: str, start_marker: str, end_marker: str) -> str:
-        """Extract content between markers"""
+        """Extract content between markers safely"""
         try:
-            start = text.index(f"[{start_marker}]") + len(start_marker) + 2
-            end = text.index(f"[{end_marker}]")
+            # Use find() which returns -1 instead of raising ValueError
+            start = text.find(start_marker)
+            if start == -1:
+                logger.warning(f"Start marker '{start_marker}' not found")
+                return ""
+            
+            start += len(start_marker)
+            end = text.find(end_marker, start)
+            if end == -1:
+                logger.warning(f"End marker '{end_marker}' not found")
+                return ""
+            
             return text[start:end].strip()
-        except (ValueError, IndexError):
-            logger.warning(f"Could not extract section between {start_marker} and {end_marker}")
+        except Exception as e:
+            logger.error(f"Error extracting section: {e}")
             return ""
 
+    def _get_cache_key(self, job: Dict, match: Dict) -> str:
+        """Generate cache key from job and match data"""
+        cache_data = {
+            "job_id": job.get("id"),
+            "match_score": match.get("match_score"),
+            "matched_skills": sorted(match.get("matched_skills", []))
+        }
+        return hashlib.md5(json.dumps(cache_data, sort_keys=True).encode()).hexdigest()
 
-# Demo usage
+    def _get_from_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """Retrieve cached result"""
+        cache_file = Path("data/tailoring_cache.json")
+        if not cache_file.exists():
+            return None
+        
+        try:
+            with open(cache_file, "r") as f:
+                cache = json.load(f)
+            return cache.get(cache_key)
+        except Exception as e:
+            logger.warning(f"Cache read failed: {e}")
+            return None
+
+    def _save_to_cache(self, cache_key: str, result: Dict[str, Any]) -> None:
+        """Save result to cache"""
+        cache_file = Path("data/tailoring_cache.json")
+        cache_file.parent.mkdir(exist_ok=True)
+        
+        try:
+            cache = {}
+            if cache_file.exists():
+                with open(cache_file, "r") as f:
+                    cache = json.load(f)
+            
+            cache[cache_key] = result
+            
+            with open(cache_file, "w") as f:
+                json.dump(cache, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Cache write failed: {e}")
+
+
+# Async wrapper for convenience
+class AsyncResumeTailor(ResumeTailor):
+    """Async version of ResumeTailor for concurrent processing"""
+    
+    async def tailor_application_async(self, job: Dict, match: Dict) -> Dict[str, Any]:
+        """Async version with progress tracking"""
+        # This would use asyncio and the streaming API
+        # Implementation placeholder for now
+        raise NotImplementedError("Async implementation coming soon")
+
+
+# Demo usage with progress bar
 if __name__ == "__main__":
-    # Check if API key exists
     if not os.getenv("GEMINI_API_KEY"):
         print("❌ Error: GEMINI_API_KEY not found in environment variables")
         print("Please set it in your .env file")
@@ -216,7 +381,10 @@ if __name__ == "__main__":
     
     try:
         print("🤖 Generating tailored application...")
-        result = tailor.tailor_application(job, match)
+        # Show progress bar
+        with tqdm(total=1, desc="Generating") as pbar:
+            result = tailor.tailor_application(job, match)
+            pbar.update(1)
         
         print("\n" + "="*80)
         print("✅ TAILORED RESUME")
