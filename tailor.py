@@ -9,15 +9,23 @@ import os
 import time
 from typing import Dict, List, Any, Optional, AsyncGenerator
 from functools import wraps
+from pathlib import Path
 
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 from config.settings import RESUME_DATA, TAILORING
-from tqdm import tqdm
 import tiktoken  # For token counting
 
 logger = logging.getLogger(__name__)
+
+
+class MaxRetriesExceeded(Exception):
+    """✅ QoL: Custom exception for retry failures"""
+    def __init__(self, message: str, original_error: Exception):
+        self.message = message
+        self.original_error = original_error
+        super().__init__(f"{message}: {original_error}")
 
 
 def retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
@@ -26,17 +34,24 @@ def retry_with_backoff(max_retries: int = 3, initial_delay: float = 1.0):
         @wraps(func)
         def wrapper(*args, **kwargs):
             delay = initial_delay
+            last_error = None
+            
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
                 except APIError as e:
+                    last_error = e
                     if attempt == max_retries - 1:
                         logger.error(f"Failed after {max_retries} attempts: {e}")
-                        raise
+                        raise MaxRetriesExceeded(f"API call failed after {max_retries} retries", e)
+                    
                     wait_time = delay * (2  ** attempt)
                     logger.warning(f"Attempt {attempt + 1} failed, retrying in {wait_time}s: {e}")
                     time.sleep(wait_time)
-            return None
+            
+            # This should never be reached due to raise above, but explicit for clarity
+            raise MaxRetriesExceeded(f"API call failed after {max_retries} retries", last_error)
+        
         return wrapper
     return decorator
 
@@ -48,22 +63,22 @@ class ResumeTailor:
     
     # Prompt templates for better maintainability
     PROMPT_TEMPLATE = """
-*  *Objective: ** Tailor the following resume and generate a cover letter for the given job description.
+**Objective:** Tailor the following resume and generate a cover letter for the given job description.
 
-**  Job Title:** {{job_title}}
-**  Company:** {{company}}
-**  Job Description:**
+**Job Title:** {{job_title}}
+**Company:** {{company}}
+**Job Description:**
 {{job_description}}
 
-**  Match Analysis: **
+**Match Analysis:**
 - Match Score: {{match_score}}%
 - Matched Skills: {{matched_skills}}
 - Relevant Experience: {{relevant_experience}}
 
-**  Resume: **
+**Resume:**
 {{resume}}
 
-**  Instructions: **
+**Instructions:**
 1. Rewrite the resume summary to highlight the most relevant skills and experience for this job.
 2. Reorder the bullet points in the experience section to emphasize achievements that align with the job description.
 3. Do NOT add any new skills, experiences, or achievements. Do NOT fabricate any information.
@@ -84,7 +99,7 @@ class ResumeTailor:
 """
     
     def __init__(self, resume: Dict):
-        """ Initialize with resume data and Gemini client """
+        """Initialize with resume data and Gemini client"""
         self.resume = resume
         self.tokenizer = tiktoken.get_encoding("cl100k_base")  # For token counting
         
@@ -106,7 +121,7 @@ class ResumeTailor:
             raise
 
     def _count_tokens(self, text: str) -> int:
-        """  Count tokens in text to avoid exceeding model limits """
+        """Count tokens in text to avoid exceeding model limits"""
         return len(self.tokenizer.encode(text))
 
     def _validate_prompt(self, prompt: str) -> None:
@@ -204,18 +219,23 @@ class ResumeTailor:
             raise
 
     def _build_prompt(self, job: Dict, match: Dict) -> str:
-        """Build prompt using template"""
+        """Build prompt using template, escaping special characters"""
         resume_str = self._format_resume()
         
-        # Escape braces in resume to prevent f-string issues
+        # ✅ Fix: Escape braces in resume to prevent f-string issues
         resume_str = resume_str.replace("{", "{{").replace("}", "}}")
         
+        # ✅ Fix: Escape braces in job title and other fields
+        job_title = job.get('title', 'N/A').replace("{", "{{").replace("}", "}}")
+        company = job.get('company', 'N/A').replace("{", "{{").replace("}", "}}")
+        job_description = job.get('description', 'N/A').replace("{", "{{").replace("}", "}}")
+        
         return self.PROMPT_TEMPLATE.replace(
-            "{{job_title}}", job.get('title', 'N/A')
+            "{{job_title}}", job_title
         ).replace(
-            "{{company}}", job.get('company', 'N/A')
+            "{{company}}", company
         ).replace(
-            "{{job_description}}", job.get('description', 'N/A')
+            "{{job_description}}", job_description
         ).replace(
             "{{match_score}}", f"{match.get('match_score', 0)*100:.1f}"
         ).replace(
@@ -227,7 +247,7 @@ class ResumeTailor:
         )
 
     def _format_resume(self) -> str:
-        """  Format resume data into readable string """
+        """Format resume data into readable string"""
         resume_parts = []
         
         # Personal info
@@ -259,14 +279,14 @@ class ResumeTailor:
         return "\n".join(resume_parts)
 
     def _parse_response(self, response_text: str) -> Dict[str, Any]:
-        """ Parse Gemini API response to extract sections. """
+        """Parse Gemini API response to extract sections."""
         try:
             # Extract sections using explicit parsing
             resume = self._extract_section(response_text, "[START_RESUME]", "[END_RESUME]")
             cover_letter = self._extract_section(response_text, "[START_COVER_LETTER]", "[END_COVER_LETTER]")
             changes_str = self._extract_section(response_text, "[START_CHANGES]", "[END_CHANGES]")
             
-            # Handle empty changes properly
+            # ✅ Fix: Handle empty changes properly
             changes = [c.strip() for c in changes_str.split(",") if c.strip()] if changes_str else []
             
             return {
@@ -314,7 +334,8 @@ class ResumeTailor:
 
     def _get_from_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
         """Retrieve cached result"""
-        cache_file = Path("data/tailoring_cache.json")
+        # ✅ Fix: Use absolute path for cache
+        cache_file = Path(__file__).parent.parent / "data" / "tailoring_cache.json"
         if not cache_file.exists():
             return None
         
@@ -328,7 +349,8 @@ class ResumeTailor:
 
     def _save_to_cache(self, cache_key: str, result: Dict[str, Any]) -> None:
         """Save result to cache"""
-        cache_file = Path("data/tailoring_cache.json")
+        # ✅ Fix: Use absolute path for cache
+        cache_file = Path(__file__).parent.parent / "data" / "tailoring_cache.json"
         cache_file.parent.mkdir(exist_ok=True)
         
         try:
@@ -345,7 +367,6 @@ class ResumeTailor:
             logger.warning(f"Cache write failed: {e}")
 
 
-# Async wrapper for convenience
 class AsyncResumeTailor(ResumeTailor):
     """Async version of ResumeTailor for concurrent processing"""
     
@@ -382,6 +403,7 @@ if __name__ == "__main__":
     try:
         print("🤖 Generating tailored application...")
         # Show progress bar
+        from tqdm import tqdm  # Import here to avoid dependency in library mode
         with tqdm(total=1, desc="Generating") as pbar:
             result = tailor.tailor_application(job, match)
             pbar.update(1)
