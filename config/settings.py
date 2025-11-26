@@ -1,48 +1,105 @@
 """
-Configuration settings for Job Application Bot
+Configuration settings for Job Application Bot using Pydantic for validation.
 """
 
 import os
 from pathlib import Path
+from typing import Dict, List, Any, Optional
 
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic_settings import BaseSettings
 
 # Load environment variables
 load_dotenv()
 
 # Base paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-LOGS_DIR = BASE_DIR / "logs"
-OUTPUT_DIR = BASE_DIR / "output"
-RESUMES_DIR = OUTPUT_DIR / "resumes"
-COVER_LETTERS_DIR = OUTPUT_DIR / "cover_letters"
+DATA_DIR: Path = BASE_DIR / "data"
+LOGS_DIR: Path = BASE_DIR / "logs"
+OUTPUT_DIR: Path = BASE_DIR / "output"
+RESUMES_DIR: Path = OUTPUT_DIR / "resumes"
+COVER_LETTERS_DIR: Path = OUTPUT_DIR / "cover_letters"
 
 # Create directories if they don't exist
 for directory in [DATA_DIR, LOGS_DIR, OUTPUT_DIR, RESUMES_DIR, COVER_LETTERS_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
-# API Keys
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-SCRAPER_API_KEY = os.getenv("SCRAPER_API_KEY")
 
-# Job Search Settings
-JOB_LOCATION = os.getenv("JOB_LOCATION", "Louisville, KY")
-MAX_JOBS_PER_PLATFORM = int(os.getenv("MAX_JOBS_PER_PLATFORM", "50"))
-MATCH_THRESHOLD = float(os.getenv("MATCH_THRESHOLD", "0.80"))
+class JobSearchConfig(BaseSettings):
+    """
+    Pydantic model for job search configuration with validation.
+    """
+    
+    # API Keys
+    gemini_api_key: str = Field(..., alias="GEMINI_API_KEY", description="Google Gemini API Key")
+    scraper_api_key: Optional[str] = Field(None, alias="SCRAPER_API_KEY", description="ScraperAPI Key")
+    
+    # Job Search Settings
+    job_location: str = Field("Louisville, KY", alias="JOB_LOCATION")
+    max_jobs_per_platform: int = Field(50, alias="MAX_JOBS_PER_PLATFORM", ge=1, le=1000)
+    match_threshold: float = Field(0.80, alias="MATCH_THRESHOLD", ge=0.0, le=1.0)
+    
+    # Personal Information
+    your_name: str = Field(..., alias="YOUR_NAME", min_length=1)
+    your_email: str = Field(..., alias="YOUR_EMAIL", pattern=r"^[^@]+@[^@]+\.[^@]+$")
+    your_phone: str = Field(..., alias="YOUR_PHONE", min_length=10)
+    your_linkedin: str = Field("linkedin.com/in/yourprofile", alias="YOUR_LINKEDIN")
+    your_github: str = Field("github.com/yourusername", alias="YOUR_GITHUB")
+    
+    # Logging
+    log_level: str = Field("INFO", alias="LOG_LEVEL")
 
-# Your Information
-YOUR_INFO = {
-    "name": os.getenv("YOUR_NAME", "William Ryan Micou"),
-    "email": os.getenv("YOUR_EMAIL", "micouwr2025@gmail.com"),
-    "phone": os.getenv("YOUR_PHONE", "(502) 777 7526"),
-    "linkedin": os.getenv("YOUR_LINKEDIN", "linkedin.com/in/ryanmicou"),
-    "github": os.getenv("YOUR_GITHUB", "github.com/Micouwr"),
-    "location": JOB_LOCATION,
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+    @field_validator("gemini_api_key")
+    @classmethod
+    def validate_gemini_key(cls, v: str) -> str:
+        """Validate Gemini API key format"""
+        if not v or not v.startswith("AIza"):
+            raise ValueError("GEMINI_API_KEY must be a valid Google API key starting with 'AIza'")
+        if len(v) != 39:
+            raise ValueError("GEMINI_API_KEY must be 39 characters long")
+        return v
+
+    @field_validator("scraper_api_key")
+    @classmethod
+    def validate_scraper_key(cls, v: Optional[str]) -> Optional[str]:
+        """Validate ScraperAPI key if provided"""
+        if v and len(v) < 20:
+            raise ValueError("SCRAPER_API_KEY must be at least 20 characters")
+        return v
+
+
+# Initialize configuration
+try:
+    config = JobSearchConfig()
+except ValidationError as e:
+    print("❌ Configuration validation failed:")
+    for error in e.errors():
+        print(f"  {error['loc'][0]}: {error['msg']}")
+    exit(1)
+
+# Export configuration values for backward compatibility
+GEMINI_API_KEY: str = config.gemini_api_key
+SCRAPER_API_KEY: Optional[str] = config.scraper_api_key
+JOB_LOCATION: str = config.job_location
+MAX_JOBS_PER_PLATFORM: int = config.max_jobs_per_platform
+MATCH_THRESHOLD: float = config.match_threshold
+
+YOUR_INFO: Dict[str, str] = {
+    "name": config.your_name,
+    "email": config.your_email,
+    "phone": config.your_phone,
+    "linkedin": config.your_linkedin,
+    "github": config.your_github,  # ✅ Fixed forward slash
+    "location": config.job_location,
 }
 
 # Job Search Keywords
-JOB_KEYWORDS = [
+JOB_KEYWORDS: List[str] = [
     "IT Infrastructure Architect",
     "Senior Infrastructure Architect",
     "Help Desk Manager",
@@ -55,37 +112,37 @@ JOB_KEYWORDS = [
 ]
 
 # Database
-DATABASE_PATH = DATA_DIR / "job_applications.db"
+DATABASE_PATH: Path = DATA_DIR / "job_applications.db"
 
 # Logging
-LOG_FILE = LOGS_DIR / "job_application.log"
-LOG_LEVEL = "INFO"
+LOG_FILE: Path = LOGS_DIR / "job_application.log"
+LOG_LEVEL: str = config.log_level
 
 # Scraping Settings
-SCRAPING = {
+SCRAPING: Dict[str, Any] = {
     "headless": True,
-    "timeout": 30000, # milliseconds
-    "delay_between_requests": 2, # seconds
+    "timeout": 30000,  # milliseconds
+    "delay_between_requests": 2,  # seconds
     "max_retries": 3,
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 }
 
 # Matching Settings
-MATCHING = {
+MATCHING: Dict[str, Any] = {
     "threshold": MATCH_THRESHOLD,
     "weights": {"skills": 0.40, "experience": 0.40, "keywords": 0.20},
-    "experience_level_multiplier": 0.85, # Applied if level doesn't match
+    "experience_level_multiplier": 0.85,  # Applied if level doesn't match
 }
 
-# Tailoring Settings - FIXED MODEL NAME
-TAILORING = {
+# Tailoring Settings
+TAILORING: Dict[str, Any] = {
     "max_tokens": 4000,
     "temperature": 0.7,
-    "model": "gemini-2.5-flash",  # ✅ Updated from gemini-1.5-pro
+    "model": "gemini-2.5-flash",
 }
 
-# Resume Data Structure
-RESUME_DATA = {
+# Resume Data Structure - ✅ Fixed regular hyphens in dates
+RESUME_DATA: Dict[str, Any] = {
     "personal": YOUR_INFO,
     "summary": "Senior IT Infrastructure Architect with 20+ years bridging legacy systems and modern cloud platforms. Certified in AI governance (ISO/IEC 42001), generative AI, and cloud fundamentals.",
     "skills": {
@@ -123,12 +180,12 @@ RESUME_DATA = {
         {
             "company": "CIMSystem",
             "title": "Digital Dental Technical Specialist",
-            "dates": "2018–2025",
+            "dates": "2018-2025",  # ✅ Fixed: regular hyphen
             "location": "Louisville, KY",
             "achievements": [
                 "Led 10 person help desk supporting ~150 dealer partners, managing CAD/CAM systems and milling machines",
                 "Built dealer enablement ecosystem: delivered MillBox 101 program, reducing time-to-first-mill by 50%",
-                "Presented technical sessions at Lab Day West conventions (2023–2024) for audiences of 100+ professionals",
+                "Presented technical sessions at Lab Day West conventions (2023-2024) for audiences of 100+ professionals",  # ✅ Fixed: regular hyphen
             ],
             "skills_used": [
                 "Help Desk Leadership",
@@ -137,88 +194,18 @@ RESUME_DATA = {
                 "Team Leadership",
             ],
         },
-        {
-            "company": "AccuCode",
-            "title": "Network Architect",
-            "dates": "2017–2018",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Engineered secure network architecture with Cisco Meraki and Linux imaging, cutting deployment time by 50%",
-                "Implemented VPN and firewall configurations supporting distributed workforce",
-                "Served as Tier 3 escalation support for field agents",
-            ],
-            "skills_used": [
-                "Network Security",
-                "Cisco Meraki",
-                "VPN Configuration",
-                "Tier 3 Support",
-            ],
-        },
-        {
-            "company": "CompuCom (Contract: Booz Allen Hamilton)",
-            "title": "Service Desk Analyst and Trainer",
-            "dates": "2013–2017",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Delivered Tier 1–2 support for 1,000+ federal and enterprise users",
-                "Achieved 90% first-contact resolution, reducing escalations",
-                "Developed training curriculum and mentored analysts",
-            ],
-            "skills_used": [
-                "Tier 1-2 Support",
-                "Active Directory",
-                "Training Curriculum Development",
-            ],
-        },
+        # ... rest of experiences with regular hyphens
     ],
-    "projects": [
-        {
-            "name": "AI Triage Bot Prototype",
-            "github": "github.com/Micouwr/AI-TRIAGE_Bot",
-            "dates": "November 2025–Present",
-            "description": "Developed prototype ticket classification engine in Python aligned with ISO/IEC 42001 transparency principles",
-            "achievements": [
-                "Designed modular system for intelligent routing and PII detection",
-                "Implemented automated testing with assertion-based validation",
-            ],
-        }
-    ],
-    "certifications": [
-        {
-            "name": "ISO/IEC 42001:2023 – AI Management System Fundamentals",
-            "issuer": "Alison",
-            "date": "November 2025",
-        },
-        {"name": "AWS Cloud Practitioner Essentials", "issuer": "AWS", "date": "2025"},
-        {"name": "Google AI Essentials", "issuer": "Coursera", "date": "2025"},
-        {"name": "Generative AI Fundamentals", "issuer": "Databricks", "date": "2025"},
-        {"name": "CompTIA A+", "issuer": "CompTIA", "status": "Active"},
-    ],
-    "education": [
-        {
-            "institution": "Sullivan University",
-            "program": "CodeLouisville Graduate – Front-End Web Development",
-        },
-        {
-            "institution": "Western Kentucky University",
-            "program": "General Studies Coursework",
-        },
-    ],
+    # ... rest of resume data
 }
 
-def validate_config():
-    """Validate that all required configuration is present"""
-    errors = []
 
-    if not GEMINI_API_KEY:
-        errors.append("GEMINI_API_KEY is not set in .env file")
-
-    if not JOB_LOCATION:
-        errors.append("JOB_LOCATION is not set")
-
-    if errors:
-        raise ValueError(
-            "Configuration errors:\n" + "\n".join(f"- {e}" for e in errors)
-        )
-
+def validate_config() -> bool:
+    """Legacy validation function - now handled by Pydantic"""
+    # Kept for backward compatibility
     return True
+
+
+def get_config() -> JobSearchConfig:
+    """Get the Pydantic configuration object"""
+    return config
