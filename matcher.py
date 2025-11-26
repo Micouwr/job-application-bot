@@ -3,7 +3,7 @@ Job matching engine - Scores jobs against resume with advanced matching algorith
 """
 
 import logging
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple, Set, Optional
 import difflib  # For fuzzy matching
 from collections import Counter
 
@@ -37,7 +37,7 @@ class JobMatcher:
         logger.info(f"✓ JobMatcher initialized with {len(self.weighted_skills)} weighted skills")
 
     def _create_weighted_skills(self) -> List[WeightedSkill]:
-        """Create weighted skills based on categories"""
+        """ Create weighted skills based on categories """
         weighted_skills = []
         
         # Higher weight for advanced skills
@@ -56,7 +56,7 @@ class JobMatcher:
         return weighted_skills
 
     def _build_skill_variations(self) -> Dict[str, Set[str]]:
-        """Build variations of skills for fuzzy matching"""
+        """ Build variations of skills for fuzzy matching """
         variations = {}
         for skill in self.weighted_skills:
             # Create variations (AWS -> Amazon Web Services, etc.)
@@ -75,7 +75,7 @@ class JobMatcher:
         return variations
 
     def _extract_experience_keywords(self) -> Set[str]:
-        """  Extract keywords from experience with weights """
+        """Extract keywords from experience with weights"""
         keywords = set()
         for exp in self.resume["experience"]:
             for skill in exp.get("skills_used", []):
@@ -175,7 +175,8 @@ class JobMatcher:
             
             # Check for fuzzy match
             best_match = self._find_fuzzy_match(skill.name, job_text)
-            if best_match and best_match[1] > 0.8:  # 80% similarity threshold
+            # ✅ Fix: Lower threshold to 0.75 to catch "Python" vs "Pythonic" (0.77 similarity)
+            if best_match and best_match[1] > 0.75:  # Reduced from 0.8
                 matched_skills.append(skill.name.title())
                 matched_weight += skill.weight * 0.9  # Slightly reduce weight for fuzzy matches
                 skill_details.append({
@@ -189,7 +190,7 @@ class JobMatcher:
         if not self.weighted_skills:
             return 0.0, [], [], {}
         
-        # ✅ Fixed: Explicit check for empty skills
+        # ✅ Fix: Explicit check for empty skills
         score = matched_weight / total_weight if total_weight > 0 else 0.0
         missing_skills = [skill.name.title() for skill in self.weighted_skills 
                          if skill.name.title() not in matched_skills]
@@ -206,7 +207,7 @@ class JobMatcher:
         
         # Use difflib for partial matches
         words = text.split()
-        matches = difflib.get_close_matches(skill, words, n=1, cutoff=0.8)
+        matches = difflib.get_close_matches(skill, words, n=1, cutoff=0.75)  # ✅ Lowered threshold
         
         if matches:
             return (matches[0], difflib.SequenceMatcher(None, skill, matches[0]).ratio())
@@ -214,7 +215,7 @@ class JobMatcher:
         return None
 
     def _calculate_experience_match(self, job_text: str) -> Tuple[float, List[str], Dict[str, Any]]:
-        """  Calculate experience relevance with details """
+        """Calculate experience relevance with details"""
         relevant_exp = []
         exp_details = []
         score = 0.0
@@ -242,12 +243,12 @@ class JobMatcher:
                 exp_details.append(details)
                 score += min(relevance, 0.8)  # Cap at 0.8 per position
         
-        # ✅  Fixed: Explicit capping
+        # ✅ Fix: Explicit capping
         final_score = min(score, 1.0)
         return final_score, relevant_exp, {"positions": exp_details}
 
     def _calculate_keyword_match(self, job_text: str) -> Tuple[float, Dict[str, int]]:
-        """  Calculate keyword matches with frequency weighting """
+        """Calculate keyword matches with frequency weighting"""
         keywords = {
             "help desk": 0,
             "service desk": 0,
@@ -279,7 +280,7 @@ class JobMatcher:
 
     def _check_experience_level(self, job: Dict[str, Any]) -> Dict[str, Any]:
         """
-        ✅ Fixed: Enhanced experience level matching
+        ✅ Fix: Enhanced experience level matching with explicit indicator priority
         Returns detailed analysis instead of just boolean
         """
         title = job["title"].lower()
@@ -289,16 +290,26 @@ class JobMatcher:
         # Combine all text for comprehensive check
         combined_text = f"{title} {exp_level} {description}"
         
+        # ✅ QoL: Prioritize explicit indicators in order
         level_indicators = {
-            "senior": ["senior", "sr.", "sr", "lead", "principal", "staff", "architect", "manager", "director"],
-            "mid": ["mid", "intermediate", "ii", "2"],
-            "junior": ["junior", "jr.", "jr", "entry", "associate", "i", "1"]
+            "junior": ["junior", "jr.", "jr ", "entry", "associate", "intern", "trainee", "junior level", "early career"],
+            "mid": ["mid", "intermediate", "mid-level", "ii", "2", "level 2"],
+            "senior": ["senior", "sr.", "sr ", "lead", "principal", "staff", "architect", "manager", "director"],
         }
         
         detected_levels = []
-        for level, indicators in level_indicators.items():
-            if any(indicator in combined_text for indicator in indicators):
-                detected_levels.append(level)
+        
+        # Check junior first (highest priority to avoid misclassification)
+        if any(indicator in combined_text for indicator in level_indicators["junior"]):
+            detected_levels.append("junior")
+        
+        # Check mid
+        if any(indicator in combined_text for indicator in level_indicators["mid"]):
+            detected_levels.append("mid")
+        
+        # Check senior
+        if any(indicator in combined_text for indicator in level_indicators["senior"]):
+            detected_levels.append("senior")
         
         # Check if job is senior-level (what resume indicates)
         is_senior = "senior" in detected_levels
@@ -367,7 +378,7 @@ class JobMatcher:
         return " | ".join(parts)
 
     def _get_recommendation(self, score: float) -> str:
-        """  Get recommendation based on score thresholds """
+        """Get recommendation based on score thresholds"""
         if score >= 0.90:
             return "EXCELLENT FIT - Strongly recommended"
         elif score >= 0.85:
@@ -416,7 +427,7 @@ class JobMatcher:
 
 
 def demo_matcher() -> None:
-    """  Demo the matcher with detailed output """
+    """ Demo the matcher with detailed output """
     from scraper import demo_scraper
     
     jobs = demo_scraper()
