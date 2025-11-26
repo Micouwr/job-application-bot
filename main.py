@@ -281,4 +281,193 @@ class JobApplicationBot:
         else:
             logger.info("No jobs added.")
     
-    def review_pending(self) ->
+    def review_pending(self) -> None:
+        """Shows all applications pending review"""
+        pending = self.db.get_pending_reviews()
+        
+        if not pending:
+            print("\nNo applications pending review.")
+            return
+        
+        print("\n" + "=" * 80)
+        print(f"PENDING REVIEW ({len(pending)} applications)")
+        print("=" * 80 + "\n")
+        
+        for i, app in enumerate(pending, 1):
+            print(f"{i}. {app['title']} at {app['company']}")
+            print(f"   Match Score: {app['match_score']*100:.1f}%")
+            print(f"   Location: {app['location']}")
+            print(f"   URL: {app['url']}")
+            
+            # Safely parse changes
+            changes = self._safe_parse_changes(app.get("changes_summary", "[]"))
+            if changes:
+                print(f"   Changes: {', '.join(changes[:3])}")  # Show max 3
+            print()
+    
+    def _safe_parse_changes(self, changes_json: str) -> List[str]:
+        """Safely parse changes JSON"""
+        try:
+            import json
+            changes = json.loads(changes_json) if changes_json else []
+            return [str(c).strip() for c in changes if c]
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("Invalid JSON in changes summary")
+            return []
+    
+    def approve_application(self, job_id: str) -> None:
+        """Approve an application"""
+        self.db.update_status(job_id, "applied")
+        logger.info(f"Application approved: {job_id}")
+    
+    def _save_application_files(self, job: Dict[str, Any], application: Dict[str, Any]) -> None:
+        """
+        Saves tailored resume and cover letter with safe filenames.
+        Prevents overwrites and path traversal.
+        """
+        def sanitize_filename(name: str, max_length: int = 40) -> str:
+            """Sanitize filename to prevent security issues"""
+            if not name:
+                return "unknown"
+            # Remove dangerous characters
+            sanitized = re.sub(r'[<>:\"/\\|?*\x00-\x1f]', '', name)
+            # Replace path separators
+            sanitized = sanitized.replace('..', '')
+            # Limit length
+            sanitized = sanitized[:max_length].strip()
+            return sanitized or "unknown"
+        
+        safe_company = sanitize_filename(job["company"])
+        job_id_short = job["id"][-8:]  # Last 8 chars of job ID for uniqueness
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        base_name = f"{safe_company}_{job_id_short}_{timestamp}"
+        
+        try:
+            # Ensure directories exist with permissions check
+            RESUMES_DIR.mkdir(parents=True, exist_ok=True, mode=0o755)
+            COVER_LETTERS_DIR.mkdir(parents=True, exist_ok=True, mode=0o755)
+            
+            resume_file = RESUMES_DIR / f"{base_name}_resume.txt"
+            cover_file = COVER_LETTERS_DIR / f"{base_name}_cover_letter.txt"
+            
+            # Double-check for existing files (defensive)
+            if resume_file.exists():
+                logger.warning(f"File exists, adding UUID: {resume_file}")
+                unique = str(uuid.uuid4())[:8]
+                resume_file = resume_file.with_stem(f"{resume_file.stem}_{unique}")
+                cover_file = cover_file.with_stem(f"{cover_file.stem}_{unique}")
+            
+            # Write files
+            resume_file.write_text(application["resume_text"], encoding="utf-8")
+            cover_file.write_text(application["cover_letter"], encoding="utf-8")
+            
+            logger.info(f"Saved to: {resume_file.name} and {cover_file.name}")
+            
+        except (IOError, OSError, PermissionError) as e:
+            logger.error(f"Failed to save application files: {e}")
+            raise RuntimeError(f"Cannot save files for {job['title']}: {e}")
+    
+    def _print_summary(self) -> None:
+        """Print pipeline execution summary"""
+        stats = self.db.get_statistics()
+        
+        print("\n" + "=" * 80)
+        print("PIPELINE SUMMARY")
+        print("=" * 80)
+        print(f"Total Jobs: {stats['total_jobs']}")
+        print(f"High Matches (≥80%): {stats['high_matches']}")
+        print(f"Applications Prepared: {stats['by_status'].get('pending_review', 0)}")
+        print(f"Average Match Score: {stats['avg_match_score']*100:.1f}%")
+        print("\nNext Steps:")
+        print("1. Review applications: python main.py --review")
+        print("2. Check output/ folder for tailored resumes and cover letters")
+        print("3. Open database with: sqlite3 data/job_applications.db")
+        print("=" * 80 + "\n")
+
+def main() -> None:
+    """
+    Main entry point with proper error handling and cleanup.
+    Uses context manager to ensure resources are released.
+    """
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="Job Application Bot - Automated IT Infrastructure Job Applications",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py --interactive    # Add jobs manually
+  python main.py --review         # Review pending applications
+  python main.py --stats          # Show statistics
+  python main.py --cleanup        # Clean old records
+        """
+    )
+    parser.add_argument(
+        "--interactive", "-i",
+        action="store_true",
+        help="Run in interactive mode (add jobs manually)"
+    )
+    parser.add_argument(
+        "--review", "-r",
+        action="store_true",
+        help="Review pending applications"
+    )
+    parser.add_argument(
+        "--stats", "-s",
+        action="store_true",
+        help="Show statistics"
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Clean up old records (60 days)"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging"
+    )
+    
+    args = parser.parse_args()
+    
+    # Adjust log level if debug flag
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logger.debug("Debug logging enabled")
+    
+    try:
+        with JobApplicationBot() as bot:
+            if args.interactive:
+                bot.run_interactive()
+            elif args.review:
+                bot.review_pending()
+            elif args.stats:
+                stats = bot.db.get_statistics()
+                print("\n=== STATISTICS ===")
+                print(f"Total Jobs: {stats['total_jobs']}")
+                print(f"High Matches: {stats['high_matches']}")
+                print(f"Avg Match Score: {stats['avg_match_score']*100:.1f}%")
+                print("\nBy Status:")
+                for status, count in stats.get("by_status", {}).items():
+                    print(f"  {status}: {count}")
+            elif args.cleanup:
+                deleted = bot.db.cleanup_old_data(days=60)
+                print(f"Cleaned up {deleted} old records")
+            else:
+                # Show usage
+                parser.print_help()
+                print("\nQuick start: python main.py --interactive")
+    
+    except ValueError as e:
+        logger.error(f"Configuration error: {e}")
+        sys.exit(1)
+    except RuntimeError as e:
+        logger.error(f"Runtime error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logger.critical(f"Unexpected error: {e}", exc_info=True)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
