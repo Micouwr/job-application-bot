@@ -28,7 +28,7 @@ class JobDatabase:
         self.db_path = db_path or DATABASE_PATH
         self._conn: Optional[sqlite3.Connection] = None
         self._initialize_schema()
-        logger.info(f"✓ Database initialized at {self.db_path}")
+        logger.info(f"Database initialized at {self.db_path}")
     
     @property
     def conn(self) -> sqlite3.Connection:
@@ -144,7 +144,7 @@ class JobDatabase:
             """)
             
             self.conn.commit()
-            logger.info("✓ Database schema initialized")
+            logger.info("Database schema initialized")
             
         except sqlite3.Error as e:
             logger.error(f"Schema initialization failed: {e}")
@@ -192,7 +192,7 @@ class JobDatabase:
             
             self.conn.commit()
             self.log_activity(job["id"], "job_added", f"Added: {job['title']}")
-            logger.info(f"✓ Job inserted: {job['title']}")
+            logger.info(f"Job inserted: {job['title']}")
             return True
             
         except sqlite3.IntegrityError:
@@ -273,7 +273,7 @@ class JobDatabase:
             
             self.conn.commit()
             self.log_activity(job_id, "application_prepared", "Tailored application ready")
-            logger.info(f"✓ Application saved for job {job_id}")
+            logger.info(f"Application saved for job {job_id}")
             return True
             
         except sqlite3.Error as e:
@@ -306,7 +306,7 @@ class JobDatabase:
             
             self.conn.commit()
             self.log_activity(job_id, "status_change", f"Status: {status}")
-            logger.info(f"✓ Status updated: {job_id} → {status}")
+            logger.info(f"Status updated: {job_id} → {status}")
             return True
             
         except sqlite3.Error as e:
@@ -453,7 +453,7 @@ class JobDatabase:
                 f"Deleted {jobs_deleted} jobs and {apps_deleted} applications"
             )
             
-            logger.info(f"✓ Cleaned up {jobs_deleted} jobs and {apps_deleted} applications")
+            logger.info(f"Cleaned up {jobs_deleted} jobs and {apps_deleted} applications")
             return jobs_deleted + apps_deleted
             
         except sqlite3.Error as e:
