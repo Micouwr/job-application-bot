@@ -322,10 +322,15 @@ def build_executable(clean: bool = False):
     ]
     
     # Data files to bundle (config, assets, etc.)
-    datas = [
+  datas = [
     'config:config',
     'assets:assets',
     '.env:.',
+    'database.py:.',
+    'tailor.py:.',
+    'matcher.py:.',
+    'scraper.py:.',
+    'main.py:.',
 ]
     
     # Base PyInstaller command
