@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 from typing import List, Optional
 
-# ✅ CRITICAL: Import for collecting tiktoken data files
+# ✅ CRITICAL: PyInstaller utilities for bundling data files
 from PyInstaller.utils.hooks import collect_data_files
 
 # Build dependencies - install these before running:
@@ -338,11 +338,21 @@ def build_executable(clean: bool = False):
         'main.py:.',
     ]
 
-    # ✅ NEW: Add tiktoken data files
-    for src, dst in collect_data_files('tiktoken'):
+    # ✅ NEW: Explicitly collect and add tiktoken data files
+    print_section("📦 Collecting tiktoken data files...")
+    tiktoken_files = collect_data_files('tiktoken')
+    for src, dst in tiktoken_files:
         datas.append(f'{src}:{dst}')
-    for src, dst in collect_data_files('tiktoken_ext'):
-        datas.append(f'{src}:{dst}')
+        print_success(f"Added: {src} → {dst}")
+    
+    # Also collect tiktoken_ext if it exists
+    try:
+        tiktoken_ext_files = collect_data_files('tiktoken_ext')
+        for src, dst in tiktoken_ext_files:
+            datas.append(f'{src}:{dst}')
+            print_success(f"Added ext: {src} → {dst}")
+    except Exception as e:
+        print_warning(f"Could not collect tiktoken_ext files: {e}")
     
     # Base PyInstaller command
     cmd = [
