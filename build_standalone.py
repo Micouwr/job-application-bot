@@ -6,12 +6,15 @@ Creates distributable executables for Windows, macOS, and Linux
 
 import os
 import sys
-import argparse  
+import argparse
 import platform
 import subprocess
 import shutil
 from pathlib import Path
 from typing import List, Optional
+
+# ✅ CRITICAL: Import for collecting tiktoken data files
+from PyInstaller.utils.hooks import collect_data_files
 
 # Build dependencies - install these before running:
 # pip install pyinstaller Pillow
@@ -312,6 +315,7 @@ def build_executable(clean: bool = False):
         'tiktoken', 'tiktoken_ext',
         'PyPDF2', 'PIL', 'PIL.Image',
         'tkinter', 'tkinter.filedialog', 'tkinter.messagebox',
+        'jinja2',  # ✅ Added
         
         # ✅ PROJECT MODULES - Must be included!
         'database',
@@ -333,6 +337,12 @@ def build_executable(clean: bool = False):
         'scraper.py:.',
         'main.py:.',
     ]
+
+    # ✅ NEW: Add tiktoken data files
+    for src, dst in collect_data_files('tiktoken'):
+        datas.append(f'{src}:{dst}')
+    for src, dst in collect_data_files('tiktoken_ext'):
+        datas.append(f'{src}:{dst}')
     
     # Base PyInstaller command
     cmd = [
