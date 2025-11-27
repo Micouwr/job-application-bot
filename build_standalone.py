@@ -323,9 +323,13 @@ def build_executable(clean: bool = False):
     
     # Data files to bundle (config, assets, etc.)
     datas = [
-        'config:config',
-        'assets:assets',
-    ]
+    'config:config',
+    'assets:assets',
+    '.env:.',
+    # Add this line for macOS tkinter:
+    '/System/Library/Frameworks/Tk.framework/Tk:tk',
+    '/System/Library/Frameworks/Tcl.framework/Tcl:tcl',
+]
     
     # Base PyInstaller command
     cmd = [
