@@ -338,21 +338,32 @@ def build_executable(clean: bool = False):
         'main.py:.',
     ]
 
-    # ✅ NEW: Explicitly collect and add tiktoken data files
+    # ✅ DEFINITIVE FIX: Explicitly add tiktoken directory
     print_section("📦 Collecting tiktoken data files...")
-    tiktoken_files = collect_data_files('tiktoken')
-    for src, dst in tiktoken_files:
-        datas.append(f'{src}:{dst}')
-        print_success(f"Added: {src} → {dst}")
-    
-    # Also collect tiktoken_ext if it exists
     try:
-        tiktoken_ext_files = collect_data_files('tiktoken_ext')
-        for src, dst in tiktoken_ext_files:
-            datas.append(f'{src}:{dst}')
-            print_success(f"Added ext: {src} → {dst}")
+        import tiktoken
+        tiktoken_dir = Path(tiktoken.__file__).parent
+        if tiktoken_dir.exists():
+            # Add the entire tiktoken directory
+            datas.append(f'{tiktoken_dir}/:tiktoken/')
+            print_success(f"Added tiktoken directory: {tiktoken_dir}")
+            
+            # Also add specific encoding files if they exist
+            for encoding_file in tiktoken_dir.glob("*.tiktoken"):
+                datas.append(f'{encoding_file}:tiktoken/')
+                print_success(f"Added encoding: {encoding_file.name}")
     except Exception as e:
-        print_warning(f"Could not collect tiktoken_ext files: {e}")
+        print_warning(f"Could not locate tiktoken directory: {e}")
+    
+    # Also add tiktoken_ext if it exists
+    try:
+        import tiktoken_ext.openai_public
+        ext_dir = Path(tiktoken_ext.openai_public.__file__).parent.parent
+        if ext_dir.exists() and 'tiktoken_ext' in str(ext_dir):
+            datas.append(f'{ext_dir}/:tiktoken_ext/')
+            print_success(f"Added tiktoken_ext directory: {ext_dir}")
+    except Exception as e:
+        print_warning(f"Could not locate tiktoken_ext directory: {e}")
     
     # Base PyInstaller command
     cmd = [
