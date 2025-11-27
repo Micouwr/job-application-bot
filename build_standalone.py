@@ -113,7 +113,6 @@ def check_environment() -> dict:
         status['env_file'] = True
     else:
         print_warning(".env file not found - app won't run without it")
-        # Don't mark as error, just warning
     
     # Check icons
     check_icons()
@@ -179,7 +178,7 @@ def find_best_icon_for_platform() -> tuple:
         else:
             raise BuildError("No suitable icon found for Windows")
     
-    else:
+    else:  # Linux
         # Linux: Use PNG
         if icon_png.exists():
             print_success(f"Found Linux icon: {icon_png}")
@@ -322,16 +321,17 @@ def build_executable(clean: bool = False):
     ]
     
     # Data files to bundle (config, assets, etc.)
-  datas = [
-    'config:config',
-    'assets:assets',
-    '.env:.',
-    'database.py:.',
-    'tailor.py:.',
-    'matcher.py:.',
-    'scraper.py:.',
-    'main.py:.',
-]
+    # ✅ CRITICAL FIX: Added project root modules
+    datas = [
+        'config:config',
+        'assets:assets',
+        '.env:.',
+        'database.py:.',
+        'tailor.py:.',
+        'matcher.py:.',
+        'scraper.py:.',
+        'main.py:.',
+    ]
     
     # Base PyInstaller command
     cmd = [
@@ -375,15 +375,6 @@ def build_executable(clean: bool = False):
         else:
             print_success("Executable location: ./dist/JobApplicationBot")
         
-        # Platform-specific instructions
-        print_section("🎯 Creating desktop integration...")
-        if platform.system() == "Darwin":
-            print("   macOS: Drag .app from ./dist/ to Applications folder, then to Dock")
-        elif platform.system() == "Windows":
-            print("   Windows: Desktop shortcut created (if run as admin)")
-        else:
-            print("   Linux: .desktop entry created in ~/.local/share/applications/")
-        
         return True
         
     except subprocess.CalledProcessError as e:
@@ -418,7 +409,7 @@ def create_desktop_integration():
             
             desktop = winshell.desktop()
             shortcut_path = Path(desktop) / "JobApplicationBot.lnk"
-            target = Path("dist/JobApplicationBot.exe").resolve()
+            target = Path("dist/JobApplicationBot/JobApplicationBot").resolve()
             
             shell = Dispatch('WScript.Shell')
             shortcut = shell.CreateShortCut(str(shortcut_path))
@@ -484,5 +475,4 @@ def main():
 
 
 if __name__ == "__main__":
-    import argparse
     main()
