@@ -13,7 +13,7 @@ import tiktoken
 from google import genai
 from google.genai.types import GenerateContentConfig, HttpOptions
 
-from config.settings import RESUME_DATA, AI_CONFIG, TAILORING, OUTPUT_PATH
+from config.settings import RESUME_DATA, TAILORING
 
 logger = logging.getLogger(__name__)
 
