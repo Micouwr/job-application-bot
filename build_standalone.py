@@ -338,20 +338,26 @@ def build_executable(clean: bool = False):
         'main.py:.',
     ]
 
-    # ✅ DEFINITIVE FIX: Explicitly add tiktoken directory
+    # ✅ DEFINITIVE FIX: Explicitly add ALL tiktoken directory contents
     print_section("📦 Collecting tiktoken data files...")
     try:
         import tiktoken
         tiktoken_dir = Path(tiktoken.__file__).parent
+        
+        # Add the ENTIRE tiktoken directory recursively
         if tiktoken_dir.exists():
-            # Add the entire tiktoken directory
-            datas.append(f'{tiktoken_dir}/:tiktoken/')
+            # This pattern copies ALL files including .tiktoken encoding files
+            datas.append(f'{tiktoken_dir}/*:tiktoken/')
             print_success(f"Added tiktoken directory: {tiktoken_dir}")
             
-            # Also add specific encoding files if they exist
-            for encoding_file in tiktoken_dir.glob("*.tiktoken"):
-                datas.append(f'{encoding_file}:tiktoken/')
-                print_success(f"Added encoding: {encoding_file.name}")
+            # Verify and list specific encoding files
+            encoding_files = list(tiktoken_dir.glob('*.tiktoken'))
+            if encoding_files:
+                for enc_file in encoding_files:
+                    print_success(f"  Found encoding: {enc_file.name}")
+            else:
+                print_warning("  No .tiktoken files found in tiktoken directory")
+        
     except Exception as e:
         print_warning(f"Could not locate tiktoken directory: {e}")
     
@@ -360,7 +366,7 @@ def build_executable(clean: bool = False):
         import tiktoken_ext.openai_public
         ext_dir = Path(tiktoken_ext.openai_public.__file__).parent.parent
         if ext_dir.exists() and 'tiktoken_ext' in str(ext_dir):
-            datas.append(f'{ext_dir}/:tiktoken_ext/')
+            datas.append(f'{ext_dir}/*:tiktoken_ext/')
             print_success(f"Added tiktoken_ext directory: {ext_dir}")
     except Exception as e:
         print_warning(f"Could not locate tiktoken_ext directory: {e}")
