@@ -13,9 +13,6 @@ import shutil
 from pathlib import Path
 from typing import List, Optional
 
-# ✅ CRITICAL: PyInstaller utilities for bundling data files
-from PyInstaller.utils.hooks import collect_data_files
-
 # Build dependencies - install these before running:
 # pip install pyinstaller Pillow
 try:
@@ -337,50 +334,23 @@ def build_executable(clean: bool = False):
         'scraper.py:.',
         'main.py:.',
     ]
-
-    # ✅ DEFINITIVE FIX: Explicitly add ALL tiktoken directory contents
-    print_section("📦 Collecting tiktoken data files...")
-    try:
-        import tiktoken
-        tiktoken_dir = Path(tiktoken.__file__).parent
-        
-        # Add the ENTIRE tiktoken directory recursively
-        if tiktoken_dir.exists():
-            # This pattern copies ALL files including .tiktoken encoding files
-            datas.append(f'{tiktoken_dir}/*:tiktoken/')
-            print_success(f"Added tiktoken directory: {tiktoken_dir}")
-            
-            # Verify and list specific encoding files
-            encoding_files = list(tiktoken_dir.glob('*.tiktoken'))
-            if encoding_files:
-                for enc_file in encoding_files:
-                    print_success(f"  Found encoding: {enc_file.name}")
-            else:
-                print_warning("  No .tiktoken files found in tiktoken directory")
-        
-    except Exception as e:
-        print_warning(f"Could not locate tiktoken directory: {e}")
     
-    # Also add tiktoken_ext if it exists
-    try:
-        import tiktoken_ext.openai_public
-        ext_dir = Path(tiktoken_ext.openai_public.__file__).parent.parent
-        if ext_dir.exists() and 'tiktoken_ext' in str(ext_dir):
-            datas.append(f'{ext_dir}/*:tiktoken_ext/')
-            print_success(f"Added tiktoken_ext directory: {ext_dir}")
-    except Exception as e:
-        print_warning(f"Could not locate tiktoken_ext directory: {e}")
+    # ✅ DEFINITIVE FIX: Add project files only (no tiktoken loops here)
     
     # Base PyInstaller command
     cmd = [
         'pyinstaller',
         'gui/tkinter_app.py',
         '--name', 'JobApplicationBot',
-        '--onedir',  # ✅ CHANGED FROM --onefile
+        '--onedir',
         '--noconfirm',
         '--clean',
         '--icon', icon_path,
-        '--paths', '/Users/chellenicole/Desktop/job-application-bot',  # ✅ CRITICAL: Add project root
+        '--paths', '/Users/chellenicole/Desktop/job-application-bot',
+        
+        # ✅ DEFINITIVE FIX: Use --collect-data (modern PyInstaller way)
+        '--collect-data', 'tiktoken',
+        '--collect-data', 'tiktoken_ext',
     ]
     
     # Add hidden imports
