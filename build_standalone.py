@@ -6,6 +6,7 @@ Creates distributable executables for Windows, macOS, and Linux
 
 import os
 import sys
+import argparse  
 import platform
 import subprocess
 import shutil
