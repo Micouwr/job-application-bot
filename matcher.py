@@ -3,7 +3,7 @@ Job matching engine - Scores jobs against resume with advanced matching algorith
 """
 
 import logging
-from typing import Dict, List, Tuple, Set, Optional
+from typing import Dict, List, Tuple, Set, Optional, Any
 import difflib  # For fuzzy matching
 from collections import Counter
 
