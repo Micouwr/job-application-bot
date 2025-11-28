@@ -1,10 +1,10 @@
-# app/database.py
 from __future__ import annotations
 
 import contextlib
 import logging
 import os
 import sqlite3
+import time  # Moved time import to the top
 from typing import Any, Dict, Iterator, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -50,8 +50,6 @@ class Database:
     def save_history(
         self, action: str, input_text: Optional[str], result_text: Optional[str]
     ) -> int:
-        import time
-
         ts = int(time.time())
         with self.get_conn() as conn:
             cur = conn.execute(
