@@ -7,9 +7,11 @@ Author: Ryan Micou
 import json
 import logging
 import sys
+import csv
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable, Tuple
 
 from config.settings import (
     COVER_LETTERS_DIR,
@@ -23,10 +25,13 @@ from config.settings import (
     RESUMES_DIR,
     config,
 )
-from database import JobDatabase, create_backup, JobNotFoundError  # ✅ Import custom exception
+from database import JobDatabase, create_backup, JobNotFoundError
 from matcher import JobMatcher
 from scraper import JobScraper, JobBoardIntegration
 from tailor import ResumeTailor
+
+# Move imports to the top for standard practice, as they are mandatory dependencies
+from tqdm import tqdm
 
 # Setup logging with configurable level
 logging.basicConfig(
@@ -56,7 +61,7 @@ class JobApplicationBot:
         self.scraper = JobScraper()
         self.matcher = JobMatcher()
         self.tailor = ResumeTailor(RESUME_DATA)
-        
+
         # Initialize job board integrations if API key is available
         if config.scraper_api_key:
             self.job_boards = JobBoardIntegration(config.scraper_api_key)
@@ -64,11 +69,37 @@ class JobApplicationBot:
             self.job_boards = None
             logger.info("ℹ️ No ScraperAPI key found. Manual job entry only.")
 
+        # Thread pool for non-blocking I/O operations (crucial for GUI integration)
+        self.executor = ThreadPoolExecutor(max_workers=5)
+        
         logger.info("✓ All components initialized")
+
+    def run_pipeline_async(self, manual_jobs: Optional[List[Dict]] = None, dry_run: bool = False, callback: Optional[Callable] = None) -> None:
+        """
+        Submits the complete job application pipeline to a thread pool executor.
+        Returns a Future object. This is the new entry point for GUI/non-blocking calls.
+        """
+        future = self.executor.submit(self._pipeline_task, manual_jobs, dry_run)
+        if callback:
+            future.add_done_callback(lambda f: callback(f.result()))
+        return future
+
+    def _pipeline_task(self, manual_jobs: Optional[List[Dict]], dry_run: bool) -> bool:
+        """
+        Internal, synchronous task for running the pipeline (executed in a separate thread).
+        """
+        try:
+            self.db.connect() # Ensure connection is thread-local/managed before use
+            self.run_pipeline(manual_jobs=manual_jobs, dry_run=dry_run)
+            self.db.close() # Close connection after task
+            return True
+        except Exception as e:
+            logger.exception("FATAL: Pipeline task failed.")
+            return False
 
     def run_pipeline(self, manual_jobs: Optional[List[Dict]] = None, dry_run: bool = False) -> None:
         """
-        Runs the complete job application pipeline.
+        Runs the complete job application pipeline (synchronous version).
         
         Args:
             manual_jobs: A list of job dictionaries to process
@@ -92,21 +123,23 @@ class JobApplicationBot:
                 )
                 logger.info(f"Scraped {len(jobs)} jobs from job boards")
             else:
-                logger.warning("Automated scraping not configured. Use --interactive mode.")
+                logger.warning("Automated scraping not configured. Use interactive mode.")
                 return
 
-        # Save jobs to database
-        logger.info(f"Saving {len(jobs)} jobs to database...")
-        for job in jobs:
-            self.db.insert_job(job)
+        # CRITICAL FIX: Bulk Save jobs to database
+        if jobs:
+            logger.info(f"Saving {len(jobs)} jobs to database...")
+            # Assuming JobDatabase has insert_jobs to handle bulk transaction
+            self.db.insert_jobs(jobs)
 
         # Step 2: Match jobs
         logger.info("\nStep 2: Matching jobs against resume...")
-        high_matches: List[Dict] = []
+        high_matches: List[Tuple[Dict, Dict]] = [] # Storing as tuple (job, match_result)
+        match_updates: List[Tuple[str, Dict]] = []
 
         for job in jobs:
             match_result = self.matcher.match_job(job)
-            self.db.update_match_score(job["id"], match_result)
+            match_updates.append((job["id"], match_result))
 
             score = match_result["match_score"]
             logger.info(f" {job['title']} at {job['company']}: {score*100:.1f}%")
@@ -115,6 +148,10 @@ class JobApplicationBot:
                 high_matches.append((job, match_result))
                 logger.info(f" ✓ HIGH MATCH - {match_result['recommendation']}")
 
+        # CRITICAL FIX: Bulk update match scores
+        if match_updates:
+            self.db.bulk_update_match_scores(match_updates)
+        
         logger.info(
             f"\nFound {len(high_matches)}/{len(jobs)} high matches (≥{MATCH_THRESHOLD*100}%)"
         )
@@ -127,7 +164,7 @@ class JobApplicationBot:
             return
 
         logger.info("\nStep 3: Creating tailored applications...")
-        
+
         if dry_run:
             logger.info("📝 DRY RUN: Skipping Gemini API calls")
             for job, match in high_matches:
@@ -135,7 +172,6 @@ class JobApplicationBot:
             return
 
         # Process with progress bar
-        from tqdm import tqdm  # Import here to avoid dependency issues
         for job, match in tqdm(high_matches, desc="Tailoring applications", unit="job"):
             logger.info(f"\nTailoring for: {job['title']} at {job['company']}")
 
@@ -161,6 +197,25 @@ class JobApplicationBot:
         # Step 4: Show summary
         self._print_summary()
 
+    # CRITICAL FIX: Helper function to validate and clean incoming job data
+    def _validate_job_data(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Validates incoming dictionary data against expected job fields."""
+        required_keys = ["title", "description"] # Minimal required fields
+
+        if not all(key in data and data[key] for key in required_keys):
+            logger.warning(f"Skipping invalid job data: Missing required keys in {list(data.keys())}")
+            return None
+
+        # Only allow known keys to prevent arbitrary injection
+        valid_keys = ["title", "company", "url", "description", "location"]
+        validated_job = {
+            key: str(data.get(key, "")).strip()
+            for key in valid_keys
+        }
+        
+        # Ensure ID is present if it's required downstream (scraper.add_manual_job will add it)
+        return validated_job
+
     def add_manual_job(
         self,
         title: str,
@@ -170,21 +225,11 @@ class JobApplicationBot:
         location: str = "",
     ) -> Dict[str, Any]:
         """
-        Adds a job manually.
-
-        Args:
-            title: The title of the job.
-            company: The name of the company.
-            url: The URL of the job posting.
-            description: The full job description.
-            location: The location of the job.
-
-        Returns:
-            A dictionary representing the job.
+        Adds a job manually. (No change needed here, it uses the local scraper logic).
         """
         if not title.strip():
             raise ValueError("Job title cannot be empty")
-            
+
         job = self.scraper.add_manual_job(title, company, url, description, location)
         logger.info(f"✓ Added: {title} at {company}")
         return job
@@ -228,6 +273,7 @@ class JobApplicationBot:
             description = "\n".join(description_lines)
 
             try:
+                # Add job through the existing method to get ID/timestamping logic
                 job = self.add_manual_job(title, company, url, description, location)
                 jobs.append(job)
                 print(f"\n✓ Added {title} at {company}")
@@ -235,19 +281,21 @@ class JobApplicationBot:
                 print(f"❌ Error: {e}")
 
         if jobs:
-            # ✅ QoL: Ask for confirmation before processing with retry logic
             confirm = self._get_user_confirmation(f"\nProcess {len(jobs)} jobs? [Y/n]: ")
             if confirm:
                 dry_run = input("Dry run (skip API calls)? [y/N]: ").strip().lower() == 'y'
                 logger.info(f"\nProcessing {len(jobs)} jobs...")
+                
+                # Use synchronous run_pipeline for CLI execution
                 self.run_pipeline(manual_jobs=jobs, dry_run=dry_run)
+                
             else:
                 logger.info("Processing cancelled.")
         else:
             logger.info("No jobs added.")
 
     def _get_user_confirmation(self, prompt: str, max_retries: int = 3) -> bool:
-        """ ✅ QoL: Get user confirmation with retry logic """
+        """ Get user confirmation with retry logic """
         for attempt in range(max_retries):
             response = input(prompt).strip().lower()
             if response in ('', 'y', 'yes'):
@@ -297,11 +345,10 @@ class JobApplicationBot:
 
     def _export_pending(self, pending: List[Dict[str, Any]]) -> None:
         """ Export pending applications to CSV """
-        import csv  # Import here to avoid dependency issues
-        
+        # CSV import is now at the top of the file
         csv_file = Path("output/pending_applications.csv")
         csv_file.parent.mkdir(exist_ok=True)
-        
+
         with open(csv_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(["Title", "Company", "Match Score", "Location", "URL"])
@@ -313,15 +360,12 @@ class JobApplicationBot:
                     app['location'],
                     app['url']
                 ])
-        
+
         logger.info(f"✓ Exported to {csv_file}")
 
     def approve_application(self, job_id: str) -> None:
         """
         Approves an application by updating its status in the database.
-
-        Args:
-            job_id: The ID of the job to approve.
         """
         self.db.update_status(job_id, "applied")
         logger.info(f"✓ Application approved: {job_id}")
@@ -329,10 +373,6 @@ class JobApplicationBot:
     def _save_application_files(self, job: Dict[str, Any], application: Dict[str, Any]) -> None:
         """
         Saves the tailored resume and cover letter to files.
-
-        Args:
-            job: The job dictionary.
-            application: The application dictionary, containing the resume and cover letter.
         """
         try:
             safe_company = "".join(
@@ -351,7 +391,7 @@ class JobApplicationBot:
                 f.write(application["cover_letter"])
 
             logger.info(f"   Saved to: {resume_file.name} and {cover_file.name}")
-        except OSError as e:  # ✅ Fixed: OSError instead of IOError
+        except OSError as e:
             logger.error(f"   Failed to save application files: {e}")
 
     def _print_summary(self) -> None:
@@ -366,15 +406,15 @@ class JobApplicationBot:
         print(f"Applications Prepared: {stats['by_status'].get('pending_review', 0)}")
         print(f"Average Match Score: {stats['avg_match_score']*100:.1f}%")
         print("\nNext Steps:")
-        print("1. Review applications: python main.py --review")
+        print("1. Review applications: python main.py review")
         print("2. Check output/ folder for tailored resumes and cover letters")
         print("3. Open database with: sqlite3 data/job_applications.db")
-        
+
         # Add backup reminder
         backup_file = create_backup()
         if backup_file:
             print(f"4. Database backed up to: {backup_file}")
-        
+
         print("=" * 80 + "\n")
 
     def import_jobs(self, file_path: str) -> None:
@@ -387,17 +427,22 @@ class JobApplicationBot:
         jobs = []
         if path.suffix.lower() == '.json':
             with open(path, 'r') as f:
-                jobs = json.load(f)
+                raw_data = json.load(f)
+                jobs = [self.add_manual_job(**job) for job in raw_data if self._validate_job_data(job)]
         elif path.suffix.lower() == '.csv':
-            import csv  # Import here to avoid dependency issues
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
-                jobs = list(reader)
+                # CRITICAL FIX: Use DictReader and validate/process each job
+                for row in reader:
+                    validated_job = self._validate_job_data(row)
+                    if validated_job:
+                        # Add job through the existing method to get ID/timestamping logic
+                        jobs.append(self.add_manual_job(**validated_job))
         else:
             logger.error("Unsupported file format. Use JSON or CSV.")
             return
 
-        logger.info(f"Importing {len(jobs)} jobs from {file_path}")
+        logger.info(f"Successfully imported and validated {len(jobs)} jobs from {file_path}")
         self.run_pipeline(manual_jobs=jobs)
 
     def export_jobs(self, output_file: str = "output/jobs_export.json") -> None:
@@ -480,12 +525,13 @@ def main() -> None:
             print("\nBy Status:")
             for status, count in stats["by_status"].items():
                 print(f"  {status}: {count}")
-            
+
             if hasattr(args, 'export') and args.export:
                 with open(args.export, 'w') as f:
                     json.dump(stats, f, indent=2, default=str)
                 print(f"\n✓ Exported to {args.export}")
         elif args.command == "import":
+            # Imports are now done synchronously in the CLI entry point
             bot.import_jobs(args.file)
         elif args.command == "export":
             bot.export_jobs(args.output)
@@ -495,7 +541,7 @@ def main() -> None:
                 print(f"✓ Database backed up to: {backup_file}")
             else:
                 print("❌ Backup failed")
-                
+
     except Exception as e:
         logger.exception("Fatal error in main execution")
         print(f"\n❌ Fatal error: {e}")
