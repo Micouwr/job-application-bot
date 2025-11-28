@@ -1,31 +1,35 @@
 # Job Application Bot - Dependencies
 
-# Core
+# --- Core & AI ---
 python-dotenv>=1.0.0
-google-genai>=1.0.0,<2.0.0  # ✅ Allow patch updates, prevent breaking major changes
+google-genai>=1.0.0,<2.0.0  # Allow patch updates, prevent breaking major changes
+Pillow>=10.0.0              # Added: Required for icon handling/asset management (used in Build_standalone.py)
+tiktoken>=0.6.0             # For token counting
 
-# Web Scraping
-playwright>=1.40.0
-beautifulsoup4>=4.12.2
-requests>=2.31.0
-lxml>=4.9.3
+# --- Web Framework (For App.py) ---
+Flask>=3.0.0                # Added: Required for the web API server
+# If using gunicorn for production, add: gunicorn>=22.0.0
 
-# Data Processing
-pandas>=2.1.4
-numpy>=1.26.2
+# --- Web Scraping ---
+playwright>=1.40.0          # For browser automation
+beautifulsoup4>=4.12.2      # For parsing HTML
+requests>=2.31.0            # For HTTP requests
+lxml>=4.9.3                 # Faster HTML parser backend for BeautifulSoup
 
-# Utilities
-python-dateutil>=2.8.2
-tqdm>=4.66.1
-tiktoken>=0.6.0  # ✅ For token counting
+# --- Data Processing & Utilities ---
+pandas>=2.1.4               # For data manipulation
+numpy>=1.26.2               # Core math library (dependency of pandas)
+python-dateutil>=2.8.2      # Utilities for date/time parsing
+tqdm>=4.66.1                # Progress bars
 
-# Database
-SQLAlchemy>=2.0.0
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
+# --- Database & Config ---
+SQLAlchemy>=2.0.0           # ORM for database operations
+pydantic>=2.0.0             # Core configuration validation
+pydantic-settings>=2.0.0    # For reading environment variables/settings
 
-# Development & Testing (install separately)
+# --- Development & Testing (Install separately via 'pip install -r dev_requirements.txt' or similar) ---
 # black>=24.3.0
 # isort>=5.12.0
 # pytest>=8.0.0
 # PyInstaller>=6.0.0
+# pywin32>=306.0              # Windows specific for shortcuts (if needed outside PyInstaller hook)
