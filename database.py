@@ -1,5 +1,6 @@
 """
 Database module for job application tracking using SQLAlchemy ORM.
+Uses SQLite with specific configurations for thread-safe multi-process access.
 """
 
 import json
@@ -15,13 +16,13 @@ from sqlalchemy import (
     Boolean, Index, event, func
 )
 from sqlalchemy.orm import sessionmaker, relationship, Session, declarative_base
-# CRITICAL FIX: Removed StaticPool, allowing default QueuePool for better thread safety
 from sqlalchemy.engine import Engine 
 
 from config.settings import DATABASE_PATH
 
 logger = logging.getLogger(__name__)
 
+# Base class for declarative class definitions
 Base = declarative_base()
 
 
@@ -52,8 +53,9 @@ class Job(Base):
     raw_data = Column(Text)
     is_deleted = Column(Boolean, default=False)  # Soft delete flag
     
-    # Relationships
-    match_details = relationship("MatchDetail", back_populates="job", cascade="all, delete-orphan") # Use delete-orphan for proper cleanup
+    # Relationships: Use delete-orphan for proper cleanup when job is deleted
+    match_details = relationship("MatchDetail", back_populates="job", 
+                                 cascade="all, delete-orphan", uselist=False) # Use uselist=False as it's a one-to-one
     applications = relationship("Application", back_populates="job", cascade="all, delete-orphan")
     activity_logs = relationship("ActivityLog", back_populates="job", cascade="all, delete-orphan")
     
@@ -63,6 +65,7 @@ class Job(Base):
     )
     
     def to_dict(self) -> Dict[str, Any]:
+        """Convert the Job object to a dictionary."""
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
@@ -70,11 +73,12 @@ class MatchDetail(Base):
     __tablename__ = "match_details"
     
     job_id = Column(String, ForeignKey("jobs.id"), primary_key=True)
-    matched_skills = Column(Text)  # JSON encoded
-    missing_skills = Column(Text)  # JSON encoded
-    relevant_experience = Column(Text)  # JSON encoded
-    strengths = Column(Text)  # JSON encoded
-    gaps = Column(Text)  # JSON encoded
+    # Stored as JSON encoded strings
+    matched_skills = Column(Text, default="[]") 
+    missing_skills = Column(Text, default="[]")
+    relevant_experience = Column(Text, default="[]")
+    strengths = Column(Text, default="[]")
+    gaps = Column(Text, default="[]")
     reasoning = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
     
@@ -82,14 +86,18 @@ class MatchDetail(Base):
     job = relationship("Job", back_populates="match_details")
     
     def to_dict(self) -> Dict[str, Any]:
+        """Convert the MatchDetail object to a dictionary, decoding JSON fields."""
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
         # Decode JSON fields
         for field in ['matched_skills', 'missing_skills', 'relevant_experience', 'strengths', 'gaps']:
             try:
-                if data[field]:
-                    data[field] = json.loads(data[field])
+                # Ensure we handle None/empty string gracefully before loading
+                content = data[field]
+                data[field] = json.loads(content) if content else []
             except (json.JSONDecodeError, TypeError):
-                data[field] = [] # Set to empty list on error
+                # Critical fix: If parsing fails, log error and return an empty list
+                logger.error(f"Failed to decode JSON field '{field}' for job ID {self.job_id}")
+                data[field] = [] 
         return data
 
 
@@ -100,7 +108,7 @@ class Application(Base):
     job_id = Column(String, ForeignKey("jobs.id"), nullable=False, index=True)
     tailored_resume = Column(Text)
     cover_letter = Column(Text)
-    changes_summary = Column(Text)  # JSON encoded
+    changes_summary = Column(Text, default="[]")  # JSON encoded
     created_at = Column(DateTime, default=datetime.now)
     applied_at = Column(DateTime)
     status = Column(String, default="pending_review", index=True)
@@ -110,12 +118,14 @@ class Application(Base):
     job = relationship("Job", back_populates="applications")
     
     def to_dict(self) -> Dict[str, Any]:
+        """Convert the Application object to a dictionary, decoding JSON fields."""
         data = {c.name: getattr(self, c.name) for c in self.__table__.columns}
         try:
-            if data['changes_summary']:
-                data['changes_summary'] = json.loads(data['changes_summary'])
+            content = data['changes_summary']
+            data['changes_summary'] = json.loads(content) if content else []
         except (json.JSONDecodeError, TypeError):
-             data['changes_summary'] = [] # Set to empty list on error
+             logger.error(f"Failed to decode changes_summary for application ID {self.id}")
+             data['changes_summary'] = []
         return data
 
 
@@ -132,28 +142,31 @@ class ActivityLog(Base):
     job = relationship("Job", back_populates="activity_logs")
     
     def to_dict(self) -> Dict[str, Any]:
+        """Convert the ActivityLog object to a dictionary."""
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class JobDatabase:
     """
-    Enhanced database class with SQLAlchemy ORM, connection pooling, and backups.
+    Database class using SQLAlchemy ORM for job tracking and data management.
+    Handles connection, session, transactions, and core CRUD operations.
     """
     
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = db_path or DATABASE_PATH
         self.engine: Engine = create_engine(
             f"sqlite:///{self.db_path}",
-            # CRITICAL FIX: Removed StaticPool for thread safety in multi-threaded environment
-            # Default QueuePool is used, safer for SQLite in threads.
+            # Allows multiple threads to share the SQLite connection safely
             connect_args={"check_same_thread": False},
-            echo=False,
-            pool_pre_ping=True,  # Verify connections before using
+            echo=False, # Set to True for verbose SQL logging
+            pool_pre_ping=True, 
         )
         Base.metadata.create_all(self.engine)
-        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False) # expire_on_commit=False for thread context
+        # expire_on_commit=False prevents objects from going into the detached state
+        # immediately after a commit, which is safer in complex multi-function call chains.
+        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False) 
         
-        # Enable foreign keys
+        # Ensure PRAGMA foreign_keys=ON is run for every new connection
         @event.listens_for(self.engine, "connect")
         def set_sqlite_pragma(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
@@ -165,7 +178,8 @@ class JobDatabase:
     @contextmanager
     def get_session(self) -> Session:
         """
-        Context manager for safe session handling.
+        Context manager for safe session handling (transactional unit of work).
+        It handles creation, commit, rollback, and closing of the session.
         """
         session = self.Session()
         try:
@@ -173,11 +187,18 @@ class JobDatabase:
             session.commit()
         except Exception:
             session.rollback()
-            raise
+            raise # Re-raise exception for caller to handle
         finally:
             session.close()
 
-    # CRITICAL FIX: Added bulk insertion method for performance
+    def connect(self) -> None:
+        """No-op: Connection management is handled by SQLAlchemy pooling."""
+        pass
+        
+    def close(self) -> None:
+        """No-op: Connection management is handled by SQLAlchemy pooling."""
+        pass
+
     def insert_jobs(self, jobs: List[Dict[str, Any]]) -> None:
         """Insert or update a list of job listings in a single transaction."""
         if not jobs:
@@ -204,6 +225,7 @@ class JobDatabase:
                     if job_id in existing_jobs:
                         # Update existing record
                         existing = existing_jobs[job_id]
+                        # Restore soft-deleted job if it reappears
                         if existing.is_deleted:
                             logger.info(f"Job {job_id} was soft-deleted, restoring")
                             existing.is_deleted = False
@@ -213,11 +235,11 @@ class JobDatabase:
                             if hasattr(existing, key):
                                 setattr(existing, key, value)
                     else:
-                        # Create new job
+                        # Create new job, filtering out keys not in the model
                         jobs_to_add.append(Job(**{k: v for k, v in job_data.items() if hasattr(Job, k)}))
                         
                         # Log activity for new jobs
-                        self._log_activity(session, job_id, "job_added", f"Added: {job_data['title']}")
+                        self._log_activity(session, job_id, "job_added", f"Added: {job_data.get('title', 'N/A')}")
 
                 if jobs_to_add:
                     session.add_all(jobs_to_add)
@@ -226,16 +248,12 @@ class JobDatabase:
 
         except Exception as e:
             logger.error(f"Error during bulk job insertion: {e}")
-            raise # Let exception propagate for caller (main.py) to handle
+            raise 
 
     def insert_job(self, job: Dict[str, Any]) -> None:
-        """
-        Single job insert method now delegates to the bulk method (Kept for compatibility,
-        but recommended to use bulk_insert for batches).
-        """
+        """Insert a single job (delegates to bulk insertion)."""
         self.insert_jobs([job])
 
-    # CRITICAL FIX: Added bulk update method for match scores
     def bulk_update_match_scores(self, updates: List[Tuple[str, Dict[str, Any]]]) -> None:
         """Update multiple jobs with match scores and details in one transaction."""
         if not updates:
@@ -244,11 +262,19 @@ class JobDatabase:
         try:
             with self.get_session() as session:
                 job_ids = [job_id for job_id, _ in updates]
-                jobs = session.query(Job).filter(Job.id.in_(job_ids), Job.is_deleted == False).all()
-                jobs_map = {job.id: job for job in jobs}
                 
-                match_details = session.query(MatchDetail).filter(MatchDetail.job_id.in_(job_ids)).all()
-                match_details_map = {md.job_id: md for md in match_details}
+                # Fetch Jobs and MatchDetails in two separate queries for efficiency
+                jobs_map = {
+                    job.id: job for job in session.query(Job).filter(
+                        Job.id.in_(job_ids), Job.is_deleted == False
+                    ).all()
+                }
+                
+                match_details_map = {
+                    md.job_id: md for md in session.query(MatchDetail).filter(
+                        MatchDetail.job_id.in_(job_ids)
+                    ).all()
+                }
                 
                 match_details_to_add = []
                 
@@ -259,9 +285,10 @@ class JobDatabase:
                         continue
 
                     # Update Job table fields
-                    score = match_result["match_score"]
+                    score = match_result.get("match_score", 0.0)
                     job.match_score = score
-                    job.status = "matched" if score >= 0.80 else "low_match"
+                    # Threshold set to 0.80 for "pending_review" (high match)
+                    job.status = "matched" if score >= 0.80 else "low_match" 
 
                     # Handle MatchDetail table fields
                     match_detail = match_details_map.get(job_id)
@@ -269,24 +296,26 @@ class JobDatabase:
                         match_detail = MatchDetail(job_id=job_id)
                         match_details_to_add.append(match_detail)
                     
-                    # Validate JSON size before storing
+                    # Store JSON fields
                     json_fields = ['matched_skills', 'missing_skills', 'relevant_experience', 'strengths', 'gaps']
-                    total_json_size = 0
                     
                     for field in json_fields:
                         data = match_result.get(field, [])
-                        if data:
-                            json_str = json.dumps(data)
-                            total_json_size += len(json_str)
-                            # Simple truncation check
-                            if total_json_size > 500_000 and len(data) > 10:
-                                logger.warning(f"Match details too large for job {job_id}, truncating field {field}.")
-                                data = data[:10]
-                            setattr(match_detail, field, json.dumps(data))
-                        else:
-                            setattr(match_detail, field, json.dumps([]))
+                        
+                        # Use list of strings/objects, convert to JSON string
+                        json_str = json.dumps(data)
+                        
+                        # Simple truncation check for excessively long JSON data
+                        if len(json_str) > 500_000:
+                            logger.warning(f"Match details JSON too large for job {job_id}, truncating list for field {field}.")
+                            # Attempt to truncate the list if it's too large before re-serialization
+                            if isinstance(data, list) and len(data) > 10:
+                                json_str = json.dumps(data[:10])
+                        
+                        setattr(match_detail, field, json_str)
                             
                     match_detail.reasoning = match_result.get("reasoning", "")
+                    match_detail.created_at = datetime.now() # Update timestamp
 
                     # Log high matches
                     if score >= 0.80:
@@ -300,9 +329,8 @@ class JobDatabase:
 
         except Exception as e:
             logger.error(f"Error during bulk match update: {e}")
-            raise # Let exception propagate for caller (main.py) to handle
+            raise 
 
-    # Single update_match_score method for compatibility
     def update_match_score(self, job_id: str, match_result: Dict[str, Any]) -> None:
         """Update job with match score and details (delegates to bulk)"""
         self.bulk_update_match_scores([(job_id, match_result)])
@@ -312,21 +340,16 @@ class JobDatabase:
         """Save a tailored application"""
         try:
             with self.get_session() as session:
-                # Validate text field sizes
-                if len(resume) > 5_000_000:
-                    logger.warning(f"Resume too large for job {job_id}, truncating")
-                    resume = resume[:5_000_000]
-                
-                if len(cover_letter) > 5_000_000:
-                    logger.warning(f"Cover letter too large for job {job_id}, truncating")
-                    cover_letter = cover_letter[:5_000_000]
+                # Truncate large text fields defensively
+                resume = resume[:5_000_000] if len(resume) > 5_000_000 else resume
+                cover_letter = cover_letter[:5_000_000] if len(cover_letter) > 5_000_000 else cover_letter
                 
                 application = Application(
                     job_id=job_id,
                     tailored_resume=resume,
                     cover_letter=cover_letter,
                     changes_summary=json.dumps(changes),
-                    status="pending_review"
+                    status="pending_review" # Ready for the user to submit
                 )
                 session.add(application)
                 
@@ -340,27 +363,33 @@ class JobDatabase:
                 return True
         except Exception as e:
             logger.error(f"Error saving application: {e}")
-            raise # Let exception propagate
+            raise 
 
     def update_status(self, job_id: str, status: str, notes: Optional[str] = None) -> bool:
-        """Update application status"""
+        """Update job and application status (e.g., to 'applied', 'rejected', etc.)"""
         try:
             with self.get_session() as session:
-                # Use exception for not found
-                application = session.query(Application).join(Job).filter(
-                    Application.job_id == job_id, Job.is_deleted == False
-                ).first()
+                # Find the most recent application linked to the job
+                application = session.query(Application).filter(
+                    Application.job_id == job_id
+                ).order_by(Application.created_at.desc()).first()
+                
                 if not application:
-                    raise JobNotFoundError(f"Application for job {job_id} not found")
-                
-                application.status = status
-                if status == "applied":
-                    application.applied_at = datetime.now()
-                if notes:
-                    application.notes = f"{application.notes or ''}\n{notes}".strip()
-                
-                # Update job status
-                job = session.query(Job).filter_by(id=job_id).first()
+                    # If an application doesn't exist, we update the job status directly
+                    job = session.query(Job).filter_by(id=job_id).first()
+                    if not job:
+                        raise JobNotFoundError(f"Job {job_id} not found")
+                else:
+                    # Update application status
+                    application.status = status
+                    if status == "applied":
+                        application.applied_at = datetime.now()
+                    if notes:
+                        # Append new notes to existing ones
+                        application.notes = f"{application.notes or ''}\n{notes}".strip()
+                    # Also update the job's main status
+                    job = application.job # Get job via relationship
+
                 if job:
                     job.status = status
                 
@@ -373,9 +402,12 @@ class JobDatabase:
             raise
 
     def get_pending_reviews(self) -> List[Dict[str, Any]]:
-        """Get all applications pending review"""
+        """Get all jobs that have a prepared application pending user review."""
         try:
             with self.get_session() as session:
+                # Query for jobs where the LATEST application status is 'pending_review'
+                # Note: We join on Job.id == Application.job_id to ensure a one-to-one mapping in the results
+                # We order by match score to prioritize the best candidates.
                 query = session.query(Job, Application, MatchDetail).join(
                     Application, Job.id == Application.job_id
                 ).outerjoin(
@@ -399,9 +431,8 @@ class JobDatabase:
             return []
 
     def get_statistics(self) -> Dict[str, Any]:
-        """Get comprehensive statistics"""
+        """Get comprehensive statistics about job status and matches."""
         try:
-            # Note: Using Session directly here as this is a read-only transaction
             with self.get_session() as session:
                 stats = {}
                 
@@ -410,17 +441,17 @@ class JobDatabase:
                     Job.match_score >= 0.80, Job.is_deleted == False
                 ).count()
                 
-                # Status breakdown
-                status_counts = session.query(Application.status, 
-                                            func.count(Application.id)).group_by(
-                                            Application.status).all()
+                # Status breakdown from the Job table (most comprehensive status)
+                status_counts = session.query(Job.status, 
+                                            func.count(Job.id)).filter(Job.is_deleted == False).group_by(
+                                            Job.status).all()
                 stats["by_status"] = {status: count for status, count in status_counts}
                 
                 # Average match score
                 avg_score = session.query(func.avg(Job.match_score)).filter(
                     Job.match_score.isnot(None), Job.is_deleted == False
                 ).scalar()
-                stats["avg_match_score"] = round(avg_score, 3) if avg_score else 0
+                stats["avg_match_score"] = round(avg_score, 3) if avg_score else 0.0
                 
                 # Recent activity
                 recent_activity = session.query(ActivityLog).order_by(
@@ -430,65 +461,64 @@ class JobDatabase:
                 return stats
         except Exception as e:
             logger.error(f"Error getting statistics: {e}")
-            return {"total_jobs": 0, "high_matches": 0, "by_status": {}, "avg_match_score": 0}
+            return {"total_jobs": 0, "high_matches": 0, "by_status": {}, "avg_match_score": 0.0, "recent_activity": []}
 
     def get_all_jobs(self) -> List[Dict[str, Any]]:
-        """QoL: Get all jobs for export"""
+        """Get all non-deleted jobs for display or export."""
         try:
             with self.get_session() as session:
-                jobs = session.query(Job).filter(Job.is_deleted == False).all()
+                jobs = session.query(Job).filter(Job.is_deleted == False).order_by(Job.scraped_at.desc()).all()
                 return [job.to_dict() for job in jobs]
         except Exception as e:
             logger.error(f"Error fetching all jobs: {e}")
             return []
 
     def search_jobs(self, query: str) -> List[Dict[str, Any]]:
-        """QoL: Full-text search across job descriptions"""
+        """Full-text search across job titles, descriptions, and companies."""
+        # Note: For true FTS, you would use a dedicated SQLite extension or move to Postgres/MySQL.
+        # This uses simple LIKE search which is fine for small databases.
         try:
+            # Add wildcard characters to the query for better partial matches
+            search_pattern = f"%{query.lower()}%" 
+            
             with self.get_session() as session:
                 jobs = session.query(Job).filter(
-                    (Job.title.contains(query)) |
-                    (Job.description.contains(query)) |
-                    (Job.company.contains(query)),
+                    (func.lower(Job.title).like(search_pattern)) |
+                    (func.lower(Job.description).like(search_pattern)) |
+                    (func.lower(Job.company).like(search_pattern)),
                     Job.is_deleted == False
-                ).all()
+                ).order_by(Job.match_score.desc()).all()
                 return [job.to_dict() for job in jobs]
         except Exception as e:
             logger.error(f"Error searching jobs: {e}")
             return []
 
     def _log_activity(self, session: Session, job_id: str, action: str, details: str) -> None:
-        """Log an activity (internal method with session)"""
+        """Log an activity (internal method with active session)."""
         try:
             log = ActivityLog(job_id=job_id, action=action, details=details)
             session.add(log)
         except Exception as e:
-            logger.error(f"Error logging activity: {e}")
+            # We don't want a logging failure to crash the main transaction
+            logger.error(f"Error logging activity (non-fatal): {e}")
 
     def create_backup(self) -> Optional[Path]:
-        """
-        QoL: Create a backup of the database
-        """
+        """Create a physical backup of the SQLite database file."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = self.db_path.parent / f"backup_{timestamp}.db"
+        backup_path = self.db_path.parent / f"{self.db_path.stem}_backup_{timestamp}{self.db_path.suffix}"
         
         try:
             backup_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(self.db_path, backup_path)
+            # Use shutil.copy2 to preserve metadata (like timestamps)
+            shutil.copy2(self.db_path, backup_path) 
             logger.info(f"✓ Database backed up to {backup_path}")
             return backup_path
         except Exception as e:
             logger.error(f"Backup failed: {e}")
             return None
 
-    def close(self) -> None:
-        """Close the database connection (no-op as context managers handle this)"""
-        pass
-
     def soft_delete_job(self, job_id: str) -> bool:
-        """
-        QoL: Soft delete a job (keeps history but hides from queries)
-        """
+        """Soft delete a job (hides from most queries but retains history)."""
         try:
             with self.get_session() as session:
                 job = session.query(Job).filter_by(id=job_id).first()
@@ -496,6 +526,8 @@ class JobDatabase:
                     raise JobNotFoundError(f"Job {job_id} not found")
                 
                 job.is_deleted = True
+                job.status = "archived"
+                
                 self._log_activity(session, job_id, "soft_delete", "Job archived")
                 return True
         except JobNotFoundError:
@@ -524,6 +556,12 @@ if __name__ == "__main__":
     # Print statistics
     stats = db.get_statistics()
     print("\n=== Database Statistics ===")
-    print(f"Total jobs: {stats['total_jobs']}")
-    print(f"High matches: {stats['high_matches']}")
+    print(f"Total non-deleted jobs: {stats['total_jobs']}")
+    print(f"High matches (>= 80%): {stats['high_matches']}")
     print(f"Average match score: {stats['avg_match_score']*100:.1f}%")
+    print("Status Breakdown:")
+    for status, count in stats['by_status'].items():
+        print(f"  - {status}: {count}")
+    print("Recent Activity:")
+    for log in stats['recent_activity']:
+         print(f"  [{log['timestamp'].strftime('%Y-%m-%d %H:%M')}] {log.get('job_id', 'N/A')}: {log['action']} - {log['details']}")
