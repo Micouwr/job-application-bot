@@ -1,8 +1,22 @@
-# app/matcher.py
 from __future__ import annotations
 
 import math
+import re
 from typing import Dict, List, Tuple
+
+# Simple list of English stopwords for basic text cleaning.
+# This helps focus the matching on relevant keywords (skills, titles, etc.).
+STOPWORDS = {
+    "a", "an", "the", "and", "or", "but", "about", "above", "across", "after",
+    "against", "along", "amid", "among", "around", "at", "before", "behind",
+    "below", "beneath", "beside", "between", "beyond", "by", "down", "during",
+    "except", "for", "from", "in", "inside", "into", "like", "near", "of",
+    "off", "on", "onto", "out", "outside", "over", "through", "to", "under",
+    "up", "upon", "with", "within", "without", "is", "am", "are", "was", "were",
+    "be", "been", "being", "have", "has", "had", "do", "does", "did", "as",
+    "no", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t",
+    "can", "will", "just", "don", "should", "now"
+}
 
 
 class Matcher:
@@ -18,14 +32,27 @@ class Matcher:
         pass
 
     def _tokenize(self, text: str) -> List[str]:
-        return [t.lower() for t in text.split() if t.strip()]
+        """
+        Tokenize the text, remove punctuation, lowercase, and filter stopwords.
+        """
+        # 1. Replace all non-alphanumeric characters (except spaces) with a space
+        text = re.sub(r'[^\w\s]', ' ', text)
+        # 2. Split, lowercase, and filter stopwords
+        tokens = []
+        for t in text.split():
+            token = t.lower()
+            # Filter out empty strings and stopwords
+            if token and token not in STOPWORDS:
+                tokens.append(token)
+        return tokens
 
     def score_resume_for_job(self, resume_text: str, job_text: str) -> float:
         """
-        Produce a simple match score between 0.0 and 1.0.
+        Produce a match score between 0.0 and 1.0 based on keyword overlap.
 
-        The current implementation is a normalized overlap of word tokens with
-        inverse-length scaling to avoid short-text bias.
+        The current implementation is a normalized overlap of word tokens (after
+        removing stopwords and punctuation) with inverse-length scaling to avoid
+        short-text bias.
 
         Args:
             resume_text: plain text of resume
@@ -36,11 +63,19 @@ class Matcher:
         """
         r_tokens = set(self._tokenize(resume_text))
         j_tokens = set(self._tokenize(job_text))
+
         if not r_tokens or not j_tokens:
             return 0.0
+
+        # Calculate overlap
         intersect = r_tokens.intersection(j_tokens)
+
+        # Raw score: Intersection size divided by the total number of job tokens.
+        # This measures what percentage of the job requirements are covered by the resume.
         raw_score = len(intersect) / max(len(j_tokens), 1)
-        # normalize with logistic scaling for smoother values
+
+        # Final score: Normalize the raw score (0 to 1) using a Sigmoid function
+        # to produce a smoother, non-linear score between ~0.0 and ~1.0.
         return 1.0 / (1.0 + math.exp(-6 * (raw_score - 0.25)))
 
     def top_matches(
