@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 import time
 import re
+import requests
+import json
 from typing import Optional, Dict, Any
 
-# Import the global configuration object
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -13,58 +14,106 @@ logger = logging.getLogger(__name__)
 
 class APIClient:
     """
-    Small wrapper placeholder for AI API calls (Anthropic/OpenAI/Gemini/etc).
+    Client for interacting with the Gemini API for content generation.
     
-    Initializes using values pulled from the central configuration object.
+    Implements exponential backoff for robust API interaction.
     """
+    
+    # Base URL for the non-streaming generateContent endpoint
+    API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
     def __init__(
         self,
         api_key: Optional[str] = config.GEMINI_API_KEY,
         timeout: int = 30,
-        # Default model name and temperature now come from the config object
         model_name: str = config.LLM_MODEL, 
         temperature: float = config.LLM_TEMPERATURE,
     ) -> None:
-        if not api_key:
-            logger.warning("GEMINI_API_KEY is not set in config.")
-            
         self.api_key = api_key
+        if not self.api_key:
+            logger.error("GEMINI_API_KEY is not set. API calls will fail.")
+            
         self.timeout = timeout
         self.model_name = model_name
         self.temperature = temperature
         logger.debug("APIClient initialized with model: %s, temperature: %s", self.model_name, self.temperature)
 
+    def _prepare_payload(self, prompt: str) -> Dict[str, Any]:
+        """Constructs the request payload for the Gemini API."""
+        return {
+            "contents": [
+                {
+                    "parts": [{"text": prompt}]
+                }
+            ],
+            "config": {
+                "temperature": self.temperature,
+            }
+        }
+
     def call_model(self, prompt: str) -> str:
         """
-        Synchronous model call. Implement retries, timeouts, and parsing here.
+        Calls the Gemini API, handling retries with exponential backoff.
+        
+        Returns:
+            The raw text response from the model.
+        
+        Raises:
+            RuntimeError: If the API call fails after all retries.
         """
-        retries = 2
-        for attempt in range(1, retries + 2):
-            try:
-                # --- Placeholder API CALL ---
-                logger.debug(
-                    "APIClient.call_model attempt %s (using %s, temp=%.1f)",
-                    attempt, self.model_name, self.temperature
-                )
-                time.sleep(0.2 * attempt)
-                
-                # Placeholder response simulating structured LLM output
-                mock_text = (
-                    f"[START_RESUME]I used my Python and SQL skills to drive 20%% efficiency gains, "
-                    f"a fact now strongly emphasized in this tailored resume. (Model: {self.model_name})[END_RESUME]\n"
-                    f"[START_COVER_LETTER]Dear Hiring Manager, I am writing to express my strong interest in the role...[END_COVER_LETTER]\n"
-                    f"[START_CHANGES]1. Emphasized Python/SQL synergy.\n2. Added quantitative result (20%%).\n3. Re-ordered sections to prioritize matching keywords.[END_CHANGES]"
-                )
-                return mock_text
-                # --- End Placeholder ---
+        if not self.api_key:
+            raise RuntimeError("Cannot call API: GEMINI_API_KEY is missing.")
 
+        api_url = f"{self.API_BASE_URL}/{self.model_name}:generateContent?key={self.api_key}"
+        payload = self._prepare_payload(prompt)
+        headers = {"Content-Type": "application/json"}
+        
+        # Implement exponential backoff for retries (3 attempts total)
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            try:
+                logger.debug("API call attempt %s to %s", attempt, self.model_name)
+                
+                response = requests.post(
+                    api_url, 
+                    headers=headers, 
+                    data=json.dumps(payload),
+                    timeout=self.timeout
+                )
+                response.raise_for_status() # Raises HTTPError for bad responses (4xx or 5xx)
+
+                # Parse the successful response
+                data = response.json()
+                
+                # Extract the text content from the response structure
+                candidate = data.get("candidates", [])[0]
+                text = candidate.get("content", {}).get("parts", [{}])[0].get("text", "")
+                
+                if text:
+                    return text
+                else:
+                    logger.warning("API returned success but text field was empty.")
+                    raise RuntimeError("Empty text returned from model.")
+
+            except requests.exceptions.RequestException as exc:
+                # Handle connection errors, timeouts, and HTTP errors
+                is_retryable = response.status_code in [429, 500, 503] if 'response' in locals() else True
+                
+                if attempt < max_attempts and is_retryable:
+                    delay = 2**attempt  # Exponential backoff (2s, 4s)
+                    logger.warning("API call failed (Attempt %s/%s). Retrying in %s seconds. Error: %s", 
+                                   attempt, max_attempts, delay, exc)
+                    time.sleep(delay)
+                else:
+                    logger.error("API call failed permanently after %s attempts. Error: %s", max_attempts, exc)
+                    raise RuntimeError(f"Failed to call Gemini API after {max_attempts} attempts.") from exc
+            
             except Exception as exc:
-                logger.exception("Model call failed on attempt %s: %s", attempt, exc)
-                if attempt > retries:
-                    raise
-                time.sleep(1.0 * attempt)
-        raise RuntimeError("unreachable")
+                # Handle general parsing or unexpected errors
+                logger.error("Unexpected error during API call: %s", exc)
+                raise RuntimeError("Unexpected error processing API response.") from exc
+        
+        raise RuntimeError("Model call logic flow error.") # Should be unreachable
 
 
 class ResumeTailor:
@@ -73,6 +122,7 @@ class ResumeTailor:
     """
 
     def __init__(self, api_client: Optional[APIClient] = None) -> None:
+        # Use the configured APIClient by default
         self.client = api_client or APIClient()
 
     def _parse_response(self, response: str) -> Dict[str, Any]:
@@ -90,7 +140,7 @@ class ResumeTailor:
             "CHANGES": "changes",
         }
 
-        # Check for mandatory tags (as per your test case logic)
+        # Check for mandatory tags (RESUME tags are crucial for validation)
         if "[START_RESUME]" not in response or "[END_RESUME]" not in response:
              raise ValueError("Malformed AI response: Missing mandatory [RESUME] tags.")
 
