@@ -5,21 +5,30 @@ import time
 import re
 from typing import Optional, Dict, Any
 
+# Import the global configuration object
+from .config import config
+
 logger = logging.getLogger(__name__)
 
 
 class APIClient:
     """
     Small wrapper placeholder for AI API calls (Anthropic/OpenAI/Gemini/etc).
+    
+    Initializes using values pulled from the central configuration object.
     """
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: Optional[str] = config.GEMINI_API_KEY,
         timeout: int = 30,
-        model_name: str = "gemini-2.5-flash",
-        temperature: float = 0.7,
+        # Default model name and temperature now come from the config object
+        model_name: str = config.LLM_MODEL, 
+        temperature: float = config.LLM_TEMPERATURE,
     ) -> None:
+        if not api_key:
+            logger.warning("GEMINI_API_KEY is not set in config.")
+            
         self.api_key = api_key
         self.timeout = timeout
         self.model_name = model_name
@@ -43,7 +52,7 @@ class APIClient:
                 # Placeholder response simulating structured LLM output
                 mock_text = (
                     f"[START_RESUME]I used my Python and SQL skills to drive 20%% efficiency gains, "
-                    f"a fact now strongly emphasized in this tailored resume.[END_RESUME]\n"
+                    f"a fact now strongly emphasized in this tailored resume. (Model: {self.model_name})[END_RESUME]\n"
                     f"[START_COVER_LETTER]Dear Hiring Manager, I am writing to express my strong interest in the role...[END_COVER_LETTER]\n"
                     f"[START_CHANGES]1. Emphasized Python/SQL synergy.\n2. Added quantitative result (20%%).\n3. Re-ordered sections to prioritize matching keywords.[END_CHANGES]"
                 )
@@ -128,5 +137,4 @@ class ResumeTailor:
         
         raw_result = self.client.call_model(prompt)
         
-        # Use the structured parsing method to return the final application package
         return self._parse_response(raw_result)
