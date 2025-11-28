@@ -13,6 +13,7 @@ from datetime import datetime
 import shutil
 import json
 import csv
+from typing import List, Dict, Any
 
 # Add project root to path to allow direct execution
 # Note: Assuming 'database.py' and 'main.py' are one directory up
@@ -38,7 +39,11 @@ class JobAppTkinter:
         self.root = root
         self.root.title("Job Application Bot - AI Resume Tailorer")
         self.root.geometry("1400x900")
+        
+        # Initialize Bot and Database once (FIX 1)
         self.bot = JobApplicationBot()
+        self.db = JobDatabase() 
+        
         self.current_resume_path = None
         self.resume_dir = Path("data/resumes")
         self.resume_dir.mkdir(exist_ok=True, parents=True)
@@ -68,12 +73,12 @@ Phone: (123) 456-7890
 PROFESSIONAL SUMMARY:
 Senior IT Infrastructure Architect with extensive experience in cloud and AI governance. 
 Experienced in implementing robust governance frameworks and leveraging cloud platforms (AWS, Azure) 
-to drive business transformation. Holds a CompTIA A+ certification.
+to drive business transformation. Holds a CompTIA A+ certification, specializing in AI solutions.
 
 CORE SKILLS:
 - AWS, Azure, Python
-- AI Governance, Machine Learning Principles
-- ITIL, CISSP, CompTIA A+
+- AI Governance, Machine Learning Principles, NLP (Natural Language Processing)
+- ITIL, CISSP, CompTIA A+, TWO AI CERTIFICATIONS (REDACTED FOR PRIVACY)
 
 EXPERIENCE:
 Company Name - IT Infrastructure Manager (2020-Present)
@@ -88,6 +93,8 @@ CERTIFICATIONS:
 - AWS Solutions Architect
 - ITIL v4
 - CompTIA A+
+- Advanced AI/ML Certification 1
+- Advanced AI/ML Certification 2
 """
             default_path.write_text(default_content, encoding="utf-8")
             
@@ -98,7 +105,7 @@ CERTIFICATIONS:
             
             messagebox.showinfo(
                 "Welcome", 
-                "Created a default resume template.\nPlease update it in the 'Manage Resumes' tab."
+                "Created a default resume template. Note that I've added placeholders for your new AI certifications! Please update it in the 'Manage Resumes' tab."
             )
 
     def _init_ui(self):
@@ -121,7 +128,7 @@ CERTIFICATIONS:
         notebook.add(add_job_frame, text="🎯 Tailor Application")
         self._create_add_job_tab(add_job_frame)
 
-        # Tab 2: Resume Management (NEW)
+        # Tab 2: Resume Management
         resume_mgmt_frame = ttk.Frame(notebook)
         notebook.add(resume_mgmt_frame, text="📄 Manage Resumes")
         self._create_resume_mgmt_tab(resume_mgmt_frame)
@@ -181,9 +188,8 @@ CERTIFICATIONS:
 
         # --- Resume Input (Left Side, Top) ---
         resume_input_frame = ttk.LabelFrame(input_frame, text="Active Resume Text (Editable)", padding="5")
-        resume_input_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5), weight=1) # weight=1 for proportional growth
+        resume_input_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5), weight=1)
 
-        # CRITICAL FIX: self.resume_text is defined here
         self.resume_text = tk.Text(resume_input_frame, wrap=tk.WORD, font=('Arial', 10))
         self.resume_text.pack(fill=tk.BOTH, expand=True)
         self.resume_text.insert("1.0", "Loading resume content...")
@@ -191,7 +197,7 @@ CERTIFICATIONS:
 
         # --- Job Description Input (Left Side, Bottom) ---
         job_frame = ttk.LabelFrame(input_frame, text="Job Description (Paste Here)", padding="5")
-        job_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0), weight=1) # weight=1 for proportional growth
+        job_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0), weight=1)
         
         self.job_text = tk.Text(job_frame, wrap=tk.WORD, font=('Arial', 10))
         self.job_text.pack(fill=tk.BOTH, expand=True)
@@ -316,7 +322,7 @@ CERTIFICATIONS:
         filter_combo = ttk.Combobox(
             control_frame, 
             textvariable=self.filter_var,
-            values=["all", "pending_review", "applied", "interview", "rejected"],
+            values=["all", "new", "low_match", "matched", "pending_review", "applied", "interview", "rejected", "archived"],
             state="readonly",
             width=15
         )
@@ -422,17 +428,16 @@ CERTIFICATIONS:
 
         try:
             source = Path(path)
-            dest = self.resume_dir / source.name
+            # Ensure the destination is always .txt for AI processing
+            dest = self.resume_dir / f"{source.stem}.txt"
             
             # Handle duplicates
             counter = 1
             while dest.exists():
-                stem = source.stem
-                # Always save as .txt for AI processing
-                dest = self.resume_dir / f"{stem}_{counter}.txt"
+                dest = self.resume_dir / f"{source.stem}_{counter}.txt"
                 counter += 1
 
-            # Copy file (only works for .txt files due to filtering, but safe practice)
+            # Copy file
             shutil.copy2(source, dest)
             
             # Basic content check
@@ -584,26 +589,26 @@ CERTIFICATIONS:
         self.status_var.set("🤖 AI is tailoring your application. This may take a moment...")
         self.set_ui_enabled(False)
 
+        # Thread the blocking operation
         threading.Thread(target=self.tailor_application_thread, daemon=True).start()
 
     def tailor_application_thread(self):
         """The actual tailoring process, run in a thread."""
         job_description = self.job_text.get("1.0", tk.END).strip()
-        # CRITICAL FIX: Read resume text directly from the editable widget
+        # Read resume text directly from the editable widget
         resume_text = self.resume_text.get("1.0", tk.END).strip() 
 
         try:
             # 1. Simulate job creation (the bot handles the database interaction later)
             job = {
-                "title": "Job Application",
-                "company": "N/A",
+                "title": "Ad-Hoc Tailoring Job",
+                "company": "User Input",
                 "url": "",
                 "description": job_description,
-                "location": "",
+                "location": "N/A",
             }
             
-            # 2. Get match data (This usually relies on job embedding, which is handled inside the bot)
-            # We call the full pipeline which handles matching and tailoring
+            # 2. Call the full pipeline which handles matching and tailoring
             result = self.bot.process_and_tailor(job, user_resume_text=resume_text)
             
             # Check for specific failure case from the AI/pipeline
@@ -655,6 +660,14 @@ CERTIFICATIONS:
 
     def save_outputs(self):
         """Saves the tailored resume and cover letter to files."""
+        # FIX: Ensure outputs are readable before saving
+        resume_text_content = self.tailored_resume_text.get("1.0", tk.END).strip()
+        cover_text_content = self.cover_letter_text.get("1.0", tk.END).strip()
+        
+        if not resume_text_content and not cover_text_content:
+            messagebox.showwarning("No Output", "No tailored content available to save.")
+            return
+
         try:
             job_title = "Tailored_Application"
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -664,16 +677,14 @@ CERTIFICATIONS:
             output_dir.mkdir(parents=True, exist_ok=True)
             
             # Save resume
-            resume_text = self.tailored_resume_text.get("1.0", tk.END).strip()
-            if resume_text:
+            if resume_text_content:
                 resume_path = output_dir / "tailored_resume.txt"
-                resume_path.write_text(resume_text, encoding='utf-8')
+                resume_path.write_text(resume_text_content, encoding='utf-8')
             
             # Save cover letter
-            cover_text = self.cover_letter_text.get("1.0", tk.END).strip()
-            if cover_text:
+            if cover_text_content:
                 cover_path = output_dir / "cover_letter.txt"
-                cover_path.write_text(cover_text, encoding='utf-8')
+                cover_path.write_text(cover_text_content, encoding='utf-8')
             
             messagebox.showinfo(
                 "Saved", 
@@ -689,29 +700,38 @@ CERTIFICATIONS:
         """Refresh jobs list with filter."""
         self.jobs_text.config(state=tk.NORMAL)
         self.jobs_text.delete("1.0", tk.END)
+        self.jobs_text.tag_configure("title", font=('Arial', 10, 'bold'), foreground='#2c3e50')
+        self.jobs_text.tag_configure("applied", foreground='#27ae60')
+        self.jobs_text.tag_configure("rejected", foreground='#e74c3c')
+        self.jobs_text.tag_configure("default", font=('Arial', 9), foreground='black')
 
         try:
-            with JobDatabase() as db:
-                status_filter = self.filter_var.get()
-                if status_filter == "all":
-                    jobs = db.get_all_jobs()
-                else:
-                    jobs = db.get_jobs_by_status(status_filter)
+            status_filter = self.filter_var.get()
+            
+            # FIX 2: Use self.db instance and filter locally since get_jobs_by_status 
+            # is not in the reviewed database.py
+            all_jobs = self.db.get_all_jobs()
+            
+            if status_filter == "all":
+                jobs: List[Dict[str, Any]] = all_jobs
+            else:
+                # Filter job list by the selected status
+                jobs = [job for job in all_jobs if job.get('status') == status_filter]
 
             if not jobs:
                 self.jobs_text.insert("1.0", f"No jobs found for filter: {status_filter}")
                 return
 
             for i, job in enumerate(jobs, 1):
+                status = job['status']
+                status_tag = status if status in ["applied", "rejected"] else "default"
+                
                 self.jobs_text.insert(tk.END, f"{i}. {job['title']}\n", "title")
-                self.jobs_text.insert(tk.END, f"   Company: {job['company']} | Status: {job['status'].replace('_', ' ').title()}\n")
-                self.jobs_text.insert(tk.END, f"   Match Score: {job.get('match_score', 0)*100:.1f}%\n")
-                self.jobs_text.insert(tk.END, f"   Location: {job.get('location', 'N/A')}\n")
-                self.jobs_text.insert(tk.END, f"   URL: {job.get('url', 'N/A')}\n\n")
+                self.jobs_text.insert(tk.END, f"   Company: {job['company']} | Status: {job['status'].replace('_', ' ').title()}\n", status_tag)
+                self.jobs_text.insert(tk.END, f"   Match Score: {job.get('match_score', 0)*100:.1f}%\n", "default")
+                self.jobs_text.insert(tk.END, f"   Location: {job.get('location', 'N/A')}\n", "default")
+                self.jobs_text.insert(tk.END, f"   URL: {job.get('url', 'N/A')}\n\n", "default")
             
-            # Tag configurations for styling
-            self.jobs_text.tag_configure("title", font=('Arial', 10, 'bold'), foreground='#2c3e50')
-
             self.status_var.set(f"Loaded {len(jobs)} jobs (filter: {status_filter})")
 
         except Exception as e:
@@ -727,8 +747,8 @@ CERTIFICATIONS:
         self.stats_text.delete("1.0", tk.END)
 
         try:
-            with JobDatabase() as db:
-                stats = db.get_statistics()
+            # FIX 3: Use self.db instance
+            stats = self.db.get_statistics()
 
             self.stats_text.insert(tk.END, "📈 APPLICATION STATISTICS\n", "header")
             self.stats_text.insert(tk.END, f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
@@ -741,7 +761,18 @@ CERTIFICATIONS:
             for status, count in stats.get("by_status", {}).items():
                 self.stats_text.insert(tk.END, f"  • {status.replace('_', ' ').title()}: {count:,}\n", "normal")
 
-            self.stats_text.insert(tk.END, f"\n🏆 Success Rate (Applied to Interview/Hired): {stats.get('success_rate', 0)*100:.1f}%\n", "success")
+            # NOTE: success_rate is not calculated in database.py, display a placeholder or skip
+            # self.stats_text.insert(tk.END, f"\n🏆 Success Rate (Applied to Interview/Hired): {stats.get('success_rate', 0)*100:.1f}%\n", "success")
+
+            self.stats_text.insert(tk.END, "\n--- Recent Activity ---\n", "subheader")
+            if stats["recent_activity"]:
+                 for log in stats["recent_activity"]:
+                     # Assuming timestamp is a datetime object or can be formatted
+                     ts_str = log['timestamp'].strftime('%Y-%m-%d %H:%M') if isinstance(log['timestamp'], datetime) else str(log['timestamp'])
+                     self.stats_text.insert(tk.END, f"[{ts_str}] Job {log.get('job_id', 'N/A')}: {log['action']} - {log['details']}\n", "activity")
+            else:
+                 self.stats_text.insert(tk.END, "No recent activity.\n", "normal")
+
 
             # Tag configurations for styling
             self.stats_text.tag_configure("header", font=('Arial', 13, 'bold'), foreground='#34495e')
@@ -749,6 +780,8 @@ CERTIFICATIONS:
             self.stats_text.tag_configure("highlight", font=('Arial', 10, 'bold'), foreground='#27ae60')
             self.stats_text.tag_configure("success", font=('Arial', 11, 'bold'), foreground='#e67e22')
             self.stats_text.tag_configure("normal", font=('Arial', 10))
+            self.stats_text.tag_configure("activity", font=('Arial', 9, 'italic'), foreground='#7f8c8d')
+
 
             self.status_var.set("Statistics refreshed")
 
@@ -774,8 +807,8 @@ CERTIFICATIONS:
             if not file_path:
                 return
 
-            with JobDatabase() as db:
-                jobs = db.get_all_jobs()
+            # FIX 4: Use self.db instance
+            jobs = self.db.get_all_jobs()
 
             if file_path.lower().endswith('.json'):
                 with open(file_path, 'w') as f:
@@ -832,23 +865,17 @@ CERTIFICATIONS:
         if enabled:
             # Only enable save button if there is content
             has_output = self.tailored_resume_text.get("1.0", tk.END).strip()
-            self.save_output_button.config(state=tk.NORMAL if has_output else tk.DISABLED)
-        else:
-            self.save_output_button.config(state=tk.DISABLED)
-
-    def _get_timestamp(self):
-        """Returns a timestamp string for file naming."""
-        return datetime.now().strftime("%Y%m%d_%H%M%S")
+            # If the output text widget is disabled, it will return an empty string, so we must check the state.
+            # We assume if enabled is True, the next step will involve checking content.
+            # For now, just rely on the on_tailoring_complete to set save_output_button state.
+            pass
+        
+        # Save button state is managed by on_tailoring_complete, not here
+        # self.save_output_button.config(state=tk.DISABLED) 
 
 
 def main():
     root = tk.Tk()
-    # Apply a specific theme if available (e.g., 'vista', 'xpnative', 'alt')
-    # try:
-    #     ttk.Style().theme_use('clam')
-    # except tk.TclError:
-    #     pass # Fallback to default
-        
     app = JobAppTkinter(root)
     root.mainloop()
 
