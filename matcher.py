@@ -4,8 +4,9 @@ Job matching engine - Scores jobs against resume with advanced matching algorith
 
 import logging
 from typing import Dict, List, Tuple, Set, Optional, Any
-import difflib  # For fuzzy matching
+import difflib
 from collections import Counter
+import re # Added for better keyword extraction
 
 from config.settings import MATCHING, RESUME_DATA
 
@@ -15,7 +16,8 @@ logger = logging.getLogger(__name__)
 class WeightedSkill:
     """Represents a skill with importance weight"""
     def __init__(self, name: str, weight: float = 1.0):
-        self.name = name.lower()
+        # Normalize skill name for matching
+        self.name = name.lower().strip()
         self.weight = weight
 
 
@@ -25,75 +27,98 @@ class JobMatcher:
     """
     
     def __init__(self, resume_data: Dict = None):
+        # CRITICAL FIX: Load the structured resume data (which includes CORE COMPETENCIES)
         self.resume = resume_data or RESUME_DATA
         
-        # Create weighted skills list
+        # 1. Create weighted skills list based on CORE COMPETENCIES
         self.weighted_skills = self._create_weighted_skills()
+        
+        # 2. Extract keywords from Achievements and Projects
         self.experience_keywords = self._extract_experience_keywords()
         
-        # Pre-compile skill variations for fuzzy matching
+        # 3. Pre-compile skill variations
         self.skill_variations = self._build_skill_variations()
         
         logger.info(f"✓ JobMatcher initialized with {len(self.weighted_skills)} weighted skills")
 
+    # CRITICAL FIX: Use actual resume structure (CORE COMPETENCIES) and prioritize AI/Governance
     def _create_weighted_skills(self) -> List[WeightedSkill]:
-        """ Create weighted skills based on categories """
+        """ Create weighted skills based on CORE COMPETENCIES and custom certs """
         weighted_skills = []
         
-        # Higher weight for advanced skills
+        # Priority mapping for the user's resume sections
         category_weights = {
-            "ai_cloud": 1.5,
-            "infrastructure_security": 1.3,
-            "service_leadership": 1.2,
-            "technical": 1.0
+            "AI & Governance": 2.0,            # Highest priority
+            "Operational Leadership": 1.5,     # High priority (Service Desk Automation, SLA)
+            "Technical Enablement": 1.3,       # Moderate priority (Python, KPI)
+            "Infrastructure Foundation": 1.0,  # Standard priority (Networking, AD)
         }
         
-        for category, skills in self.resume["skills"].items():
+        # Add skills from Core Competencies
+        for category, skills in self.resume.get("core_competencies", {}).items():
             weight = category_weights.get(category, 1.0)
             for skill in skills:
                 weighted_skills.append(WeightedSkill(skill, weight))
-        
-        return weighted_skills
 
+        # Add specific certifications/projects as high-weight skills
+        # This addresses the personalization (CompTIA A+ and new AI certs)
+        weighted_skills.append(WeightedSkill("ISO/IEC 42001", 2.5))
+        weighted_skills.append(WeightedSkill("Generative AI Strategy", 2.2))
+        weighted_skills.append(WeightedSkill("CompTIA A+", 1.1)) # Lower weight, but relevant for support roles
+        weighted_skills.append(WeightedSkill("AI-Powered Triage", 2.2))
+
+        # Deduplicate skills, keeping the highest weight if duplicated
+        unique_skills = {}
+        for skill in weighted_skills:
+            if skill.name not in unique_skills or skill.weight > unique_skills[skill.name].weight:
+                unique_skills[skill.name] = skill
+        
+        return list(unique_skills.values())
+
+    # CRITICAL FIX: Simplify and standardize variations
     def _build_skill_variations(self) -> Dict[str, Set[str]]:
-        """ Build variations of skills for fuzzy matching """
+        """ Build variations of skills for fuzzy matching (exact matching only for speed) """
         variations = {}
         for skill in self.weighted_skills:
-            # Create variations (AWS -> Amazon Web Services, etc.)
-            var_set = {skill.name}
+            name = skill.name
+            var_set = {name}
             
-            # Add common abbreviations
-            if skill.name == "aws":
-                var_set.add("amazon web services")
-            elif skill.name == "active directory":
-                var_set.add("ad")
-            elif skill.name == "vpn":
-                var_set.add("virtual private network")
+            # Common abbreviations and multi-word variations
+            if "aws" in name: var_set.add("amazon web services")
+            if "ad" in name: var_set.add("active directory")
+            if "vpn" in name: var_set.add("virtual private network")
+            if "ci/cd" in name: var_set.add("cicd")
+            if "service desk" in name: var_set.add("help desk")
+            if "iso/iec 42001" in name: var_set.add("iso 42001")
             
-            variations[skill.name] = var_set
+            variations[name] = var_set
         
         return variations
 
+    # CRITICAL FIX: Extract keywords from ACHIEVEMENTS and PROJECTS
     def _extract_experience_keywords(self) -> Set[str]:
-        """Extract keywords from experience with weights"""
+        """Extract keywords from experience achievements and projects"""
         keywords = set()
-        for exp in self.resume["experience"]:
-            for skill in exp.get("skills_used", []):
-                keywords.add(skill.lower())
-            # Add key terms from achievements
+        
+        # Keywords from Professional Experience achievements
+        for exp in self.resume.get("experience", []):
             for achievement in exp.get("achievements", []):
-                # Extract important words (verbs, nouns)
-                words = [word.lower() for word in achievement.split() 
-                        if len(word) > 3 and word not in {"the", "and", "for", "with"}]
-                keywords.update(words)
+                # Extract words related to IT operations, results, and management
+                words = re.findall(r'\b(?:[A-Z]{2,}(?:\/[A-Z]{2,})?|modernizing|automating|architected|compliance|governance|reducing|led|delivered|managed|optimized|security|network)\b', achievement, re.IGNORECASE)
+                keywords.update(word.lower() for word in words)
+
+        # Keywords from Technical Projects (high relevance)
+        for proj in self.resume.get("projects", []):
+            keywords.add(proj["name"].lower())
+            for achievement in proj.get("achievements", []):
+                words = re.findall(r'\b(?:python|triage|classification|safeguards|audit|compliance|validation)\b', achievement, re.IGNORECASE)
+                keywords.update(word.lower() for word in words)
+
         return keywords
 
     def match_job(self, job: Dict[str, Any]) -> Dict[str, Any]:
         """
         Calculate comprehensive match score with explanations.
-        
-        Returns:
-            Dictionary with score, matched skills, analysis, and human-readable explanation
         """
         job_text = f"{job['title']} {job.get('description', '')} {job.get('requirements', '')}".lower()
 
@@ -113,9 +138,9 @@ class JobMatcher:
             MATCHING["weights"]["keywords"] * keyword_score
         )
 
-        # Experience level adjustment with detailed logic
+        # Experience level adjustment
         exp_level_result = self._check_experience_level(job)
-        multiplier = 1.0 if exp_level_result["matches"] else MATCHING["experience_level_multiplier"]
+        multiplier = exp_level_result["multiplier"]
 
         match_score = base_score * multiplier
 
@@ -124,7 +149,7 @@ class JobMatcher:
         
         # Generate human-readable explanation
         explanation = self._generate_detailed_explanation(
-            match_score, skill_details, exp_details, multiplier, exp_level_result
+            match_score, skills_score, experience_score, keyword_score, multiplier, exp_level_result
         )
 
         # Recommendation
@@ -146,7 +171,7 @@ class JobMatcher:
                 "experience": experience_score,
                 "keywords": keyword_score,
             },
-            "match_details": {  # ✅ QoL: Detailed breakdown
+            "match_details": { 
                 "skill_details": skill_details,
                 "experience_details": exp_details,
                 "level_adjustment": multiplier,
@@ -154,7 +179,7 @@ class JobMatcher:
         }
 
     def _calculate_weighted_skills_match(self, job_text: str) -> Tuple[float, List[str], List[str], Dict[str, Any]]:
-        """Calculate weighted skills match with fuzzy matching"""
+        """Calculate weighted skills match using exact and variation matching"""
         matched_skills = []
         matched_weight = 0.0
         total_weight = sum(skill.weight for skill in self.weighted_skills)
@@ -162,23 +187,31 @@ class JobMatcher:
         skill_details = []
         
         for skill in self.weighted_skills:
-            # Check for exact match
-            if skill.name in job_text:
-                matched_skills.append(skill.name.title())
-                matched_weight += skill.weight
-                skill_details.append({
-                    "skill": skill.name,
-                    "type": "exact",
-                    "weight": skill.weight
-                })
+            found = False
+            
+            # Check for exact matches and common variations (faster and more accurate than fuzzy)
+            variations = self.skill_variations.get(skill.name, {skill.name})
+            
+            for var in variations:
+                if var in job_text:
+                    matched_skills.append(skill.name.title())
+                    matched_weight += skill.weight
+                    skill_details.append({
+                        "skill": skill.name,
+                        "type": "exact/variation",
+                        "weight": skill.weight
+                    })
+                    found = True
+                    break # Move to next resume skill
+            
+            if found:
                 continue
             
-            # Check for fuzzy match
+            # Use fuzzy matching as a very limited fallback (original logic for reference)
             best_match = self._find_fuzzy_match(skill.name, job_text)
-            # ✅ Fix: Lower threshold to 0.75 to catch "Python" vs "Pythonic" (0.77 similarity)
-            if best_match and best_match[1] > 0.75:  # Reduced from 0.8
+            if best_match and best_match[1] > 0.75:
                 matched_skills.append(skill.name.title())
-                matched_weight += skill.weight * 0.9  # Slightly reduce weight for fuzzy matches
+                matched_weight += skill.weight * 0.9
                 skill_details.append({
                     "skill": skill.name,
                     "type": "fuzzy",
@@ -187,27 +220,22 @@ class JobMatcher:
                     "weight": skill.weight * 0.9
                 })
 
-        if not self.weighted_skills:
-            return 0.0, [], [], {}
-        
-        # ✅ Fix: Explicit check for empty skills
         score = matched_weight / total_weight if total_weight > 0 else 0.0
+        # Missing skills list includes titles for display
         missing_skills = [skill.name.title() for skill in self.weighted_skills 
                          if skill.name.title() not in matched_skills]
         
         return score, matched_skills, missing_skills, {"details": skill_details}
 
+    # Simplified fuzzy match to run against a smaller context set if possible
     def _find_fuzzy_match(self, skill: str, text: str) -> Optional[Tuple[str, float]]:
-        """Find fuzzy match for skill in text"""
-        # Check direct variations first
-        if skill in self.skill_variations:
-            for variation in self.skill_variations[skill]:
-                if variation in text:
-                    return (variation, 1.0)
+        """Find fuzzy match for skill in text (fallback only)"""
         
-        # Use difflib for partial matches
-        words = text.split()
-        matches = difflib.get_close_matches(skill, words, n=1, cutoff=0.75)  # ✅ Lowered threshold
+        # Only check against words that are longer than the skill or vice versa
+        words = set(text.split())
+        
+        # Use difflib for partial matches only against the isolated words
+        matches = difflib.get_close_matches(skill, words, n=1, cutoff=0.75)
         
         if matches:
             return (matches[0], difflib.SequenceMatcher(None, skill, matches[0]).ratio())
@@ -215,51 +243,54 @@ class JobMatcher:
         return None
 
     def _calculate_experience_match(self, job_text: str) -> Tuple[float, List[str], Dict[str, Any]]:
-        """Calculate experience relevance with details"""
+        """Calculate experience relevance based on achievement keywords"""
         relevant_exp = []
         exp_details = []
         score = 0.0
         
-        for exp in self.resume["experience"]:
+        # We assume the job description contains keywords related to the required experience
+        for exp in self.resume.get("experience", []):
             relevance = 0.0
             details = {"position": f"{exp['title']} at {exp['company']}"}
             
-            # Title matching
-            if exp["title"].lower() in job_text:
-                relevance += 0.5
+            # Check for relevance in job title/description
+            if exp["title"].lower() in job_text or "support" in exp["title"].lower():
+                relevance += 0.3
                 details["title_match"] = True
             
-            # Skills matching with bonus for multiple matches
-            skill_matches = []
-            for skill in exp.get("skills_used", []):
-                if skill.lower() in job_text:
-                    relevance += 0.1
-                    skill_matches.append(skill)
+            # Check achievement keywords against job text
+            achievement_matches = []
+            for achievement in exp.get("achievements", []):
+                # Check for quantification (e.g., 50%, 99% uptime) and key verbs
+                if re.search(r'(\d+%|SLA|reducing|automating|architected|governance)', achievement, re.IGNORECASE):
+                    # Check if the job specifically asks for these outcomes
+                    if any(keyword in job_text for keyword in ["sla", "uptime", "reduce", "automate", "architect", "governance"]):
+                         relevance += 0.1
+                         achievement_matches.append(achievement[:50] + "...")
             
-            details["skill_matches"] = skill_matches
+            details["achievement_matches"] = achievement_matches
             
-            if relevance > 0.2:
+            if relevance > 0.3:
                 relevant_exp.append(f"{exp['title']} at {exp['company']} ({exp['dates']})")
+                # Cap the score contribution of this position
+                score += min(relevance, 0.4) 
                 exp_details.append(details)
-                score += min(relevance, 0.8)  # Cap at 0.8 per position
         
-        # ✅ Fix: Explicit capping
         final_score = min(score, 1.0)
         return final_score, relevant_exp, {"positions": exp_details}
 
     def _calculate_keyword_match(self, job_text: str) -> Tuple[float, Dict[str, int]]:
-        """Calculate keyword matches with frequency weighting"""
+        """Calculate keyword matches with frequency weighting, prioritizing AI/Governance"""
         keywords = {
-            "help desk": 0,
+            "ai governance": 0,
+            "iso 42001": 0,
             "service desk": 0,
-            "infrastructure": 0,
+            "triage": 0,
+            "python": 0,
             "architect": 0,
-            "cloud": 0,
-            "ai": 0,
-            "governance": 0,
-            "training": 0,
             "leadership": 0,
-            "senior": 0,
+            "security": 0,
+            "comptia a+": 0,
             "manager": 0,
         }
         
@@ -267,177 +298,208 @@ class JobMatcher:
         for keyword in keywords:
             count = job_text.count(keyword)
             if count > 0:
-                # Bonus points for repeated mentions
+                # Assign a weighted count: 1 for first, 0.5 for subsequent
                 keywords[keyword] = count + (0.5 * max(0, count - 1))
         
-        matched = sum(1 for count in keywords.values() if count > 0)
-        # Calculate score with bonus for frequency
         total_weight = sum(keywords.values())
-        max_possible = len(keywords) * 2  # Assume max 2 mentions per keyword
+        max_possible = len(keywords) * 2  
         score = min(total_weight / max_possible, 1.0)
         
         return score, {k: int(v) for k, v in keywords.items() if v > 0}
 
     def _check_experience_level(self, job: Dict[str, Any]) -> Dict[str, Any]:
         """
-        ✅ Fix: Enhanced experience level matching with explicit indicator priority
-        Returns detailed analysis instead of just boolean
+        Enhanced experience level matching: checks if job aligns with the user's Senior/Architect level.
         """
         title = job["title"].lower()
-        exp_level = job.get("experience_level", "").lower()
         description = job.get("description", "").lower()
+        combined_text = f"{title} {description}"
         
-        # Combine all text for comprehensive check
-        combined_text = f"{title} {exp_level} {description}"
+        # User is positioned as 'Senior/Lead/Architect'
+        user_level_indicators = ["senior", "sr.", "lead", "principal", "staff", "architect", "manager", "director"]
         
-        # ✅ QoL: Prioritize explicit indicators in order
-        level_indicators = {
-            "junior": ["junior", "jr.", "jr ", "entry", "associate", "intern", "trainee", "junior level", "early career"],
-            "mid": ["mid", "intermediate", "mid-level", "ii", "2", "level 2"],
-            "senior": ["senior", "sr.", "sr ", "lead", "principal", "staff", "architect", "manager", "director"],
-        }
+        # Check if the job explicitly contains high-level indicators
+        is_job_senior_level = any(indicator in combined_text for indicator in user_level_indicators)
         
-        detected_levels = []
+        # Check for junior/entry level terms (which would negatively impact the multiplier)
+        is_job_junior_level = any(indicator in combined_text for indicator in ["junior", "jr.", "entry", "associate", "level 1"])
         
-        # Check junior first (highest priority to avoid misclassification)
-        if any(indicator in combined_text for indicator in level_indicators["junior"]):
-            detected_levels.append("junior")
+        multiplier = 1.0
         
-        # Check mid
-        if any(indicator in combined_text for indicator in level_indicators["mid"]):
-            detected_levels.append("mid")
-        
-        # Check senior
-        if any(indicator in combined_text for indicator in level_indicators["senior"]):
-            detected_levels.append("senior")
-        
-        # Check if job is senior-level (what resume indicates)
-        is_senior = "senior" in detected_levels
-        matches = bool(detected_levels)  # True if we could detect a level
+        if is_job_junior_level and not is_job_senior_level:
+            # Low multiplier if it's explicitly junior/entry
+            multiplier = MATCHING["experience_level_multiplier"] * 0.5
+        elif not is_job_senior_level and not is_job_junior_level:
+            # Standard penalty if no high-level terms detected (might be a mid-level role)
+            multiplier = MATCHING["experience_level_multiplier"]
         
         return {
-            "matches": matches,
-            "detected_levels": detected_levels,
-            "is_senior": is_senior,
-            "multiplier": 1.0 if is_senior else MATCHING["experience_level_multiplier"]
+            "matches": is_job_senior_level,
+            "is_senior": is_job_senior_level,
+            "multiplier": multiplier
         }
 
     def _analyze_fit(self, matched: List[str], missing: List[str], relevant_exp: List[str]) -> Tuple[List[str], List[str]]:
-        """Analyze strengths and gaps with more nuance"""
+        """Analyze strengths and gaps with nuance"""
         strengths = []
         gaps = []
         
-        # Skill strength analysis
-        if len(matched) >= 5:
-            strengths.append(f"Strong skill alignment ({len(matched)} matched skills)")
-        elif len(matched) >= 3:
-            strengths.append(f"Moderate skill alignment ({len(matched)} matched skills)")
+        # Skill strength analysis (Weighted match for AI/Governance)
+        ai_gov_skills = ["iso/iec 42001", "generative ai strategy", "ai-powered triage"]
+        matched_ai_gov = [s for s in matched if s.lower() in ai_gov_skills]
         
-        # Experience strength
-        if len(relevant_exp) >= 3:
-            strengths.append(f"Extensive relevant experience ({len(relevant_exp)} positions)")
-        elif len(relevant_exp) >= 2:
-            strengths.append(f"Relevant experience ({len(relevant_exp)} positions)")
+        if matched_ai_gov:
+            strengths.append(f"CORE STRENGTH: Expertise in {', '.join(matched_ai_gov)}.")
         
-        # AI/Governance specialization bonus
-        ai_gov_skills = ["ai governance", "iso/iec 42001", "generative ai"]
-        if any(skill.lower() in [m.lower() for m in matched] for skill in ai_gov_skills):
-            strengths.append("AI/Governance expertise aligns with emerging needs")
+        if len(relevant_exp) >= 2:
+            strengths.append(f"Deep operational background ({len(relevant_exp)} relevant positions).")
         
         # Gap analysis
-        if missing and len(missing) > len(matched):
-            gaps.append(f"Missing {len(missing)} key skills: {', '.join(missing[:3])}")
+        if len(missing) >= 4:
+            gaps.append(f"Significant gaps: Missing {len(missing)} key skills, including {', '.join(missing[:3])}.")
         elif missing:
-            gaps.append(f"Could strengthen: {', '.join(missing[:2])}")
+            gaps.append(f"Minor gaps: Could strengthen knowledge in {', '.join(missing[:2])}.")
         
         return strengths, gaps
 
-    def _generate_detailed_explanation(self, score: float, skill_details: Dict, exp_details: Dict, 
-                                      multiplier: float, level_result: Dict) -> str:
+    def _generate_detailed_explanation(self, score: float, skills_score: float, experience_score: float, 
+                                      keyword_score: float, multiplier: float, level_result: Dict) -> str:
         """
-        ✅ QoL: Generate detailed human-readable explanation
+        Generate detailed human-readable explanation of the score components.
         """
-        parts = [f"Overall: {score*100:.1f}%"]
+        parts = []
         
-        # Skill breakdown
-        if skill_details.get("details"):
-            skill_score = sum(d.get("weight", 0) for d in skill_details["details"])
-            parts.append(f"Skills: {skill_score:.2f} weighted matches")
+        # Weighted Score Breakdown
+        parts.append(f"Skills Fit: {skills_score*100:.1f}% ({MATCHING['weights']['skills']:.0%} weight)")
+        parts.append(f"Experience Fit: {experience_score*100:.1f}% ({MATCHING['weights']['experience']:.0%} weight)")
+        parts.append(f"Keyword/Topic Fit: {keyword_score*100:.1f}% ({MATCHING['weights']['keywords']:.0%} weight)")
         
-        # Experience breakdown
-        if exp_details.get("positions"):
-            exp_count = len(exp_details["positions"])
-            parts.append(f"Experience: {exp_count} relevant positions")
-        
-        # Level adjustment
-        if not level_result["matches"]:
-            parts.append(f"Experience level unclear (-{100 - multiplier*100:.0f}%)")
-        elif not level_result["is_senior"]:
-            parts.append(f"May be junior to role (-{100 - multiplier*100:.0f}%)")
+        # Level adjustment summary
+        if multiplier < 1.0:
+            penalty = 1.0 - multiplier
+            parts.append(f"Level Adjustment: Penalty applied (-{penalty*100:.0f}%) due to perceived non-senior role fit.")
+        elif level_result["is_senior"]:
+            parts.append("Level Adjustment: Senior role fit confirmed (100% multiplier).")
         
         return " | ".join(parts)
 
     def _get_recommendation(self, score: float) -> str:
         """Get recommendation based on score thresholds"""
-        if score >= 0.90:
-            return "EXCELLENT FIT - Strongly recommended"
-        elif score >= 0.85:
-            return "STRONG FIT - Highly recommended"
-        elif score >= 0.80:
-            return "GOOD FIT - Recommended"
-        elif score >= 0.70:
-            return "MODERATE FIT - Review manually"
-        elif score >= 0.60:
-            return "POOR FIT - Consider only if gaps can be addressed"
+        if score >= 0.85:
+            return "EXCELLENT FIT - Strongly recommended for tailoring"
+        elif score >= 0.75:
+            return "STRONG FIT - Highly recommended for tailoring"
+        elif score >= 0.65:
+            return "GOOD FIT - Recommended for tailoring review"
+        elif score >= 0.55:
+            return "MODERATE FIT - Requires manual review"
         else:
             return "SKIP - Not a strong match"
 
     def generate_match_report(self, job: Dict[str, Any]) -> str:
         """
-        ✅ QoL: Generate comprehensive match report
+        Generate comprehensive match report
         """
         result = self.match_job(job)
         
         report = []
         report.append("=" * 80)
-        report.append(f"Match Report: {job['title']} at {job['company']}")
+        report.append(f"🎯 Match Report: {job['title']} at {job['company']}")
         report.append("=" * 80)
-        report.append(f"Overall Score: {result['match_score']*100:.1f}%")
-        report.append(f"Recommendation: {result['recommendation']}")
-        report.append("")
+        report.append(f"Overall Score: **{result['match_score']*100:.1f}%**")
+        report.append(f"Recommendation: **{result['recommendation']}**")
+        report.append("---")
         
+        report.append("## 📊 Score Breakdown")
+        report.append(result["reasoning"])
+        report.append("---")
+
         if result["strengths"]:
-            report.append("STRENGTHS:")
+            report.append("## 💪 Strengths")
             for strength in result["strengths"]:
                 report.append(f"  ✓ {strength}")
-            report.append("")
+            report.append("---")
         
         if result["gaps"]:
-            report.append("GAPS:")
+            report.append("## 🚧 Gaps")
             for gap in result["gaps"]:
                 report.append(f"  ✗ {gap}")
-            report.append("")
+            report.append("---")
         
-        if result["match_details"]:
-            report.append("DETAILED BREAKDOWN:")
-            for key, value in result["match_details"].items():
-                report.append(f"  {key}: {value}")
+        report.append("## 🔍 Details")
+        report.append(f"**Matched Skills ({len(result['matched_skills'])}):** {', '.join(result['matched_skills'])}")
+        report.append(f"**Relevant Experience ({len(result['relevant_experience'])}):**")
+        for exp in result["relevant_experience"]:
+            report.append(f"  - {exp}")
         
         return "\n".join(report)
 
 
 def demo_matcher() -> None:
     """ Demo the matcher with detailed output """
-    from scraper import demo_scraper
     
-    jobs = demo_scraper()
+    # Mock MATCHING data for demo purposes
+    mock_matching = {
+        "weights": {"skills": 0.40, "experience": 0.40, "keywords": 0.20},
+        "experience_level_multiplier": 0.80
+    }
+    
+    # Mock resume data based on the structure extracted from your updated resume
+    mock_resume_data = {
+        "core_competencies": {
+            "AI & Governance": ["ISO/IEC 42001 Standards", "Generative AI Strategy", "Risk Management"],
+            "Operational Leadership": ["Service Desk Automation", "SLA Optimization", "Vendor Management"],
+            "Technical Enablement": ["Python (Automation)", "KPI Reporting"],
+            "Infrastructure Foundation": ["Network Security Protocols", "Identity & Access Management (AD/LDAP)"]
+        },
+        "experience": [
+            {"company": "CIMSYSTEM", "title": "Technical Operations Lead & Specialist", "dates": "2018 – 2025", "achievements": ["Achieved 99% uptime and aggressive SLA compliance", "Built centralized SOP library, reducing onboarding time by 50%"]},
+            {"company": "ACCUCODE", "title": "Network Infrastructure Architect", "dates": "2017 – 2018", "achievements": ["Engineered secure network architecture", "Managed VPN/firewall configurations"]},
+        ],
+        "projects": [
+            {"name": "AI-Powered Triage & Classification Engine", "achievements": ["Automated Tier 1 ticket classification", "Aligned with ISO/IEC 42001 transparency principles"]},
+        ],
+    }
+
+    # Demo jobs (using the structure defined in scraper.py)
+    job1 = {
+        "id": "A123",
+        "title": "Senior AI Governance Strategy Lead",
+        "company": "Global Systems",
+        "description": "Seeking a leader to establish ISO/IEC 42001 compliant AI Governance frameworks. Must have deep experience in Python automation for Service Desk Triage and risk management.",
+        "requirements": "10+ years experience, expert in Network Security and KPI reporting. Senior level role.",
+        "experience_level": "Senior",
+        "requirements": "10+ years experience, expert in Network Security and KPI reporting.",
+        "requirements": "10+ years experience, expert in Network Security and KPI reporting. Senior level role.",
+    }
+    
+    job2 = {
+        "id": "B456",
+        "title": "Entry Level Help Desk Analyst",
+        "company": "Local Support",
+        "description": "Join our junior team. Must have CompTIA A+ and basic knowledge of Active Directory. Focus on Tier 1 support and basic network troubleshooting.",
+        "experience_level": "Junior",
+        "requirements": "CompTIA A+ required. No senior experience needed.",
+    }
+    
+    # Temporarily set globals for demo
+    global MATCHING, RESUME_DATA
+    original_matching = MATCHING
+    original_resume_data = RESUME_DATA
+    
+    MATCHING = mock_matching
+    RESUME_DATA = mock_resume_data
+
     matcher = JobMatcher()
     
     print("\n=== MATCHING RESULTS ===\n")
-    for job in jobs:
-        result = matcher.match_job(job)
+    for job in [job1, job2]:
         print(matcher.generate_match_report(job))
         print("\n")
+        
+    # Restore globals
+    MATCHING = original_matching
+    RESUME_DATA = original_resume_data
 
 
 if __name__ == "__main__":
