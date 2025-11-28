@@ -1,4 +1,3 @@
-# cli/main.py
 """
 Thin CLI wrapper that uses the JobApplicationBot library.
 
@@ -46,6 +45,7 @@ def main(argv=None):
                 logger.exception("Failed to read resume %s: %s", p, exc)
 
     if args.analyze:
+        logger.info("Analyzing %d resumes against job description.", len(resumes))
         results = bot.analyze_job(job_text, resumes)
         for rid, score in results:
             print(f"{rid}: {score:.3f}")
@@ -54,10 +54,14 @@ def main(argv=None):
         if not resumes:
             logger.error("No resumes given to tailor")
             return 1
-        # Tailor the first resume by default
+        
+        # Tailor the first resume by default and explicitly log which one is used.
         rid, text = next(iter(resumes.items()))
+        logger.info("Tailoring selected resume: %s", rid)
+        
         tailored = bot.tailor_resume(text, job_text)
         print("Tailored resume:")
+        # Print a limited amount of the output for CLI purposes
         print(tailored[:2000])
     return 0
 
