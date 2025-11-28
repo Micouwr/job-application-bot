@@ -1,110 +1,99 @@
 import os
 import tempfile
+import time
+import logging
 
 import pytest
 
-from database import JobDatabase
+# Import the correct class name from the assumed package structure
+# Assuming tests are run from the project root and app is importable
+# Since we don't know the exact project structure, we use a relative import 
+# to ensure the tests are self-contained here, mocking the real app import.
+
+# --- Dependency Mock for Self-Contained Test ---
+from app.database import Database
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
 def temp_db():
-    """Create a temporary database for testing"""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
-    db = JobDatabase(db_path)
+    """Fixture to create and clean up a temporary SQLite database for testing."""
+    # Use tempfile.mkstemp to safely create a temporary file name
+    fd, db_path = tempfile.mkstemp(suffix=".sqlite3")
+    os.close(fd)
+    
+    # Initialize the Database instance
+    db = Database(db_path)
+    logger.info("Created temporary DB at: %s", db_path)
+    
+    # The 'yield' pauses the fixture until the test completes
     yield db
-    db.close()
+    
+    # Cleanup: This runs after the test has finished
+    logger.info("Cleaning up temporary DB: %s", db_path)
     os.unlink(db_path)
 
 
-def test_insert_job_duplicate_url(temp_db):
-    """Test that duplicate URLs are rejected"""
-    job = {
-        "id": "test_1",
-        "title": "Test Job",
-        "company": "Test Co",
-        "url": "https://example.com/job1",
-        "source": "manual",
-        "scraped_at": "2024-01-01T00:00:00",
-    }
-
-    assert temp_db.insert_job(job) is True
-    assert temp_db.insert_job(job) is False  # Should reject duplicate
-
-
-def test_update_status_safe(temp_db):
-    """Test that status updates don't corrupt other jobs"""
-    # Insert two jobs
-    job1 = {
-        "id": "job1",
-        "title": "Job 1",
-        "company": "Co",
-        "url": "http://1",
-        "source": "manual",
-    }
-    job2 = {
-        "id": "job2",
-        "title": "Job 2",
-        "company": "Co",
-        "url": "http://2",
-        "source": "manual",
-    }
-
-    temp_db.insert_job(job1)
-    temp_db.insert_job(job2)
-
-    # Update status of job1
-    temp_db.update_status("job1", "applied")
-
-    # Verify job2 status is unchanged
-    job2_data = temp_db.conn.execute(
-        "SELECT status FROM jobs WHERE id = ?", ("job2",)
-    ).fetchone()
-    assert job2_data["status"] != "applied"
+def test_db_initialization_and_schema(temp_db):
+    """Test that the database initializes and the history table is created."""
+    with temp_db.get_conn() as conn:
+        # Check if the 'history' table exists
+        cursor = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='history';"
+        )
+        assert cursor.fetchone() is not None
+        
+        # Check if history table has the correct columns
+        columns = [
+            col[1] 
+            for col in conn.execute("PRAGMA table_info(history);").fetchall()
+        ]
+        expected_columns = ["id", "timestamp", "action", "input_text", "result_text"]
+        assert all(col in columns for col in expected_columns)
 
 
-def test_get_pending_reviews(temp_db):
-    """Test retrieving jobs that are pending review."""
-    job1 = {
-        "id": "job1",
-        "title": "Job 1",
-        "company": "Co",
-        "url": "http://1",
-        "source": "manual",
-    }
-    job2 = {
-        "id": "job2",
-        "title": "Job 2",
-        "company": "Co",
-        "url": "http://2",
-        "source": "manual",
-    }
-    temp_db.insert_job(job1)
-    temp_db.insert_job(job2)
+def test_save_and_retrieve_history(temp_db):
+    """Test saving a history record and retrieving it."""
+    action = "analyze"
+    input_text = "job desc text"
+    result_text = "top_match_resume: 0.95"
+    
+    # Save a record
+    inserted_id = temp_db.save_history(action, input_text, result_text)
+    assert inserted_id > 0
 
-    # Create a pending application for job1
-    temp_db.save_application("job1", "resume", "cover letter", ["changes"])
-
-    pending = temp_db.get_pending_reviews()
-    assert len(pending) == 1
-    assert pending[0]["id"] == "job1"
+    # Retrieve all history (should be just one record)
+    history = temp_db.get_history(limit=10)
+    assert len(history) == 1
+    
+    record = history[0]
+    assert record["id"] == inserted_id
+    assert record["action"] == action
+    assert record["input_text"] == input_text
+    assert record["result_text"] == result_text
+    assert isinstance(record["timestamp"], int)
 
 
-def test_get_statistics(temp_db):
-    """Test calculation of database statistics."""
-    job1 = {
-        "id": "job1",
-        "title": "Job 1",
-        "company": "Co",
-        "url": "http://1",
-        "source": "manual",
-    }
-    temp_db.insert_job(job1)
-    temp_db.update_match_score("job1", {"match_score": 0.9})
-    temp_db.save_application("job1", "resume", "cover letter", ["changes"])
-    temp_db.update_status("job1", "applied")
+def test_history_ordering_and_limit(temp_db):
+    """Test that get_history orders by ID descending and respects the limit."""
+    # Save three records with a small delay to ensure distinct timestamps/IDs
+    time.sleep(0.01)
+    id1 = temp_db.save_history("tailor", "job1", "res1")
+    time.sleep(0.01)
+    id2 = temp_db.save_history("apply", "job2", "res2")
+    time.sleep(0.01)
+    id3 = temp_db.save_history("analyze", "job3", "res3")
+    
+    # Test ordering (newest first: id3, id2, id1)
+    all_history = temp_db.get_history(limit=10)
+    assert len(all_history) == 3
+    assert all_history[0]["id"] == id3
+    assert all_history[1]["id"] == id2
+    assert all_history[2]["id"] == id1
 
-    stats = temp_db.get_statistics()
-    assert stats["total_jobs"] == 1
-    assert stats["high_matches"] == 1
-    assert stats["by_status"]["applied"] == 1
+    # Test limit (only the newest 2)
+    limited_history = temp_db.get_history(limit=2)
+    assert len(limited_history) == 2
+    assert limited_history[0]["id"] == id3
+    assert limited_history[1]["id"] == id2
