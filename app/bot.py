@@ -1,86 +1,87 @@
-# app/bot.py
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Any, List, Tuple
 
-from .database import Database
+# Import all core modules
+from .database import DatabaseManager
 from .matcher import Matcher
-from .tailor import APIClient, Tailor
+from .tailor import ResumeTailor
+from .scraper import JobScraper
+from .config import config
 
 logger = logging.getLogger(__name__)
 
-
 class JobApplicationBot:
     """
-    High-level orchestrator providing a stable programmatic API for UIs.
-
-    It composes the Matcher, Tailor, and Database modules.
-
-    Example:
-        bot = JobApplicationBot()
-        analysis = bot.analyze_job("job text", {"resume1.txt": "..."})
-        tailored = bot.tailor_resume("resume text", "job text")
+    The main orchestrator class (Facade) for the Job Application Bot.
+    It ties together the database, matcher, and tailor services.
     """
 
-    def __init__(
-        self, api_key: Optional[str] = None, db_path: Optional[str] = None
-    ) -> None:
-        self.matcher = Matcher()
-        api_client = APIClient(api_key) if api_key else APIClient()
-        self.tailor = Tailor(api_client)
-        self.db = Database(db_path) if db_path else Database()
+    def __init__(self):
+        """Initializes all required service classes."""
+        self.db_manager = DatabaseManager()
+        self.matcher = Matcher(match_threshold=config.MATCH_THRESHOLD)
+        # Note: ResumeTailor automatically initializes its APIClient internally
+        self.tailor = ResumeTailor()
+        self.scraper = JobScraper()
 
-    def analyze_job(
-        self, job_text: str, resumes: Dict[str, str]
-    ) -> List[Tuple[str, float]]:
+        logger.info("JobApplicationBot initialized with match threshold: %.2f", config.MATCH_THRESHOLD)
+
+    def analyze_matches(self, resumes: Dict[str, str], job_text: str) -> List[Tuple[str, float]]:
         """
-        Score a job against a set of resumes and return top matches.
-
+        Scores all provided resumes against the job description and logs the analysis.
+        
         Args:
-            job_text: job description text
-            resumes: mapping of resume_id -> resume text
-
+            resumes: Dictionary mapping resume name (key) to content (value).
+            job_text: The full text of the job description.
+            
         Returns:
-            list of (resume_id, score) ordered by score desc
+            A list of (resume_name, score) tuples, sorted by score descending.
         """
-        results = self.matcher.top_matches(resumes, job_text, top_n=5)
-        self.db.save_history("analyze", job_text, str(results))
-        logger.info("Analyzed job; top result: %s", results[0] if results else None)
+        logger.info("Starting match analysis for %d resumes.", len(resumes))
+        
+        results = self.matcher.top_matches(resumes, job_text, top_n=len(resumes))
+        
+        # Log all individual match scores to history
+        for resume_file, score in results:
+            # We use a dummy job title here since the job object isn't formally created
+            job_title = "Ad-hoc Job Analysis" 
+            self.db_manager.log_analysis(job_title, resume_file, score)
+        
         return results
 
-    def tailor_resume(self, resume_text: str, job_text: str) -> str:
+    def tailor_application(self, resume_text: str, job_text: str, resume_file_name: str = "Uploaded Resume") -> Dict[str, Any]:
         """
-        Tailor a resume for a particular job description.
-
-        Returns the tailored resume text and records the action in the DB.
+        Generates a tailored resume and cover letter using the LLM and logs the result.
+        
+        Args:
+            resume_text: The content of the resume to be tailored.
+            job_text: The content of the job description.
+            resume_file_name: The name used for logging this specific resume file.
+            
+        Returns:
+            A dictionary containing the full tailored package: 
+            {'resume_text': str, 'cover_letter': str, 'changes': List[str]}
         """
-        result = self.tailor.tailor_resume(resume_text, job_text)
-        self.db.save_history("tailor", job_text, result)
-        logger.info("Tailored resume (len=%s)", len(result))
-        return result
+        logger.info("Starting application tailoring process.")
+        
+        # 1. Generate the tailored package using the LLM
+        # This call handles the structured prompt and parsing
+        tailoring_results = self.tailor.tailor_application(resume_text, job_text)
+        
+        # 2. Log the full result to the database (NEW STEP)
+        job_title = self.scraper._guess_job_title_from_text(job_text) # Guess job title for logging
+        self.db_manager.log_tailoring_result(job_title, resume_file_name, tailoring_results)
+        
+        logger.info("Tailoring complete and results logged.")
+        
+        return tailoring_results
 
-    def apply_to_job(
-        self, resume_text: str, job_text: str, cover_letter: Optional[str] = None
-    ) -> Dict[str, str]:
-        """
-        Simulate or execute the "apply" flow.
+    def get_history(self) -> List[Dict[str, Any]]:
+        """Retrieves all application history."""
+        return self.db_manager.get_history()
 
-        This placeholder method records the attempt and returns a status dict.
-
-        Replace with the real application flow (API posting, email, ATS submission).
-        """
-        # TODO: integrate with actual application mechanism
-        status = {
-            "status": "queued",
-            "message": "Application recorded locally (simulate).",
-        }
-        record = (
-            f"resume_len={len(resume_text)}; cover_letter_len={len(cover_letter or '')}"
-        )
-        self.db.save_history("apply", job_text, record)
-        logger.info("Apply requested; %s", status)
-        return status
-
-    def get_history(self, limit: int = 50):
-        return self.db.get_history(limit)
+# We need a small helper function in scraper.py to guess a job title from text for logging
+# I'll update scraper.py to include this helper function next, but for now, we'll
+# rely on a simple placeholder guess.
