@@ -2,8 +2,9 @@ Core application dependencies
 ​requests>=2.28.1
 python-dotenv>=1.0.0
 numpy>=1.26.0
-​File Handling dependencies (NEW)
+​File Handling dependencies
 ​PyPDF2>=3.0.0
 python-docx>=1.0.0
+reportlab>=4.0.0  # NEW: For generating PDF files
 ​Development and testing dependencies
 ​pytest>=7.0.1
