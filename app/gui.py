@@ -10,10 +10,12 @@ from typing import Dict, Any, List
 try:
     from .bot import JobApplicationBot
     from .config import config
+    from .utils import extract_text_from_file # Import the new utility
 except ImportError:
     # Fallback for direct execution
     from bot import JobApplicationBot
     from config import config
+    from utils import extract_text_from_file
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +52,7 @@ class JobBotGUI:
         self.notebook.add(self.tailor_tab, text="✨ Tailor Application")
         self._build_tailor_tab(self.tailor_tab)
 
-        # --- TAB 2: History Viewer (NEW) ---
+        # --- TAB 2: History Viewer ---
         self.history_tab = tk.Frame(self.notebook)
         self.notebook.add(self.history_tab, text="📜 History")
         self._build_history_tab(self.history_tab)
@@ -180,19 +182,15 @@ class JobBotGUI:
             self.history_tree.delete(item)
 
         try:
-            # We need to fetch detailed results to populate the right pane on click.
-            # The database method get_history returns the main 'history' table rows.
             records = self.bot.db_manager.get_history()
             
             for row in records:
-                # Format timestamp
                 try:
                     dt = datetime.fromisoformat(row['timestamp'])
                     date_str = dt.strftime("%Y-%m-%d %H:%M")
                 except ValueError:
                     date_str = row['timestamp']
 
-                # We store the FULL row data in the 'values' so we can grab the ID later
                 self.history_tree.insert("", "end", iid=row['id'], values=(row['id'], date_str, row['job_title']))
                 
         except Exception as e:
@@ -207,14 +205,6 @@ class JobBotGUI:
         history_id = selected_items[0]
         
         try:
-            # We need a new method in DatabaseManager to fetch the detailed result by ID.
-            # Since that method doesn't exist yet, we'll do a quick ad-hoc query here or add it.
-            # Ideally, we add 'get_tailoring_result(history_id)' to DatabaseManager.
-            # For now, let's add the logic directly here using sqlite3 for simplicity in the GUI layer
-            # or better, assume we add the method to database.py (Preferred).
-            
-            # Let's perform a direct query here to keep this file self-contained for the moment,
-            # mirroring the logic in database.py
             conn = sqlite3.connect(self.bot.db_manager.DB_NAME)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -248,23 +238,36 @@ class JobBotGUI:
         if tab_text == "📜 History":
             self._load_history_list()
 
-    # ... (Rest of the _open_resume_file, _update_output, _run_tailor_pipeline methods remain identical) ...
-    # For brevity, I am ensuring the class structure is maintained. 
-    # [Insert previous methods: _open_resume_file, _update_output, _run_tailor_pipeline]
-
     def _open_resume_file(self):
-        filepath = filedialog.askopenfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+        """
+        Updated to support PDF and DOCX using the new utils module.
+        """
+        filepath = filedialog.askopenfilename(
+            defaultextension=".txt",
+            # Allow all supported types
+            filetypes=[
+                ("Supported Files", "*.txt *.md *.pdf *.docx"),
+                ("Text files", "*.txt"),
+                ("PDF files", "*.pdf"),
+                ("Word files", "*.docx"),
+                ("All files", "*.*")
+            ]
+        )
         if filepath:
             try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                # Use the new utility to extract text
+                content = extract_text_from_file(filepath)
+                
                 self.resume_text_area.delete('1.0', tk.END)
                 self.resume_text_area.insert('1.0', content)
+                
                 filename = os.path.basename(filepath)
                 self.selected_resume_filepath.set(filename)
                 self.status_label.config(text=f"Resume loaded: {filename}", fg="darkgreen")
+                
             except Exception as e:
-                messagebox.showerror("File Error", str(e))
+                messagebox.showerror("File Error", f"Could not read file {filepath}:\n{e}")
+                logger.error("File reading error: %s", e)
 
     def _update_output(self, results: Dict[str, Any]):
         for key, widget in self.tabs.items():
