@@ -10,12 +10,12 @@ from typing import Dict, Any, List
 try:
     from .bot import JobApplicationBot
     from .config import config
-    from .utils import extract_text_from_file # Import the new utility
+    from .utils import extract_text_from_file, generate_pdf_from_markdown
 except ImportError:
     # Fallback for direct execution
     from bot import JobApplicationBot
     from config import config
-    from utils import extract_text_from_file
+    from utils import extract_text_from_file, generate_pdf_from_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ class JobBotGUI:
         self.bot = JobApplicationBot()
         self.selected_resume_filepath = tk.StringVar(value="")
         self.current_job_text = ""
+        self.current_job_title = "Unknown Job" # Added to use in export file names
 
         self._setup_logging()
         self._create_widgets()
@@ -106,11 +107,25 @@ class JobBotGUI:
         tailor_button = tk.Button(control_status_frame, text="🚀 Run AI Tailor & Save Results", command=self._run_tailor_pipeline, bg="#1E88E5", fg="white", font=('Arial', 12, 'bold'))
         tailor_button.pack(side=tk.RIGHT, padx=10)
 
-        # ... (Output Notebook) ...
-        tk.Label(main_frame, text="3. Tailored Application Package", font=('Arial', 11, 'bold')).pack(pady=(10, 5), anchor='w')
+        # ... (Output Section) ...
+        output_section_frame = tk.Frame(main_frame)
+        output_section_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 5))
+
+        output_header_frame = tk.Frame(output_section_frame)
+        output_header_frame.pack(fill=tk.X)
+        tk.Label(output_header_frame, text="3. Tailored Application Package", font=('Arial', 11, 'bold')).pack(side=tk.LEFT, anchor='w')
         
-        output_notebook = ttk.Notebook(main_frame)
+        # --- NEW: Export Buttons ---
+        self.export_pdf_button = tk.Button(output_header_frame, text="📄 Export PDF", command=lambda: self._export_file(file_type="pdf"), state=tk.DISABLED)
+        self.export_pdf_button.pack(side=tk.RIGHT, padx=5)
+
+        self.export_text_button = tk.Button(output_header_frame, text="📝 Export TXT", command=lambda: self._export_file(file_type="txt"), state=tk.DISABLED)
+        self.export_text_button.pack(side=tk.RIGHT, padx=5)
+        
+        # Output Notebook
+        output_notebook = ttk.Notebook(output_section_frame)
         output_notebook.pack(fill=tk.BOTH, expand=True)
+        self.output_notebook = output_notebook
         
         self.tabs = {}
         tabs_config = [("Tailored Resume (Markdown)", "resume_text"), ("Cover Letter", "cover_letter"), ("Changes Made", "changes")]
@@ -122,6 +137,143 @@ class JobBotGUI:
             text_widget.pack(fill=tk.BOTH, expand=True)
             text_widget.config(state=tk.DISABLED)
             self.tabs[key] = text_widget
+
+    # ... (Rest of the GUI methods: _build_history_tab, _load_history_list, etc., remain the same) ...
+    # Removed the redundant code block for brevity, assuming the user will overwrite the full file.
+
+    # --- NEW: Export Functionality ---
+
+    def _export_file(self, file_type: str):
+        """Exports the content of the currently active output tab."""
+        
+        # 1. Determine which tab is active
+        selected_tab_id = self.output_notebook.select()
+        tab_text = self.output_notebook.tab(selected_tab_id, "text")
+        
+        content_key = None
+        if "Resume" in tab_text:
+            content_key = "resume_text"
+            default_name = f"Tailored_Resume_{self.current_job_title.replace(' ', '_')}"
+        elif "Cover Letter" in tab_text:
+            content_key = "cover_letter"
+            default_name = f"Cover_Letter_{self.current_job_title.replace(' ', '_')}"
+        else:
+            messagebox.showinfo("Export Info", "Please select either the Resume or Cover Letter tab to export.")
+            return
+
+        # 2. Get content from the selected tab
+        content_widget = self.tabs[content_key]
+        content = content_widget.get('1.0', tk.END).strip()
+        
+        if not content:
+            messagebox.showwarning("Export Warning", "The selected tab is empty. Run the AI tailor first.")
+            return
+
+        try:
+            # 3. Handle TXT Export
+            if file_type == "txt":
+                filepath = filedialog.asksaveasfilename(
+                    defaultextension=".txt",
+                    initialfile=f"{default_name}.txt",
+                    filetypes=[("Text files", "*.txt")]
+                )
+                if filepath:
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    messagebox.showinfo("Export Success", f"Content successfully saved to:\n{filepath}")
+
+            # 4. Handle PDF Export
+            elif file_type == "pdf":
+                filepath = filedialog.asksaveasfilename(
+                    defaultextension=".pdf",
+                    initialfile=f"{default_name}.pdf",
+                    filetypes=[("PDF files", "*.pdf")]
+                )
+                if filepath:
+                    is_cover_letter = "Cover Letter" in tab_text
+                    generate_pdf_from_markdown(content, filepath, is_cover_letter=is_cover_letter)
+                    messagebox.showinfo("Export Success", f"PDF successfully generated and saved to:\n{filepath}")
+
+        except Exception as e:
+            logger.error(f"Export failed: {e}")
+            messagebox.showerror("Export Error", f"Failed to export file: {e}")
+
+    def _update_output(self, results: Dict[str, Any]):
+        # ... (Existing update logic) ...
+        for key, widget in self.tabs.items():
+            content = results.get(key, "No content.")
+            if key == "changes" and isinstance(content, list): content = "\n".join(f"- {item}" for item in content)
+            widget.config(state=tk.NORMAL)
+            widget.delete('1.0', tk.END)
+            widget.insert('1.0', content)
+            widget.config(state=tk.DISABLED)
+        
+        # Enable Export buttons after successful tailoring
+        self.export_text_button.config(state=tk.NORMAL)
+        self.export_pdf_button.config(state=tk.NORMAL)
+
+        self.status_label.config(text=f"Tailoring Complete! Saved to {self.bot.db_manager.DB_NAME}.", fg="green")
+
+    def _run_tailor_pipeline(self):
+        resume_text = self.resume_text_area.get('1.0', tk.END).strip()
+        job_text = self.job_text_area.get('1.0', tk.END).strip()
+        resume_file_name = self.selected_resume_filepath.get() or "Pasted_Content_Resume"
+
+        # Simple extraction of a job title for file naming
+        lines = job_text.split('\n')
+        self.current_job_title = lines[0].strip() if lines and lines[0].strip() else "Unknown Job"
+
+        if not resume_text or not job_text:
+            messagebox.showerror("Input Error", "Please provide content for both the Resume and the Job Description.")
+            return
+
+        self.status_label.config(text="Running AI Tailor... 🤖 Contacting Gemini API. Please wait.", fg="orange")
+        self.master.update_idletasks()
+
+        # Disable Export buttons while running
+        self.export_text_button.config(state=tk.DISABLED)
+        self.export_pdf_button.config(state=tk.DISABLED)
+
+        try:
+            results = self.bot.tailor_application(resume_text, job_text, resume_file_name)
+            self._update_output(results)
+        except Exception as e:
+            self.status_label.config(text="Error occurred.", fg="red")
+            messagebox.showerror("Error", str(e))
+            logger.error(e)
+
+    # --- Retaining other helper methods for completeness ---
+
+    def _open_resume_file(self):
+        """
+        Updated to support PDF and DOCX using the new utils module.
+        """
+        filepath = filedialog.askopenfilename(
+            defaultextension=".txt",
+            # Allow all supported types
+            filetypes=[
+                ("Supported Files", "*.txt *.md *.pdf *.docx"),
+                ("Text files", "*.txt"),
+                ("PDF files", "*.pdf"),
+                ("Word files", "*.docx"),
+                ("All files", "*.*")
+            ]
+        )
+        if filepath:
+            try:
+                # Use the new utility to extract text
+                content = extract_text_from_file(filepath)
+                
+                self.resume_text_area.delete('1.0', tk.END)
+                self.resume_text_area.insert('1.0', content)
+                
+                filename = os.path.basename(filepath)
+                self.selected_resume_filepath.set(filename)
+                self.status_label.config(text=f"Resume loaded: {filename}", fg="darkgreen")
+                
+            except Exception as e:
+                messagebox.showerror("File Error", f"Could not read file {filepath}:\n{e}")
+                logger.error("File reading error: %s", e)
 
     def _build_history_tab(self, parent_frame):
         """Constructs the History Viewer tab."""
@@ -237,69 +389,7 @@ class JobBotGUI:
         
         if tab_text == "📜 History":
             self._load_history_list()
-
-    def _open_resume_file(self):
-        """
-        Updated to support PDF and DOCX using the new utils module.
-        """
-        filepath = filedialog.askopenfilename(
-            defaultextension=".txt",
-            # Allow all supported types
-            filetypes=[
-                ("Supported Files", "*.txt *.md *.pdf *.docx"),
-                ("Text files", "*.txt"),
-                ("PDF files", "*.pdf"),
-                ("Word files", "*.docx"),
-                ("All files", "*.*")
-            ]
-        )
-        if filepath:
-            try:
-                # Use the new utility to extract text
-                content = extract_text_from_file(filepath)
-                
-                self.resume_text_area.delete('1.0', tk.END)
-                self.resume_text_area.insert('1.0', content)
-                
-                filename = os.path.basename(filepath)
-                self.selected_resume_filepath.set(filename)
-                self.status_label.config(text=f"Resume loaded: {filename}", fg="darkgreen")
-                
-            except Exception as e:
-                messagebox.showerror("File Error", f"Could not read file {filepath}:\n{e}")
-                logger.error("File reading error: %s", e)
-
-    def _update_output(self, results: Dict[str, Any]):
-        for key, widget in self.tabs.items():
-            content = results.get(key, "No content.")
-            if key == "changes" and isinstance(content, list): content = "\n".join(f"- {item}" for item in content)
-            widget.config(state=tk.NORMAL)
-            widget.delete('1.0', tk.END)
-            widget.insert('1.0', content)
-            widget.config(state=tk.DISABLED)
-        self.status_label.config(text=f"Tailoring Complete! Saved to {self.bot.db_manager.DB_NAME}.", fg="green")
-
-    def _run_tailor_pipeline(self):
-        resume_text = self.resume_text_area.get('1.0', tk.END).strip()
-        job_text = self.job_text_area.get('1.0', tk.END).strip()
-        resume_file_name = self.selected_resume_filepath.get() or "Pasted_Content_Resume"
-
-        if not resume_text or not job_text:
-            messagebox.showerror("Input Error", "Please provide content for both the Resume and the Job Description.")
-            return
-
-        self.status_label.config(text="Running AI Tailor... 🤖 Contacting Gemini API. Please wait.", fg="orange")
-        self.master.update_idletasks()
-
-        try:
-            results = self.bot.tailor_application(resume_text, job_text, resume_file_name)
-            self._update_output(results)
-        except Exception as e:
-            self.status_label.config(text="Error occurred.", fg="red")
-            messagebox.showerror("Error", str(e))
-            logger.error(e)
-
-
+        
 def start_gui():
     root = tk.Tk()
     JobBotGUI(root)
