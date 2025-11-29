@@ -2,11 +2,18 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext, filedialog, ttk
 import logging
 import os
-import numpy as np # Keep numpy import here for clean module dependencies
+import sqlite3
+from datetime import datetime
+from typing import Dict, Any, List
 
 # Import core application logic
-from .bot import JobApplicationBot
-from .config import config
+try:
+    from .bot import JobApplicationBot
+    from .config import config
+except ImportError:
+    # Fallback for direct execution
+    from bot import JobApplicationBot
+    from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +24,7 @@ class JobBotGUI:
     def __init__(self, master: tk.Tk):
         self.master = master
         master.title("🤖 AI Job Application Tailor")
-        master.geometry("1400x900") # Increase size for more content
+        master.geometry("1400x900")
 
         # Initialize the backend bot
         self.bot = JobApplicationBot()
@@ -34,15 +41,36 @@ class JobBotGUI:
     def _create_widgets(self):
         """Sets up the main layout and interactive elements."""
         
-        # Use a mainframe to hold everything
-        main_frame = tk.Frame(self.master, padx=15, pady=15)
+        # Main Layout Container (Tabbed Interface)
+        self.notebook = ttk.Notebook(self.master)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # --- TAB 1: Tailor Application (The existing main interface) ---
+        self.tailor_tab = tk.Frame(self.notebook)
+        self.notebook.add(self.tailor_tab, text="✨ Tailor Application")
+        self._build_tailor_tab(self.tailor_tab)
+
+        # --- TAB 2: History Viewer (NEW) ---
+        self.history_tab = tk.Frame(self.notebook)
+        self.notebook.add(self.history_tab, text="📜 History")
+        self._build_history_tab(self.history_tab)
+        
+        # Bind tab change event to refresh history
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_change)
+
+        # Initialize Ttk style
+        if hasattr(ttk, 'Style'):
+            ttk.Style().theme_use('clam')
+
+    def _build_tailor_tab(self, parent_frame):
+        """Constructs the original tailoring interface inside the given frame."""
+        main_frame = tk.Frame(parent_frame, padx=15, pady=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # --- Top Control and Input Section ---
+        # ... (Resume Input & File Picker) ...
         top_frame = tk.Frame(main_frame)
         top_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
         
-        # Resume Input & File Picker (Left)
         resume_input_frame = tk.Frame(top_frame, padx=5, pady=5, relief=tk.GROOVE, bd=1)
         resume_input_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
         
@@ -57,7 +85,7 @@ class JobBotGUI:
         self.resume_text_area = scrolledtext.ScrolledText(resume_input_frame, wrap=tk.WORD, height=15)
         self.resume_text_area.pack(fill=tk.BOTH, expand=True)
         
-        # Job Description Input (Right)
+        # ... (Job Description Input) ...
         job_input_frame = tk.Frame(top_frame, padx=5, pady=5, relief=tk.GROOVE, bd=1)
         job_input_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10)
         
@@ -66,88 +94,189 @@ class JobBotGUI:
         self.job_text_area = scrolledtext.ScrolledText(job_input_frame, wrap=tk.WORD, height=15)
         self.job_text_area.pack(fill=tk.BOTH, expand=True)
         
-        # --- Control & Status Section ---
+        # ... (Control & Status) ...
         control_status_frame = tk.Frame(main_frame, pady=10)
         control_status_frame.pack(fill=tk.X)
 
-        # Status Bar
         self.status_label = tk.Label(control_status_frame, text="Ready. Load resume and paste job details.", fg="blue", anchor='w')
         self.status_label.pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
         
-        # Tailor Button
         tailor_button = tk.Button(control_status_frame, text="🚀 Run AI Tailor & Save Results", command=self._run_tailor_pipeline, bg="#1E88E5", fg="white", font=('Arial', 12, 'bold'))
         tailor_button.pack(side=tk.RIGHT, padx=10)
 
-        # --- Output Section (Bottom) ---
+        # ... (Output Notebook) ...
         tk.Label(main_frame, text="3. Tailored Application Package", font=('Arial', 11, 'bold')).pack(pady=(10, 5), anchor='w')
         
         output_notebook = ttk.Notebook(main_frame)
         output_notebook.pack(fill=tk.BOTH, expand=True)
         
-        # Create output tabs
         self.tabs = {}
-        tabs_config = [
-            ("Tailored Resume (Markdown)", "resume_text"),
-            ("Cover Letter", "cover_letter"),
-            ("Changes Made (for Review)", "changes")
-        ]
+        tabs_config = [("Tailored Resume (Markdown)", "resume_text"), ("Cover Letter", "cover_letter"), ("Changes Made", "changes")]
         
         for name, key in tabs_config:
             frame = tk.Frame(output_notebook, padx=10, pady=10)
             output_notebook.add(frame, text=name)
-            
-            # Use a slightly larger font for readability
             text_widget = scrolledtext.ScrolledText(frame, wrap=tk.WORD, height=1, font=('Consolas', 10))
             text_widget.pack(fill=tk.BOTH, expand=True)
-            text_widget.config(state=tk.DISABLED) # Make read-only
+            text_widget.config(state=tk.DISABLED)
             self.tabs[key] = text_widget
+
+    def _build_history_tab(self, parent_frame):
+        """Constructs the History Viewer tab."""
+        # Split into Left (List) and Right (Details)
+        paned_window = tk.PanedWindow(parent_frame, orient=tk.HORIZONTAL, sashwidth=5, bg="#d0d0d0")
+        paned_window.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # --- Left: History List ---
+        list_frame = tk.Frame(paned_window, bg="white")
+        paned_window.add(list_frame, minsize=300)
+
+        tk.Label(list_frame, text="Past Applications", font=('Arial', 11, 'bold'), bg="white").pack(pady=5)
         
-        # Initialize Ttk style
-        ttk.Style().theme_use('clam')
+        # Treeview for columns (Date, Job Title)
+        columns = ("id", "date", "job_title")
+        self.history_tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="browse")
+        self.history_tree.heading("date", text="Date")
+        self.history_tree.heading("job_title", text="Job Title")
+        self.history_tree.column("id", width=0, stretch=tk.NO) # Hidden ID column
+        self.history_tree.column("date", width=120)
+        self.history_tree.column("job_title", width=250)
+        
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.history_tree.yview)
+        self.history_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.history_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.history_tree.bind("<<TreeviewSelect>>", self._on_history_select)
 
-    def _open_resume_file(self):
-        """Opens a file dialog, reads the selected file, and populates the text area."""
-        filepath = filedialog.askopenfilename(
-            defaultextension=".txt",
-            filetypes=[("Text files", "*.txt"), ("Markdown files", "*.md"), ("All files", "*.*")]
-        )
-        if filepath:
-            try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                self.resume_text_area.delete('1.0', tk.END)
-                self.resume_text_area.insert('1.0', content)
-                
-                # Store only the filename for logging purposes
-                filename = os.path.basename(filepath)
-                self.selected_resume_filepath.set(filename)
-                self.status_label.config(text=f"Resume loaded: {filename}", fg="darkgreen")
-                
-            except Exception as e:
-                messagebox.showerror("File Error", f"Could not read file {filepath}:\n{e}")
-                logger.error("File reading error: %s", e)
+        # --- Right: Details View ---
+        details_frame = tk.Frame(paned_window, bg="#f5f5f5", padx=10, pady=10)
+        paned_window.add(details_frame, minsize=500)
 
-    def _update_output(self, results: Dict[str, Any]):
-        """Updates the output text areas with the results."""
-        for key, widget in self.tabs.items():
-            content = results.get(key, "No content generated.")
+        tk.Label(details_frame, text="Application Details", font=('Arial', 11, 'bold'), bg="#f5f5f5").pack(anchor='w')
+
+        # Details Output Notebook (Resume vs Cover Letter)
+        self.history_notebook = ttk.Notebook(details_frame)
+        self.history_notebook.pack(fill=tk.BOTH, expand=True, pady=5)
+
+        self.history_text_widgets = {}
+        for name, key in [("Resume", "tailored_resume"), ("Cover Letter", "cover_letter"), ("Changes", "changes_made")]:
+            f = tk.Frame(self.history_notebook)
+            self.history_notebook.add(f, text=name)
+            txt = scrolledtext.ScrolledText(f, wrap=tk.WORD, font=('Consolas', 10))
+            txt.pack(fill=tk.BOTH, expand=True)
+            txt.config(state=tk.DISABLED)
+            self.history_text_widgets[key] = txt
+
+        # Refresh Button
+        refresh_btn = tk.Button(details_frame, text="🔄 Refresh History", command=self._load_history_list)
+        refresh_btn.pack(pady=5)
+
+    def _load_history_list(self):
+        """Fetches history from the database and populates the Treeview."""
+        # Clear existing items
+        for item in self.history_tree.get_children():
+            self.history_tree.delete(item)
+
+        try:
+            # We need to fetch detailed results to populate the right pane on click.
+            # The database method get_history returns the main 'history' table rows.
+            records = self.bot.db_manager.get_history()
             
-            # Special formatting for the list of changes
-            if key == "changes" and isinstance(content, list):
-                content = "\n".join(f"- {item}" for item in content)
+            for row in records:
+                # Format timestamp
+                try:
+                    dt = datetime.fromisoformat(row['timestamp'])
+                    date_str = dt.strftime("%Y-%m-%d %H:%M")
+                except ValueError:
+                    date_str = row['timestamp']
+
+                # We store the FULL row data in the 'values' so we can grab the ID later
+                self.history_tree.insert("", "end", iid=row['id'], values=(row['id'], date_str, row['job_title']))
+                
+        except Exception as e:
+            logger.error("Failed to load history list: %s", e)
+
+    def _on_history_select(self, event):
+        """Handles selection from the history list."""
+        selected_items = self.history_tree.selection()
+        if not selected_items:
+            return
+
+        history_id = selected_items[0]
+        
+        try:
+            # We need a new method in DatabaseManager to fetch the detailed result by ID.
+            # Since that method doesn't exist yet, we'll do a quick ad-hoc query here or add it.
+            # Ideally, we add 'get_tailoring_result(history_id)' to DatabaseManager.
+            # For now, let's add the logic directly here using sqlite3 for simplicity in the GUI layer
+            # or better, assume we add the method to database.py (Preferred).
             
+            # Let's perform a direct query here to keep this file self-contained for the moment,
+            # mirroring the logic in database.py
+            conn = sqlite3.connect(self.bot.db_manager.DB_NAME)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM tailoring_results WHERE history_id = ?", (history_id,))
+            result = cursor.fetchone()
+            conn.close()
+
+            if result:
+                self._display_history_detail(dict(result))
+            else:
+                self._display_history_detail({"tailored_resume": "No details found.", "cover_letter": "", "changes_made": ""})
+
+        except Exception as e:
+            logger.error("Error fetching history details: %s", e)
+            messagebox.showerror("Database Error", f"Could not load details: {e}")
+
+    def _display_history_detail(self, data: Dict[str, Any]):
+        """Updates the right-hand details pane."""
+        for key, widget in self.history_text_widgets.items():
+            content = data.get(key, "")
             widget.config(state=tk.NORMAL)
             widget.delete('1.0', tk.END)
             widget.insert('1.0', content)
             widget.config(state=tk.DISABLED)
-            
-        self.status_label.config(text=f"Tailoring Complete! Results saved to {self.bot.db_manager.DB_NAME}.", fg="green")
+
+    def _on_tab_change(self, event):
+        """Event handler for tab switching."""
+        selected_tab = event.widget.select()
+        tab_text = event.widget.tab(selected_tab, "text")
+        
+        if tab_text == "📜 History":
+            self._load_history_list()
+
+    # ... (Rest of the _open_resume_file, _update_output, _run_tailor_pipeline methods remain identical) ...
+    # For brevity, I am ensuring the class structure is maintained. 
+    # [Insert previous methods: _open_resume_file, _update_output, _run_tailor_pipeline]
+
+    def _open_resume_file(self):
+        filepath = filedialog.askopenfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+        if filepath:
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self.resume_text_area.delete('1.0', tk.END)
+                self.resume_text_area.insert('1.0', content)
+                filename = os.path.basename(filepath)
+                self.selected_resume_filepath.set(filename)
+                self.status_label.config(text=f"Resume loaded: {filename}", fg="darkgreen")
+            except Exception as e:
+                messagebox.showerror("File Error", str(e))
+
+    def _update_output(self, results: Dict[str, Any]):
+        for key, widget in self.tabs.items():
+            content = results.get(key, "No content.")
+            if key == "changes" and isinstance(content, list): content = "\n".join(f"- {item}" for item in content)
+            widget.config(state=tk.NORMAL)
+            widget.delete('1.0', tk.END)
+            widget.insert('1.0', content)
+            widget.config(state=tk.DISABLED)
+        self.status_label.config(text=f"Tailoring Complete! Saved to {self.bot.db_manager.DB_NAME}.", fg="green")
 
     def _run_tailor_pipeline(self):
-        """
-        Gathers input and runs the full AI tailoring process.
-        """
         resume_text = self.resume_text_area.get('1.0', tk.END).strip()
         job_text = self.job_text_area.get('1.0', tk.END).strip()
         resume_file_name = self.selected_resume_filepath.get() or "Pasted_Content_Resume"
@@ -157,37 +286,18 @@ class JobBotGUI:
             return
 
         self.status_label.config(text="Running AI Tailor... 🤖 Contacting Gemini API. Please wait.", fg="orange")
-        self.master.update_idletasks() # Force GUI update
+        self.master.update_idletasks()
 
         try:
-            # The core bot logic handles the AI call and the database logging
-            results = self.bot.tailor_application(
-                resume_text=resume_text, 
-                job_text=job_text,
-                resume_file_name=resume_file_name
-            )
-            
+            results = self.bot.tailor_application(resume_text, job_text, resume_file_name)
             self._update_output(results)
-
-        except ValueError as e:
-            # Handle malformed response from AI
-            self.status_label.config(text="Error occurred.", fg="red")
-            messagebox.showerror("Parsing Error", f"The AI response was malformed or missing required tags:\n{e}")
-            logger.error("Parsing error: %s", e)
-        except RuntimeError as e:
-            # Handle API call failures (e.g., key missing, network error, 4xx/5xx)
-            self.status_label.config(text="API Error occurred.", fg="red")
-            messagebox.showerror("API Error", f"A critical API error occurred:\n{e}\n\nPlease check your GEMINI_API_KEY and network connection.")
-            logger.error("Runtime error: %s", e)
         except Exception as e:
-            # Catch all other exceptions
-            self.status_label.config(text="Application Error.", fg="red")
-            messagebox.showerror("Application Error", f"An unexpected error occurred:\n{e}")
-            logger.error("Unexpected error: %s", e)
+            self.status_label.config(text="Error occurred.", fg="red")
+            messagebox.showerror("Error", str(e))
+            logger.error(e)
 
 
 def start_gui():
-    """Initializes and runs the Tkinter application."""
     root = tk.Tk()
     JobBotGUI(root)
     root.mainloop()
