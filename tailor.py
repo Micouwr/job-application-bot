@@ -10,15 +10,15 @@ from datetime import datetime
 import hashlib
 import json # Added for structured output parsing
 
-from google import genai
-from google.genai.types import GenerateContentConfig, HttpOptions
+import google.generativeai as genai
 
 # CRITICAL FIX: Assume necessary globals are imported from config.settings
 try:
-    from config.settings import RESUME_DATA, AI_CONFIG, OUTPUT_PATH
+    from config.settings import RESUME_DATA, config, OUTPUT_DIR
 except ImportError:
+    from pathlib import Path
     # Placeholder definitions for standalone execution/review if config is not available
-    AI_CONFIG = {"api_key": "YOUR_API_KEY", "model": "gemini-2.5-flash"}
+    AI_CONFIG = {"api_key": "YOUR_API_KEY", "model": "gemini-pro"}
     # RESUME_DATA must be provided or mocked. Using the structure implied by the resume text:
     RESUME_DATA = {
         "name": "William Ryan Micou",
@@ -37,7 +37,7 @@ except ImportError:
             "Infrastructure Foundation": ["Network Security Protocols", "Identity & Access Management (AD/LDAP)", "SaaS Administration"]
         },
         "experience": [
-            {"company": "CIMSYSTEM", "title": "Technical Operations Lead & Specialist", "dates": "2018 – 2025", "location": "Louisville, KY", "achievements": ["Directed support operations for ~150 dealer partners...", "Led a 10-person support unit, achieving 99% uptime...", "Built 'MillBox 101' onboarding and centralized SOP library...", "Presented technical strategy sessions..."]},
+            {"company": "CIMSYSTEM", "title": "Technical Operations Lead & Specialist", "dates": "2018 - 2025", "location": "Louisville, KY", "achievements": ["Directed support operations for ~150 dealer partners...", "Led a 10-person support unit, achieving 99% uptime...", "Built 'MillBox 101' onboarding and centralized SOP library...", "Presented technical strategy sessions..."]},
             # ... other experiences must be structured similarly
         ],
         "education": [{"degree": "Front-End Web Development", "school": "Sullivan University (CodeLouisville Graduate)"}],
@@ -80,13 +80,8 @@ class ResumeTailor:
     
     def __init__(self, resume_data: Dict = None):
         self.resume = resume_data or RESUME_DATA
-        self.client = genai.Client(
-            api_key=AI_CONFIG["api_key"],
-            http_options=HttpOptions(api_version="v1")
-        )
-        
-        # Removed tiktoken. Token counting will rely on the API response.
-        self.model_name = AI_CONFIG["model"]
+        genai.configure(api_key=config.gemini_api_key)
+        self.model = genai.GenerativeModel(config.model)
         logger.info("✓ ResumeTailor initialized with AI model")
 
     # Removed count_tokens method
@@ -162,13 +157,10 @@ class ResumeTailor:
         """
         
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
+            generation_config = {"temperature": 0.1, "max_output_tokens": 1000}
+            response = self.model.generate_content(
                 contents=prompt,
-                config=GenerateContentConfig(
-                    temperature=0.1,
-                    max_output_tokens=1000
-                )
+                generation_config=generation_config
             )
             
             raw_analysis = response.text
@@ -205,17 +197,13 @@ class ResumeTailor:
         """
         
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
+            generation_config = {"temperature": 0.3, "max_output_tokens": 300}
+            response = self.model.generate_content(
                 contents=prompt,
-                config=GenerateContentConfig(
-                    temperature=0.3,
-                    max_output_tokens=300
-                )
+                generation_config=generation_config
             )
-            
+
             summary = response.text.strip()
-            
             tokens_used = (
                 response.usage_metadata.prompt_token_count + 
                 response.usage_metadata.candidates_token_count
@@ -227,6 +215,42 @@ class ResumeTailor:
         except Exception as e:
             logger.error(f"Summary generation failed: {e}")
             return {"summary": base_summary, "tokens_used": 0}
+
+    def generate_cover_letter(self, job_analysis: JobAnalysis, tailored_summary: str) -> Dict[str, Any]:
+        """Generates a professional cover letter."""
+        base_experience = "\n".join([f"- {exp['title']} at {exp['company']}" for exp in self.resume.get("experience", [])])
+
+        prompt = f"""
+        Generate a professional and concise cover letter based ONLY on the provided information. Do not invent facts.
+        The user is applying for the role of '{job_analysis.title}'.
+        The company is looking for someone with these skills: {job_analysis.required_skills}
+        And these responsibilities: {job_analysis.key_responsibilities}
+
+        Here is the user's information to draw from:
+        - Tailored Summary for this job: {tailored_summary}
+        - User's past roles: {base_experience}
+        - User's core skills: {self.resume.get("core_competencies")}
+
+        Structure the letter in a professional format. Keep it to 3-4 paragraphs.
+        Generate ONLY the cover letter text, no labels or formatting.
+        """
+        try:
+            generation_config = {"temperature": 0.2, "max_output_tokens": 1500}
+            response = self.model.generate_content(
+                contents=prompt,
+                generation_config=generation_config
+            )
+            cover_letter = response.text.strip()
+            tokens_used = (
+                response.usage_metadata.prompt_token_count +
+                response.usage_metadata.candidates_token_count
+            )
+            logger.info("✓ Generated cover letter")
+            return {"cover_letter": cover_letter, "tokens_used": tokens_used}
+        except Exception as e:
+            logger.error(f"Cover letter generation failed: {e}")
+            return {"cover_letter": "Error generating cover letter.", "tokens_used": 0}
+
 
     def tailor_experience(self, job_analysis: JobAnalysis) -> List[Dict[str, Any]]:
         """Tailor experience section to highlight relevant roles and achievements"""
@@ -316,13 +340,10 @@ class ResumeTailor:
         """
         
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
+            generation_config = {"temperature": 0.4, "max_output_tokens": 500}
+            response = self.model.generate_content(
                 contents=prompt,
-                config=GenerateContentConfig(
-                    temperature=0.4,
-                    max_output_tokens=500
-                )
+                generation_config=generation_config
             )
             
             # Simple line parsing to extract list items
@@ -444,7 +465,7 @@ class ResumeTailor:
             # Use the job analysis title for a more readable filename
             filename_title = job_analysis.title.split()[0].replace('/', '_') if job_analysis.title else "job"
             filename = f"tailored_resume_{filename_title}_{timestamp}_{file_hash}.md"
-            file_path = OUTPUT_PATH / filename
+            file_path = OUTPUT_DIR / filename
             
             # Save file
             file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -554,13 +575,13 @@ def demo_tailoring():
     # Update RESUME_DATA with the actual achievements/projects structure from your resume text
     mock_resume_data = RESUME_DATA.copy()
     mock_resume_data["projects"] = [
-        {"name": "AI-Powered Triage & Classification Engine (Proof of Concept)", "dates": "Nov 2025 – Present", "details": "Architected a Python-based automation solution designed to modernize high-volume Service Desk operations", "achievements": ["Automated Tier 1 ticket classification, aiming to reduce manual triage time by 40%", "Aligned with ISO/IEC 42001 transparency principles, including PII safeguards and audit logging", "Modular routing system with assertion-based validation testing"]},
+        {"name": "AI-Powered Triage & Classification Engine (Proof of Concept)", "dates": "Nov 2025 - Present", "details": "Architected a Python-based automation solution designed to modernize high-volume Service Desk operations", "achievements": ["Automated Tier 1 ticket classification, aiming to reduce manual triage time by 40%", "Aligned with ISO/IEC 42001 transparency principles, including PII safeguards and audit logging", "Modular routing system with assertion-based validation testing"]},
     ]
     mock_resume_data["experience"][0]["achievements"] = [
         "Directed support operations for ~150 dealer partners across CAD/CAM and SaaS ecosystems", 
         "Led a 10-person support unit, achieving 99% uptime and aggressive SLA compliance", 
         "Built 'MillBox 101' onboarding and centralized SOP library, reducing onboarding time by 50%", 
-        "Presented technical strategy sessions at Lab Day West (2023–2024) to 100+ professionals"
+        "Presented technical strategy sessions at Lab Day West (2023-2024) to 100+ professionals"
     ]
     
     

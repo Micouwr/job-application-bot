@@ -48,9 +48,9 @@ class JobMatcher:
         
         # Priority mapping for the user's resume sections
         category_weights = {
-            "AI & Governance": 2.0,            # Highest priority
-            "Operational Leadership": 1.5,     # High priority (Service Desk Automation, SLA)
-            "Technical Enablement": 1.3,       # Moderate priority (Python, KPI)
+            "AI & Governance": 3.0,            # Highest priority
+            "Operational Leadership": 2.0,     # High priority (Service Desk Automation, SLA)
+            "Technical Enablement": 1.2,       # Moderate priority (Python, KPI)
             "Infrastructure Foundation": 1.0,  # Standard priority (Networking, AD)
         }
         
@@ -183,6 +183,7 @@ class JobMatcher:
         matched_skills = []
         matched_weight = 0.0
         total_weight = sum(skill.weight for skill in self.weighted_skills)
+        job_words = set(job_text.split()) # Optimized: create word set once
         
         skill_details = []
         
@@ -208,7 +209,7 @@ class JobMatcher:
                 continue
             
             # Use fuzzy matching as a very limited fallback (original logic for reference)
-            best_match = self._find_fuzzy_match(skill.name, job_text)
+            best_match = self._find_fuzzy_match(skill.name, job_words)
             if best_match and best_match[1] > 0.75:
                 matched_skills.append(skill.name.title())
                 matched_weight += skill.weight * 0.9
@@ -228,11 +229,8 @@ class JobMatcher:
         return score, matched_skills, missing_skills, {"details": skill_details}
 
     # Simplified fuzzy match to run against a smaller context set if possible
-    def _find_fuzzy_match(self, skill: str, text: str) -> Optional[Tuple[str, float]]:
-        """Find fuzzy match for skill in text (fallback only)"""
-        
-        # Only check against words that are longer than the skill or vice versa
-        words = set(text.split())
+    def _find_fuzzy_match(self, skill: str, words: set) -> Optional[Tuple[str, float]]:
+        """Find fuzzy match for a skill within a pre-computed set of words."""
         
         # Use difflib for partial matches only against the isolated words
         matches = difflib.get_close_matches(skill, words, n=1, cutoff=0.75)
@@ -243,40 +241,57 @@ class JobMatcher:
         return None
 
     def _calculate_experience_match(self, job_text: str) -> Tuple[float, List[str], Dict[str, Any]]:
-        """Calculate experience relevance based on achievement keywords"""
+        """Calculate experience relevance based on a more sophisticated scoring model."""
         relevant_exp = []
         exp_details = []
-        score = 0.0
-        
-        # We assume the job description contains keywords related to the required experience
+        total_score = 0.0
+        max_possible_score = 0.0
+
         for exp in self.resume.get("experience", []):
-            relevance = 0.0
-            details = {"position": f"{exp['title']} at {exp['company']}"}
-            
-            # Check for relevance in job title/description
-            if exp["title"].lower() in job_text or "support" in exp["title"].lower():
-                relevance += 0.3
-                details["title_match"] = True
-            
-            # Check achievement keywords against job text
-            achievement_matches = []
+            position_score = 0.0
+            details = {"position": f"{exp['title']} at {exp['company']}", "score_breakdown": {}}
+
+            # 1. Title Keyword Overlap Score (Max: 30 points)
+            resume_title_keywords = set(exp["title"].lower().split())
+            job_text_keywords = set(job_text.split())
+            common_keywords = resume_title_keywords.intersection(job_text_keywords)
+            if common_keywords:
+                position_score += 15
+                if len(common_keywords) > 1:
+                    position_score += 15 # Extra points for more overlap
+                details["score_breakdown"]["title_match"] = 15 + (15 if len(common_keywords) > 1 else 0)
+
+            # 2. Achievement Analysis (Max: 70 points)
+            achievement_score = 0
+            has_quantification = False
+            has_ai_governance = False
+
             for achievement in exp.get("achievements", []):
-                # Check for quantification (e.g., 50%, 99% uptime) and key verbs
-                if re.search(r'(\d+%|SLA|reducing|automating|architected|governance)', achievement, re.IGNORECASE):
-                    # Check if the job specifically asks for these outcomes
-                    if any(keyword in job_text for keyword in ["sla", "uptime", "reduce", "automate", "architect", "governance"]):
-                         relevance += 0.1
-                         achievement_matches.append(achievement[:50] + "...")
+                # Check for quantification
+                if re.search(r'\d+', achievement):
+                    has_quantification = True
+                # Check for AI/Governance keywords
+                if "ai" in achievement.lower() or "governance" in achievement.lower():
+                    has_ai_governance = True
+
+            # Score based on findings
+            if has_quantification and ("metric" in job_text or "kpi" in job_text):
+                achievement_score += 30
+                details["score_breakdown"]["quantification"] = 30
+            if has_ai_governance and ("ai" in job_text or "governance" in job_text):
+                achievement_score += 40
+                details["score_breakdown"]["ai_governance"] = 40
             
-            details["achievement_matches"] = achievement_matches
+            position_score += achievement_score
             
-            if relevance > 0.3:
-                relevant_exp.append(f"{exp['title']} at {exp['company']} ({exp['dates']})")
-                # Cap the score contribution of this position
-                score += min(relevance, 0.4) 
+            if position_score > 30: # Only include positions with a meaningful score
+                relevant_exp.append(f"{exp['title']} at {exp['company']}")
                 exp_details.append(details)
-        
-        final_score = min(score, 1.0)
+
+            total_score += position_score
+            max_possible_score += 100 # Each position is worth 100 points
+
+        final_score = total_score / max_possible_score if max_possible_score > 0 else 0.0
         return final_score, relevant_exp, {"positions": exp_details}
 
     def _calculate_keyword_match(self, job_text: str) -> Tuple[float, Dict[str, int]]:
@@ -453,8 +468,8 @@ def demo_matcher() -> None:
             "Infrastructure Foundation": ["Network Security Protocols", "Identity & Access Management (AD/LDAP)"]
         },
         "experience": [
-            {"company": "CIMSYSTEM", "title": "Technical Operations Lead & Specialist", "dates": "2018 – 2025", "achievements": ["Achieved 99% uptime and aggressive SLA compliance", "Built centralized SOP library, reducing onboarding time by 50%"]},
-            {"company": "ACCUCODE", "title": "Network Infrastructure Architect", "dates": "2017 – 2018", "achievements": ["Engineered secure network architecture", "Managed VPN/firewall configurations"]},
+            {"company": "CIMSYSTEM", "title": "Technical Operations Lead & Specialist", "dates": "2018 - 2025", "achievements": ["Achieved 99% uptime and aggressive SLA compliance", "Built centralized SOP library, reducing onboarding time by 50%"]},
+            {"company": "ACCUCODE", "title": "Network Infrastructure Architect", "dates": "2017 - 2018", "achievements": ["Engineered secure network architecture", "Managed VPN/firewall configurations"]},
         ],
         "projects": [
             {"name": "AI-Powered Triage & Classification Engine", "achievements": ["Automated Tier 1 ticket classification", "Aligned with ISO/IEC 42001 transparency principles"]},
@@ -467,9 +482,7 @@ def demo_matcher() -> None:
         "title": "Senior AI Governance Strategy Lead",
         "company": "Global Systems",
         "description": "Seeking a leader to establish ISO/IEC 42001 compliant AI Governance frameworks. Must have deep experience in Python automation for Service Desk Triage and risk management.",
-        "requirements": "10+ years experience, expert in Network Security and KPI reporting. Senior level role.",
         "experience_level": "Senior",
-        "requirements": "10+ years experience, expert in Network Security and KPI reporting.",
         "requirements": "10+ years experience, expert in Network Security and KPI reporting. Senior level role.",
     }
     
