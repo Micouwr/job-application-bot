@@ -15,10 +15,11 @@ from sqlalchemy import (
     create_engine, Column, Integer, String, Text, Float, DateTime, ForeignKey, 
     Boolean, Index, event, func
 )
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker, relationship, Session, declarative_base
 from sqlalchemy.engine import Engine 
 
-from config.settings import DATABASE_PATH
+from config.settings import DATABASE_PATH, MATCH_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +186,7 @@ class JobDatabase:
         try:
             yield session
             session.commit()
-        except Exception:
+        except SQLAlchemyError:
             session.rollback()
             raise # Re-raise exception for caller to handle
         finally:
@@ -246,7 +247,7 @@ class JobDatabase:
                 
                 logger.info(f"✓ Bulk inserted/updated {len(jobs)} jobs.")
 
-        except Exception as e:
+        except SQLAlchemyError as e:
             logger.error(f"Error during bulk job insertion: {e}")
             raise 
 
@@ -287,8 +288,7 @@ class JobDatabase:
                     # Update Job table fields
                     score = match_result.get("match_score", 0.0)
                     job.match_score = score
-                    # Threshold set to 0.80 for "pending_review" (high match)
-                    job.status = "matched" if score >= 0.80 else "low_match" 
+                    job.status = "matched" if score >= MATCH_THRESHOLD else "low_match"
 
                     # Handle MatchDetail table fields
                     match_detail = match_details_map.get(job_id)
@@ -318,7 +318,7 @@ class JobDatabase:
                     match_detail.created_at = datetime.now() # Update timestamp
 
                     # Log high matches
-                    if score >= 0.80:
+                    if score >= MATCH_THRESHOLD:
                         self._log_activity(session, job_id, "high_match", 
                                          f"Match: {score*100:.1f}%")
 
@@ -471,6 +471,19 @@ class JobDatabase:
                 return [job.to_dict() for job in jobs]
         except Exception as e:
             logger.error(f"Error fetching all jobs: {e}")
+            return []
+
+    def get_jobs_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get all non-deleted jobs with a specific status."""
+        try:
+            with self.get_session() as session:
+                jobs = session.query(Job).filter(
+                    Job.status == status,
+                    Job.is_deleted == False
+                ).order_by(Job.scraped_at.desc()).all()
+                return [job.to_dict() for job in jobs]
+        except Exception as e:
+            logger.error(f"Error fetching jobs by status '{status}': {e}")
             return []
 
     def search_jobs(self, query: str) -> List[Dict[str, Any]]:

@@ -35,14 +35,12 @@ class JobAppTkinter:
     Main application window for the Job Application Bot, built with Tkinter.
     """
 
-    def __init__(self, root):
+    def __init__(self, root, bot, db):
         self.root = root
+        self.bot = bot
+        self.db = db
         self.root.title("Job Application Bot - AI Resume Tailorer")
         self.root.geometry("1400x900")
-        
-        # Initialize Bot and Database once (FIX 1)
-        self.bot = JobApplicationBot()
-        self.db = JobDatabase() 
         
         self.current_resume_path = None
         self.resume_dir = Path("data/resumes")
@@ -66,35 +64,28 @@ class JobAppTkinter:
         
         # Check if ANY .txt resume exists
         if not list(self.resume_dir.glob("*.txt")):
-            default_content = """YOUR NAME
-Email: your.email@example.com
-Phone: (123) 456-7890
+            default_content = """[Your Name]
+Email: [your.email@example.com]
+Phone: [(123) 456-7890]
 
-PROFESSIONAL SUMMARY:
-Senior IT Infrastructure Architect with extensive experience in cloud and AI governance. 
-Experienced in implementing robust governance frameworks and leveraging cloud platforms (AWS, Azure) 
-to drive business transformation. Holds a CompTIA A+ certification, specializing in AI solutions.
+## PROFESSIONAL SUMMARY
+A brief summary of your professional background and skills.
 
-CORE SKILLS:
-- AWS, Azure, Python
-- AI Governance, Machine Learning Principles, NLP (Natural Language Processing)
-- ITIL, CISSP, CompTIA A+, TWO AI CERTIFICATIONS (REDACTED FOR PRIVACY)
+## CORE SKILLS
+- Skill 1
+- Skill 2
+- Skill 3
 
-EXPERIENCE:
-Company Name - IT Infrastructure Manager (2020-Present)
-- Led cloud migration projects, resulting in 30% cost reduction.
-- Designed and implemented AI governance framework, ensuring compliance and ethical use of AI models.
-- Managed a team of 10 help desk and infrastructure specialists.
+## EXPERIENCE
+**[Company Name]** - [Your Title] (YYYY-YYYY)
+- Achievement or responsibility 1
+- Achievement or responsibility 2
 
-EDUCATION:
-B.S. Computer Science, University Name
+## EDUCATION
+[Degree] - [University Name]
 
-CERTIFICATIONS:
-- AWS Solutions Architect
-- ITIL v4
-- CompTIA A+
-- Advanced AI/ML Certification 1
-- Advanced AI/ML Certification 2
+## CERTIFICATIONS
+- [Certification Name]
 """
             default_path.write_text(default_content, encoding="utf-8")
             
@@ -209,9 +200,11 @@ CERTIFICATIONS:
         
         self.tailored_resume_text = tk.Text(
             resume_out_frame, wrap=tk.WORD, font=('Arial', 10), 
-            bg='#f0f0f0', state=tk.DISABLED
+            bg='#f0f0f0'
         )
         self.tailored_resume_text.pack(fill=tk.BOTH, expand=True)
+        self.tailored_resume_text.bind("<Key>", lambda e: "break")
+
 
         # --- Cover Letter Output (Right Side, Bottom) ---
         cl_out_frame = ttk.LabelFrame(right_frame, text="✨ Cover Letter", padding="5")
@@ -219,9 +212,10 @@ CERTIFICATIONS:
         
         self.cover_letter_text = tk.Text(
             cl_out_frame, wrap=tk.WORD, font=('Arial', 10), 
-            bg='#f0f0f0', state=tk.DISABLED
+            bg='#f0f0f0'
         )
         self.cover_letter_text.pack(fill=tk.BOTH, expand=True)
+        self.cover_letter_text.bind("<Key>", lambda e: "break")
 
         # --- Action Buttons (Global Bottom) ---
         button_frame = ttk.Frame(main_frame)
@@ -608,11 +602,11 @@ CERTIFICATIONS:
                 "location": "N/A",
             }
             
-            # 2. Call the full pipeline which handles matching and tailoring
-            result = self.bot.process_and_tailor(job, user_resume_text=resume_text)
+            # 2. Call the new GUI-specific tailoring method
+            result = self.bot.tailor_for_gui(job_description, user_resume_text=resume_text)
             
             # Check for specific failure case from the AI/pipeline
-            if not result.get("resume_text") or not result.get("cover_letter"):
+            if not result.get("resume_text"):
                  raise Exception("AI returned incomplete or empty tailoring results.")
 
             self.root.after(0, self.on_tailoring_complete, result, None)
@@ -708,15 +702,10 @@ CERTIFICATIONS:
         try:
             status_filter = self.filter_var.get()
             
-            # FIX 2: Use self.db instance and filter locally since get_jobs_by_status 
-            # is not in the reviewed database.py
-            all_jobs = self.db.get_all_jobs()
-            
             if status_filter == "all":
-                jobs: List[Dict[str, Any]] = all_jobs
+                jobs = self.db.get_all_jobs()
             else:
-                # Filter job list by the selected status
-                jobs = [job for job in all_jobs if job.get('status') == status_filter]
+                jobs = self.db.get_jobs_by_status(status_filter)
 
             if not jobs:
                 self.jobs_text.insert("1.0", f"No jobs found for filter: {status_filter}")
