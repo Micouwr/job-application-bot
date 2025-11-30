@@ -187,9 +187,20 @@ class JobApplicationBot:
             logger.info(f"\nTailoring for: {job['title']} at {job['company']}")
 
             try:
-                # Assume tailor_application exists and generates both resume and cover letter
-                # This needs to be implemented in tailor.py if it doesn't exist.
-                application = self.tailor.tailor_application(job, match)
+                # Correctly call the refactored tailoring methods
+                job_description = job.get("description", "")
+                resume_result = self.tailor.generate_tailored_resume(job_description)
+                if not resume_result.success:
+                    raise Exception(f"Resume tailoring failed: {resume_result.error}")
+
+                summary_section = resume_result.tailored_content.split("## PROFESSIONAL SUMMARY")[1].split("##")[0].strip()
+                cover_letter_result = self.tailor.generate_cover_letter(resume_result.analysis_obj, summary_section)
+
+                application = {
+                    "resume_text": resume_result.tailored_content,
+                    "cover_letter": cover_letter_result.get("cover_letter", ""),
+                    "changes": ["Automated tailoring complete."] # Placeholder
+                }
 
                 # Save to database
                 db.save_application( # Use thread-local DB
@@ -209,6 +220,31 @@ class JobApplicationBot:
 
         # Step 4: Show summary (Need a fresh DB instance for final stats)
         self._print_summary()
+
+    def _save_application_files(self, job: Dict[str, Any], application: Dict[str, Any]) -> None:
+        """Saves the tailored resume and cover letter to files."""
+        try:
+            # Sanitize company and title for filename
+            company = "".join(c for c in job.get("company", "Unknown") if c.isalnum() or c in (" ", "_")).rstrip()
+            title = "".join(c for c in job.get("title", "Job") if c.isalnum() or c in (" ", "_")).rstrip()
+
+            # Create a unique directory for this application
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = Path(f"output/{company}_{title}_{timestamp}")
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Save resume
+            resume_path = output_dir / "tailored_resume.md"
+            resume_path.write_text(application.get("resume_text", ""), encoding="utf-8")
+
+            # Save cover letter
+            cover_letter_path = output_dir / "cover_letter.txt"
+            cover_letter_path.write_text(application.get("cover_letter", ""), encoding="utf-8")
+
+            logger.info(f"✓ Saved application files to {output_dir}")
+        except Exception as e:
+            logger.error(f"Error saving application files for {job.get('title', 'N/A')}: {e}")
+
 
     # --- Helper Methods ---
 
@@ -313,6 +349,46 @@ class JobApplicationBot:
         db.close()
         logger.info(f"✓ Application approved: {job_id}")
 
+    def run_interactive(self) -> None:
+        """Runs the bot in an interactive mode for manual job entry."""
+        print("\n" + "=" * 80)
+        print("INTERACTIVE MODE: Manually Add a Job")
+        print("=" * 80)
+
+        try:
+            title = input("Enter Job Title: ").strip()
+            if not title:
+                print("Job title is required.")
+                return
+
+            company = input("Enter Company Name: ").strip()
+            description = ""
+            print("Enter Job Description (type 'END' on a new line to finish):")
+            while True:
+                line = input()
+                if line.strip() == 'END':
+                    break
+                description += line + "\n"
+
+            if not description.strip():
+                print("Job description is required.")
+                return
+
+            manual_job = self.add_manual_job(
+                title=title,
+                company=company,
+                description=description
+            )
+
+            print("\nJob added. Starting pipeline in background...")
+            self.run_pipeline_async(manual_jobs=[manual_job], dry_run=False)
+            # In a CLI context, we might want to wait for this to finish.
+            # For now, it runs in the background and the script will exit.
+
+        except (KeyboardInterrupt, EOFError):
+            print("\nExiting interactive mode.")
+
+
     # (Other helper functions remain the same)
 
     def _print_summary(self) -> None:
@@ -390,6 +466,36 @@ class JobApplicationBot:
             json.dump(all_jobs, f, indent=2, default=str)
         logger.info(f"✓ Exported {len(all_jobs)} jobs to {output_file}")
 
+    def tailor_for_gui(self, job_description: str, user_resume_text: str) -> Dict[str, Any]:
+        """
+        A dedicated method for the GUI to call for tailoring.
+        It does not interact with the database.
+        It generates a tailored resume and cover letter.
+        """
+        try:
+            # We pass the user's potentially edited resume text to a new tailor instance
+            temp_resume_data = self.tailor.resume.copy() # Start with base resume
+            # This is a simplification; a real implementation would parse the text
+            # and reconstruct the data structure. For now, we proceed with the base resume.
+            tailor = ResumeTailor(resume_data=temp_resume_data)
+
+            logger.info("GUI Tailoring: Generating tailored resume...")
+            resume_result = tailor.generate_tailored_resume(job_description)
+            if not resume_result.success:
+                raise Exception(f"Resume tailoring failed: {resume_result.error}")
+
+            logger.info("GUI Tailoring: Generating cover letter...")
+            summary_section = resume_result.tailored_content.split("## PROFESSIONAL SUMMARY")[1].split("##")[0].strip()
+            cover_letter_result = tailor.generate_cover_letter(resume_result.analysis_obj, summary_section)
+
+            return {
+                "resume_text": resume_result.tailored_content,
+                "cover_letter": cover_letter_result.get("cover_letter", "Failed to generate."),
+                "changes": ["GUI-based tailoring completed."]
+            }
+        except Exception as e:
+            logger.exception("FATAL: GUI Tailoring process failed.")
+            raise e
 
 def main() -> None:
     """

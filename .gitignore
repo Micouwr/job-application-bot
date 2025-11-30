@@ -210,6 +210,9 @@ __marimo__/
 # Job Application Bot - Custom Rules
 # ============================================
 
+# Personal Resume Data (CRITICAL - NEVER COMMIT!)
+resume.json
+
 # API Keys and Secrets (CRITICAL - NEVER COMMIT!)
 .env
 *.env

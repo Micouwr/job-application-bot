@@ -253,11 +253,14 @@ class JobMatcher:
             relevance = 0.0
             details = {"position": f"{exp['title']} at {exp['company']}"}
             
-            # Check for relevance in job title/description
-            if exp["title"].lower() in job_text or "support" in exp["title"].lower():
+            # Check for keyword overlap between resume job title and job description text
+            resume_title_keywords = set(exp["title"].lower().split())
+            job_text_keywords = set(job_text.split())
+
+            if resume_title_keywords.intersection(job_text_keywords):
                 relevance += 0.3
                 details["title_match"] = True
-            
+
             # Check achievement keywords against job text
             achievement_matches = []
             for achievement in exp.get("achievements", []):
@@ -467,9 +470,7 @@ def demo_matcher() -> None:
         "title": "Senior AI Governance Strategy Lead",
         "company": "Global Systems",
         "description": "Seeking a leader to establish ISO/IEC 42001 compliant AI Governance frameworks. Must have deep experience in Python automation for Service Desk Triage and risk management.",
-        "requirements": "10+ years experience, expert in Network Security and KPI reporting. Senior level role.",
         "experience_level": "Senior",
-        "requirements": "10+ years experience, expert in Network Security and KPI reporting.",
         "requirements": "10+ years experience, expert in Network Security and KPI reporting. Senior level role.",
     }
     
