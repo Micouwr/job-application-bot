@@ -15,19 +15,53 @@ import json
 import csv
 from typing import List, Dict, Any
 
-# Add project root to path to allow direct execution
-# Note: Assuming 'database.py' and 'main.py' are one directory up
-try:
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-except NameError:
-    # Handle environment where __file__ is not defined (e.g., interactive console)
-    sys.path.insert(0, str(Path("..").resolve()))
+import subprocess
+import os
+
+# Imports for file conversion
+from PyPDF2 import PdfReader
+import docx
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+
+# No longer need to manipulate the path
 
 from database import JobDatabase
 from main import JobApplicationBot
+from config.settings import USER_DATA_DIR, BASE_DIR
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+class ProgressDialog(tk.Toplevel):
+    """Modal progress dialog for file operations"""
+    def __init__(self, parent, title="Processing"):
+        super().__init__(parent)
+        self.title(title)
+        self.transient(parent)
+        self.grab_set()
+        self.geometry("400x150")
+        self.resizable(False, False)
+
+        ttk.Label(self, text="Processing, please wait...", font=('Arial', 12)).pack(pady=20)
+        self.progress = ttk.Progressbar(self, mode='indeterminate', length=350)
+        self.progress.pack(pady=10)
+        self.progress.start()
+
+        self.center_on_parent(parent)
+
+    def center_on_parent(self, parent):
+        self.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
+        y = parent.winfo_y() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
+        self.geometry(f"+{x}+{y}")
+
+    def close(self):
+        self.progress.stop()
+        self.destroy()
 
 
 class JobAppTkinter:
@@ -35,14 +69,12 @@ class JobAppTkinter:
     Main application window for the Job Application Bot, built with Tkinter.
     """
 
-    def __init__(self, root):
+    def __init__(self, root, bot, db):
         self.root = root
+        self.bot = bot
+        self.db = db
         self.root.title("Job Application Bot - AI Resume Tailorer")
         self.root.geometry("1400x900")
-        
-        # Initialize Bot and Database once (FIX 1)
-        self.bot = JobApplicationBot()
-        self.db = JobDatabase() 
         
         self.current_resume_path = None
         self.resume_dir = Path("data/resumes")
@@ -60,41 +92,50 @@ class JobAppTkinter:
         
         self._init_ui()
 
+        if sys.platform == 'darwin':
+            self.root.createcommand('tk::mac::ShowPreferences', self.open_preferences)
+
+    def open_preferences(self):
+        """Open .env file for editing"""
+        env_path = USER_DATA_DIR / '.env'
+        if not env_path.exists():
+            shutil.copy(BASE_DIR / '.env.example', env_path)
+
+        if sys.platform == 'darwin':
+            subprocess.run(['open', env_path])
+        elif sys.platform == 'win32':
+            os.startfile(env_path)
+        else:
+            subprocess.run(['xdg-open', env_path])
+
     def _ensure_default_resume(self):
         """Creates a default resume template if no resumes exist."""
         default_path = self.resume_dir / "default_resume.txt"
         
         # Check if ANY .txt resume exists
         if not list(self.resume_dir.glob("*.txt")):
-            default_content = """YOUR NAME
-Email: your.email@example.com
-Phone: (123) 456-7890
+            default_content = """[Your Name]
+Email: [your.email@example.com]
+Phone: [(123) 456-7890]
 
-PROFESSIONAL SUMMARY:
-Senior IT Infrastructure Architect with extensive experience in cloud and AI governance. 
-Experienced in implementing robust governance frameworks and leveraging cloud platforms (AWS, Azure) 
-to drive business transformation. Holds a CompTIA A+ certification, specializing in AI solutions.
+## PROFESSIONAL SUMMARY
+A brief summary of your professional background and skills.
 
-CORE SKILLS:
-- AWS, Azure, Python
-- AI Governance, Machine Learning Principles, NLP (Natural Language Processing)
-- ITIL, CISSP, CompTIA A+, TWO AI CERTIFICATIONS (REDACTED FOR PRIVACY)
+## CORE SKILLS
+- Skill 1
+- Skill 2
+- Skill 3
 
-EXPERIENCE:
-Company Name - IT Infrastructure Manager (2020-Present)
-- Led cloud migration projects, resulting in 30% cost reduction.
-- Designed and implemented AI governance framework, ensuring compliance and ethical use of AI models.
-- Managed a team of 10 help desk and infrastructure specialists.
+## EXPERIENCE
+**[Company Name]** - [Your Title] (YYYY-YYYY)
+- Achievement or responsibility 1
+- Achievement or responsibility 2
 
-EDUCATION:
-B.S. Computer Science, University Name
+## EDUCATION
+[Degree] - [University Name]
 
-CERTIFICATIONS:
-- AWS Solutions Architect
-- ITIL v4
-- CompTIA A+
-- Advanced AI/ML Certification 1
-- Advanced AI/ML Certification 2
+## CERTIFICATIONS
+- [Certification Name]
 """
             default_path.write_text(default_content, encoding="utf-8")
             
@@ -209,9 +250,11 @@ CERTIFICATIONS:
         
         self.tailored_resume_text = tk.Text(
             resume_out_frame, wrap=tk.WORD, font=('Arial', 10), 
-            bg='#f0f0f0', state=tk.DISABLED
+            bg='#f0f0f0'
         )
         self.tailored_resume_text.pack(fill=tk.BOTH, expand=True)
+        self.tailored_resume_text.bind("<Key>", lambda e: "break")
+
 
         # --- Cover Letter Output (Right Side, Bottom) ---
         cl_out_frame = ttk.LabelFrame(right_frame, text="✨ Cover Letter", padding="5")
@@ -219,9 +262,10 @@ CERTIFICATIONS:
         
         self.cover_letter_text = tk.Text(
             cl_out_frame, wrap=tk.WORD, font=('Arial', 10), 
-            bg='#f0f0f0', state=tk.DISABLED
+            bg='#f0f0f0'
         )
         self.cover_letter_text.pack(fill=tk.BOTH, expand=True)
+        self.cover_letter_text.bind("<Key>", lambda e: "break")
 
         # --- Action Buttons (Global Bottom) ---
         button_frame = ttk.Frame(main_frame)
@@ -243,6 +287,13 @@ CERTIFICATIONS:
             state=tk.DISABLED
         )
         self.save_output_button.pack(side=tk.LEFT, padx=5)
+
+        self.save_as_template_var = tk.BooleanVar()
+        self.save_as_template_check = ttk.Checkbutton(
+            button_frame, text="Save tailored resume as new template",
+            variable=self.save_as_template_var
+        )
+        self.save_as_template_check.pack(side=tk.LEFT, padx=10)
 
         # Load current resume on startup
         self._load_selected_resume()
@@ -415,10 +466,13 @@ CERTIFICATIONS:
             self.status_var.set("Error during resume load.")
 
     def upload_resume(self):
-        """Uploads a new resume file (TXT, DOCX, PDF) and converts non-TXT to TXT placeholder."""
+        """Uploads a new resume file (PDF, DOCX, TXT) and converts it to a .txt file for the AI."""
         path = filedialog.askopenfilename(
             title="Upload Resume",
             filetypes=[
+                ("Resume Files", "*.pdf *.docx *.txt"),
+                ("PDF Files", "*.pdf"),
+                ("Word Documents", "*.docx"),
                 ("Text Files", "*.txt"),
                 ("All Files", "*.*")
             ],
@@ -426,34 +480,53 @@ CERTIFICATIONS:
         if not path:
             return
 
+        source = Path(path)
+        extracted_text = ""
+
         try:
-            source = Path(path)
+            # --- Text Extraction Logic ---
+            if source.suffix.lower() == '.pdf':
+                reader = PdfReader(source)
+                for page in reader.pages:
+                    extracted_text += page.extract_text() + "\n"
+            elif source.suffix.lower() == '.docx':
+                doc = docx.Document(source)
+                for para in doc.paragraphs:
+                    extracted_text += para.text + "\n"
+            elif source.suffix.lower() == '.txt':
+                extracted_text = source.read_text(encoding='utf-8')
+            else:
+                messagebox.showerror("Unsupported Format", "Please upload a .pdf, .docx, or .txt file.")
+                return
+
+            if not extracted_text.strip():
+                raise ValueError("Could not extract any text from the document.")
+
+            # --- Save Extracted Text to a New .txt File ---
             # Ensure the destination is always .txt for AI processing
             dest = self.resume_dir / f"{source.stem}.txt"
             
-            # Handle duplicates
+            # Handle duplicates by adding a counter
             counter = 1
             while dest.exists():
                 dest = self.resume_dir / f"{source.stem}_{counter}.txt"
                 counter += 1
-
-            # Copy file
-            shutil.copy2(source, dest)
             
-            # Basic content check
-            content = dest.read_text(encoding='utf-8')
-            if len(content) < 100:
+            dest.write_text(extracted_text, encoding='utf-8')
+
+            # --- Final Checks and UI Update ---
+            if len(extracted_text) < 100:
                 messagebox.showwarning(
                     "Short Resume", 
-                    f"The uploaded resume '{dest.name}' appears very short. Please verify content for AI processing."
+                    f"The uploaded resume '{dest.name}' appears very short. Please verify the content."
                 )
             
-            messagebox.showinfo("Success", f"Resume uploaded: {dest.name}")
+            messagebox.showinfo("Success", f"Resume '{source.name}' was successfully imported as '{dest.name}'.")
             self._refresh_resume_list()
 
         except Exception as e:
-            logging.error(f"Failed to upload resume: {e}")
-            messagebox.showerror("Upload Error", f"Failed to upload resume: {e}")
+            logging.error(f"Failed to upload and process resume: {e}")
+            messagebox.showerror("Upload Error", f"Failed to process the resume file: {e}")
 
     def delete_selected_resume(self):
         """Deletes the selected resume file."""
@@ -608,11 +681,11 @@ CERTIFICATIONS:
                 "location": "N/A",
             }
             
-            # 2. Call the full pipeline which handles matching and tailoring
-            result = self.bot.process_and_tailor(job, user_resume_text=resume_text)
+            # 2. Call the new GUI-specific tailoring method
+            result = self.bot.tailor_for_gui(job_description, user_resume_text=resume_text)
             
             # Check for specific failure case from the AI/pipeline
-            if not result.get("resume_text") or not result.get("cover_letter"):
+            if not result.get("resume_text"):
                  raise Exception("AI returned incomplete or empty tailoring results.")
 
             self.root.after(0, self.on_tailoring_complete, result, None)
@@ -659,42 +732,89 @@ CERTIFICATIONS:
         )
 
     def save_outputs(self):
-        """Saves the tailored resume and cover letter to files."""
-        # FIX: Ensure outputs are readable before saving
+        """Saves the tailored resume and cover letter to user-specified formats."""
         resume_text_content = self.tailored_resume_text.get("1.0", tk.END).strip()
         cover_text_content = self.cover_letter_text.get("1.0", tk.END).strip()
-        
+
         if not resume_text_content and not cover_text_content:
             messagebox.showwarning("No Output", "No tailored content available to save.")
             return
 
+        file_path = filedialog.asksaveasfilename(
+            title="Save Application As",
+            defaultextension=".docx",
+            filetypes=[
+                ("Word Document", "*.docx"),
+                ("PDF Document", "*.pdf"),
+                ("Text File", "*.txt"),
+            ]
+        )
+        if not file_path:
+            return
+            
         try:
-            job_title = "Tailored_Application"
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            # --- Save as New Template (Versioning) ---
+            if self.save_as_template_var.get():
+                template_name = f"tailored_{Path(file_path).stem}.txt"
+                template_path = self.resume_dir / template_name
+                template_path.write_text(resume_text_content, encoding='utf-8')
+                self._refresh_resume_list()
+                messagebox.showinfo("Template Saved", f"Tailored resume saved as new template:\n{template_name}")
             
-            # Create output directory
-            output_dir = Path("output") / f"{job_title}_{timestamp}"
-            output_dir.mkdir(parents=True, exist_ok=True)
+            path = Path(file_path)
             
-            # Save resume
-            if resume_text_content:
-                resume_path = output_dir / "tailored_resume.txt"
-                resume_path.write_text(resume_text_content, encoding='utf-8')
-            
-            # Save cover letter
-            if cover_text_content:
-                cover_path = output_dir / "cover_letter.txt"
-                cover_path.write_text(cover_text_content, encoding='utf-8')
-            
-            messagebox.showinfo(
-                "Saved", 
-                f"Files saved to:\n{output_dir.resolve()}\n\n(Note: Outputs are currently disabled in this tab to prevent accidental editing.)"
-            )
-            self.status_var.set(f"📁 Saved to: {output_dir.name}")
-            
+            if path.suffix.lower() == '.docx':
+                # --- Create DOCX ---
+                doc = docx.Document()
+                doc.add_heading('Tailored Resume', level=1)
+                doc.add_paragraph(resume_text_content)
+                doc.add_page_break()
+                doc.add_heading('Cover Letter', level=1)
+                doc.add_paragraph(cover_text_content)
+                doc.save(path)
+
+            elif path.suffix.lower() == '.pdf':
+                # --- Create PDF ---
+                self._save_as_pdf(path, resume_text_content, cover_text_content)
+
+            elif path.suffix.lower() == '.txt':
+                # --- Create TXT ---
+                full_content = f"--- TAILORED RESUME ---\n\n{resume_text_content}\n\n--- COVER LETTER ---\n\n{cover_text_content}"
+                path.write_text(full_content, encoding='utf-8')
+
+            else:
+                messagebox.showerror("Unsupported Format", "Please choose .docx, .pdf, or .txt.")
+                return
+
+            messagebox.showinfo("Saved", f"Application files saved successfully to:\n{path.resolve()}")
+            self.status_var.set(f"📁 Saved to: {path.name}")
+
         except Exception as e:
             logging.error(f"Save outputs error: {e}")
             messagebox.showerror("Save Error", f"Failed to save outputs: {e}")
+
+    def _save_as_pdf(self, file_path, resume_text, cover_letter_text):
+        """Helper to save content as a PDF using reportlab."""
+        doc = SimpleDocTemplate(str(file_path), pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+
+        # Prepare content, replacing newlines with <br/> for HTML-like paragraphs
+        resume_content = resume_text.replace('\n', '<br/>')
+        cover_letter_content = cover_letter_text.replace('\n', '<br/>')
+
+        # Add Resume
+        story.append(Paragraph("Tailored Resume", styles['h1']))
+        story.append(Spacer(1, 0.2 * inch))
+        story.append(Paragraph(resume_content, styles['Normal']))
+
+        # Add Cover Letter on a new page
+        story.append(Spacer(1, 0.5 * inch))
+        story.append(Paragraph("Cover Letter", styles['h1']))
+        story.append(Spacer(1, 0.2 * inch))
+        story.append(Paragraph(cover_letter_content, styles['Normal']))
+
+        doc.build(story)
 
     def refresh_jobs(self):
         """Refresh jobs list with filter."""
@@ -708,15 +828,10 @@ CERTIFICATIONS:
         try:
             status_filter = self.filter_var.get()
             
-            # FIX 2: Use self.db instance and filter locally since get_jobs_by_status 
-            # is not in the reviewed database.py
-            all_jobs = self.db.get_all_jobs()
-            
             if status_filter == "all":
-                jobs: List[Dict[str, Any]] = all_jobs
+                jobs = self.db.get_all_jobs()
             else:
-                # Filter job list by the selected status
-                jobs = [job for job in all_jobs if job.get('status') == status_filter]
+                jobs = self.db.get_jobs_by_status(status_filter)
 
             if not jobs:
                 self.jobs_text.insert("1.0", f"No jobs found for filter: {status_filter}")
