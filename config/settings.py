@@ -1,5 +1,7 @@
 """
 Configuration settings for Job Application Bot using Pydantic for validation.
+This module is now architected to work correctly in both development
+and a bundled PyInstaller application, with cross-platform support.
 """
 
 import os
@@ -11,33 +13,67 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings
 
-# Load environment variables
-load_dotenv()
+# CRITICAL: Import the enhanced cross-platform pathing utility
+from utils.paths import get_base_path, get_user_data_path
 
-# Base paths
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR: Path = BASE_DIR / "data"
-LOGS_DIR: Path = BASE_DIR / "logs"
-OUTPUT_DIR: Path = BASE_DIR / "output"
-RESUMES_DIR: Path = OUTPUT_DIR / "resumes"
+# --- Path Definitions ---
+
+# Base path for bundled data files (works in dev and bundle)
+BASE_DIR = get_base_path()
+
+# User-writable directory for database, logs, etc. (works for macOS, Windows, Linux)
+USER_DATA_DIR = get_user_data_path()
+
+# Define user-writable subdirectories
+DATA_DIR: Path = USER_DATA_DIR / "data"
+LOGS_DIR: Path = USER_DATA_DIR / "logs"
+OUTPUT_DIR: Path = USER_DATA_DIR / "output"
+RESUMES_DIR: Path = USER_DATA_DIR / "resumes"
 COVER_LETTERS_DIR: Path = OUTPUT_DIR / "cover_letters"
 
-# Create directories if they don't exist
-for directory in [DATA_DIR, LOGS_DIR, OUTPUT_DIR, RESUMES_DIR, COVER_LETTERS_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)
+# Platform-specific log directory for macOS (as per best practice)
+if sys.platform == 'darwin':
+    LOGS_DIR = Path.home() / 'Library' / 'Logs' / 'JobApplicationBot'
 
-    # Verify directory is writable
-    if not os.access(directory, os.W_OK):
-        print(f"❌ Error: Directory {directory} is not writable!")
-        print("Please check permissions and try again.")
+# Create all user-writable directories on startup
+for directory in [USER_DATA_DIR, DATA_DIR, LOGS_DIR, OUTPUT_DIR, RESUMES_DIR, COVER_LETTERS_DIR]:
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        # Verify directory is writable
+        if not os.access(directory, os.W_OK):
+            raise OSError(f"Directory {directory} is not writable!")
+    except (OSError, PermissionError) as e:
+        print(f"❌ CRITICAL ERROR: Could not create or write to required directory: {directory}")
+        print(f"   Reason: {e}")
+        print("   Please check permissions and try again.")
         sys.exit(1)
+
+
+# --- Two-Tier .env Loading ---
+# 1. Look for a .env file in the user's data directory (for user overrides)
+# 2. Fall back to the bundled .env.example (for default settings)
+env_paths_to_check = [
+    USER_DATA_DIR / '.env',
+    BASE_DIR / '.env.example' # Bundled fallback
+]
+
+loaded_env = False
+for env_path in env_paths_to_check:
+    if env_path.exists():
+        print(f"ℹ️ Loading configuration from: {env_path}")
+        load_dotenv(env_path)
+        loaded_env = True
+        break
+
+if not loaded_env:
+    print("❌ CRITICAL: No .env or .env.example file found. Please create one.")
+    sys.exit(1)
 
 
 class JobSearchConfig(BaseSettings):
     """
     Pydantic model for job search configuration with validation.
     """
-
     # --- API Keys ---
     gemini_api_key: str = Field(..., alias="GEMINI_API_KEY", description="Google Gemini API Key")
     scraper_api_key: Optional[str] = Field(None, alias="SCRAPER_API_KEY", description="ScraperAPI Key (Optional)")
@@ -56,16 +92,16 @@ class JobSearchConfig(BaseSettings):
 
     # --- Logging ---
     log_level: str = Field("INFO", alias="LOG_LEVEL")
+    model: str = Field("gemini-1.5-flash", alias="MODEL")
 
     class Config:
-        env_file = ".env"
+        # We no longer specify env_file here since we load it manually above
         env_file_encoding = "utf-8"
         case_sensitive = False
 
     @field_validator("gemini_api_key")
     @classmethod
     def validate_gemini_key(cls, v: str) -> str:
-        """Validate Gemini API key format (strict check for common developer key)"""
         if not v or not v.startswith("AIza"):
             raise ValueError("GEMINI_API_KEY must be a valid Google API key starting with 'AIza'")
         if len(v) != 39:
@@ -75,7 +111,6 @@ class JobSearchConfig(BaseSettings):
     @field_validator("scraper_api_key")
     @classmethod
     def validate_scraper_key(cls, v: Optional[str]) -> Optional[str]:
-        """Validate ScraperAPI key format if provided"""
         if v and (len(v) < 20 or not v[0].isalpha()):
             raise ValueError("SCRAPER_API_KEY appears to be invalid format")
         return v
@@ -93,7 +128,7 @@ except ValidationError as e:
     sys.exit(1)
 
 
-# Export configuration values for backward compatibility and quick access
+# --- Export configuration values for backward compatibility and quick access ---
 GEMINI_API_KEY: str = config.gemini_api_key
 SCRAPER_API_KEY: Optional[str] = config.scraper_api_key
 JOB_LOCATION: str = config.job_location
@@ -109,176 +144,57 @@ YOUR_INFO: Dict[str, str] = {
     "location": config.job_location,
 }
 
+
 # --- Core Application Constants ---
 
-# Job Search Keywords (Optimized for AI/Architectural Transition)
-JOB_KEYWORDS: List[str] = [
-    "IT Infrastructure Architect",
-    "Senior Infrastructure Architect",
-    "AI Governance",
-    "ISO 42001",
-    "Cloud Infrastructure Architect",
-    "Systems Architect",
-    "Service Desk Manager",
-    "Technical Support Manager",
-]
-
-# Database
+# Database (now points to user-writable directory)
 DATABASE_PATH: Path = DATA_DIR / "job_applications.db"
 
-# Logging
+# Logging (now points to user-writable directory)
 LOG_FILE: Path = LOGS_DIR / "job_application.log"
 LOG_LEVEL: str = config.log_level
 
+# Job Search Keywords
+JOB_KEYWORDS: List[str] = [
+    "IT Infrastructure Architect", "Senior Infrastructure Architect", "AI Governance",
+    "ISO 42001", "Cloud Infrastructure Architect", "Systems Architect",
+    "Service Desk Manager", "Technical Support Manager",
+]
+
 # Scraping Settings
 SCRAPING: Dict[str, Any] = {
-    "headless": True,
-    "timeout": 30000,  # milliseconds
-    "delay_between_requests": 2,  # seconds
-    "max_retries": 3,
-    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "headless": True, "timeout": 30000, "delay_between_requests": 2,
+    "max_retries": 3, "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 }
 
 # Matching Settings
 MATCHING: Dict[str, Any] = {
     "threshold": MATCH_THRESHOLD,
-    # High weights ensure alignment with core resume sections is prioritized
     "weights": {"skills": 0.40, "experience": 0.40, "keywords": 0.20},
-    "experience_level_multiplier": 0.85,  # Applied if level doesn't match
+    "experience_level_multiplier": 0.85,
 }
 
-# Tailoring Settings
-TAILORING: Dict[str, Any] = {
-    "max_tokens": 4000,
-    "temperature": 0.7,
-    "model": "gemini-2.5-flash-preview-09-2025", # Use the correct model name for grounding/structured output
-}
+# --- Resume Data Loading (now uses get_base_path) ---
+def load_resume_data() -> Dict[str, Any]:
+    """Loads the resume data from the bundled JSON file and injects personal info."""
+    resume_file = BASE_DIR / "resume.json"
+    if not resume_file.exists():
+        print(f"❌ CRITICAL: resume.json not found in the application directory! Expected at: {resume_file}")
+        sys.exit(1)
 
-# Resume Data Structure
-RESUME_DATA: Dict[str, Any] = {
-    "personal": YOUR_INFO,
-    "summary": "Senior IT Infrastructure Architect with 20+ years bridging legacy systems and modern cloud platforms. Certified in AI governance (ISO/IEC 42001), generative AI, and cloud fundamentals.",
-    "skills": {
-        "ai_cloud": [
-            "AI Governance",
-            "ISO/IEC 42001",
-            "Prompt Engineering",
-            "AWS Cloud Infrastructure",
-            "Generative AI",
-        ],
-        "infrastructure_security": [
-            "Network Security",
-            "Cisco Meraki",
-            "Identity & Access Management",
-            "Active Directory",
-            "VPN Configuration",
-            "Firewall Configuration",
-        ],
-        "service_leadership": [
-            "Help Desk Leadership",
-            "SLA Optimization",
-            "Technical Training",
-            "Team Leadership",
-            "Tier 1-3 Support",
-        ],
-        "technical": [
-            "Python",
-            "Linux",
-            "Windows Server",
-            "CAD/CAM Systems",
-            "Automated Testing",
-        ],
-    },
-    "experience": [
-        {
-            "company": "CIMSystem",
-            "title": "Digital Dental Technical Specialist",
-            "dates": "2018-2025",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Led 10 person help desk supporting ~150 dealer partners, managing CAD/CAM systems and milling machines",
-                "Built dealer enablement ecosystem: delivered MillBox 101 program, reducing time-to-first-mill by 50%",
-                "Presented technical sessions at Lab Day West conventions (2023-2024) for audiences of 100+ professionals",
-            ],
-            "skills_used": [
-                "Help Desk Leadership",
-                "Technical Training",
-                "Knowledge Base Architecture",
-                "Team Leadership",
-            ],
-        },
-        {
-            "company": "AccuCode",
-            "title": "Network Architect",
-            "dates": "2017-2018",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Engineered secure network architecture with Cisco Meraki and Linux imaging, cutting deployment time by 50%",
-                "Implemented VPN and firewall configurations supporting distributed workforce",
-                "Served as Tier 3 escalation support for field agents",
-            ],
-            "skills_used": [
-                "Network Security",
-                "Cisco Meraki",
-                "VPN Configuration",
-                "Tier 3 Support",
-            ],
-        },
-        {
-            "company": "CompuCom (Contract: Booz Allen Hamilton)",
-            "title": "Service Desk Analyst and Trainer",
-            "dates": "2013-2017",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Delivered Tier 1-2 support for 1,000+ federal and enterprise users",
-                "Achieved 90% first-contact resolution, reducing escalations",
-                "Developed training curriculum and mentored analysts",
-            ],
-            "skills_used": [
-                "Tier 1-2 Support",
-                "Active Directory",
-                "Training Curriculum Development",
-            ],
-        },
-    ],
-    "projects": [
-        {
-            "name": "AI Triage Bot Prototype",
-            "github": "github.com/Micouwr/AI-TRIAGE_Bot",
-            "dates": "November 2025-Present",
-            "description": "Developed prototype ticket classification engine in Python aligned with ISO/IEC 42001 transparency principles",
-            "achievements": [
-                "Designed modular system for intelligent routing and PII detection",
-                "Implemented automated testing with assertion-based validation",
-            ],
-        }
-    ],
-    "certifications": [
-        {
-            "name": "ISO/IEC 42001:2023 – AI Management System Fundamentals",
-            "issuer": "Alison",
-            "date": "November 2025",
-        },
-        {"name": "AWS Cloud Practitioner Essentials", "issuer": "AWS", "date": "2025"},
-        {"name": "Google AI Essentials", "issuer": "Coursera", "date": "2025"},
-        {"name": "Generative AI Fundamentals", "issuer": "Databricks", "date": "2025"},
-        {"name": "CompTIA A+", "issuer": "CompTIA", "status": "Active"},
-    ],
-    "education": [
-        {
-            "institution": "Sullivan University",
-            "program": "CodeLouisville Graduate – Front-End Web Development",
-        },
-        {
-            "institution": "Western Kentucky University",
-            "program": "General Studies Coursework",
-        },
-    ],
-}
+    try:
+        with open(resume_file, 'r', encoding='utf-8') as f:
+            import json
+            data = json.load(f)
 
-def validate_config() -> bool:
-    """ Legacy validation function - now handled by Pydantic """
-    return True
+        # Inject the personal information from the validated config
+        data["personal"] = YOUR_INFO
+        return data
+    except Exception as e:
+        print(f"❌ CRITICAL: Failed to load or parse resume.json: {e}")
+        sys.exit(1)
+
+RESUME_DATA: Dict[str, Any] = load_resume_data()
 
 def get_config() -> JobSearchConfig:
     """ Get the Pydantic configuration object """

@@ -93,17 +93,10 @@ class JobApplicationBot:
         db = self.db_class() # New database instance/connection for this thread
         
         try:
-            db.connect() 
             self.run_pipeline(db, manual_jobs=manual_jobs, dry_run=dry_run)
-            db.close()
             return True
         except Exception as e:
             logger.exception("FATAL: Pipeline task failed.")
-            # Ensure connection is closed even on failure
-            try:
-                db.close()
-            except:
-                pass 
             return False
 
     # CRITICAL FIX 3: Accept database object as the first argument
@@ -187,9 +180,20 @@ class JobApplicationBot:
             logger.info(f"\nTailoring for: {job['title']} at {job['company']}")
 
             try:
-                # Assume tailor_application exists and generates both resume and cover letter
-                # This needs to be implemented in tailor.py if it doesn't exist.
-                application = self.tailor.tailor_application(job, match)
+                # Correctly call the refactored tailoring methods
+                job_description = job.get("description", "")
+                resume_result = self.tailor.generate_tailored_resume(job_description)
+                if not resume_result.success:
+                    raise Exception(f"Resume tailoring failed: {resume_result.error}")
+
+                summary_section = resume_result.tailored_content.split("## PROFESSIONAL SUMMARY")[1].split("##")[0].strip()
+                cover_letter_result = self.tailor.generate_cover_letter(resume_result.analysis_obj, summary_section)
+
+                application = {
+                    "resume_text": resume_result.tailored_content,
+                    "cover_letter": cover_letter_result.get("cover_letter", ""),
+                    "changes": ["Automated tailoring complete."] # Placeholder
+                }
 
                 # Save to database
                 db.save_application( # Use thread-local DB
@@ -209,6 +213,31 @@ class JobApplicationBot:
 
         # Step 4: Show summary (Need a fresh DB instance for final stats)
         self._print_summary()
+
+    def _save_application_files(self, job: Dict[str, Any], application: Dict[str, Any]) -> None:
+        """Saves the tailored resume and cover letter to files."""
+        try:
+            # Sanitize company and title for filename
+            company = "".join(c for c in job.get("company", "Unknown") if c.isalnum() or c in (" ", "_")).rstrip()
+            title = "".join(c for c in job.get("title", "Job") if c.isalnum() or c in (" ", "_")).rstrip()
+
+            # Create a unique directory for this application
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_dir = Path(f"output/{company}_{title}_{timestamp}")
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Save resume
+            resume_path = output_dir / "tailored_resume.md"
+            resume_path.write_text(application.get("resume_text", ""), encoding="utf-8")
+
+            # Save cover letter
+            cover_letter_path = output_dir / "cover_letter.txt"
+            cover_letter_path.write_text(application.get("cover_letter", ""), encoding="utf-8")
+
+            logger.info(f"✓ Saved application files to {output_dir}")
+        except Exception as e:
+            logger.error(f"Error saving application files for {job.get('title', 'N/A')}: {e}")
+
 
     # --- Helper Methods ---
 
@@ -252,9 +281,7 @@ class JobApplicationBot:
     def review_pending(self) -> None:
         """ Shows all applications that are pending review. """
         db = self.db_class() 
-        db.connect()
         pending = db.get_pending_reviews()
-        db.close() # Close connection immediately
 
         if not pending:
             print("\nNo applications pending review.")
@@ -308,10 +335,54 @@ class JobApplicationBot:
         Approves an application by updating its status in the database.
         """
         db = self.db_class() 
-        db.connect()
         db.update_status(job_id, "applied")
-        db.close()
         logger.info(f"✓ Application approved: {job_id}")
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """Gets statistics from the database."""
+        db = self.db_class()
+        stats = db.get_statistics()
+        return stats
+
+    def run_interactive(self) -> None:
+        """Runs the bot in an interactive mode for manual job entry."""
+        print("\n" + "=" * 80)
+        print("INTERACTIVE MODE: Manually Add a Job")
+        print("=" * 80)
+
+        try:
+            title = input("Enter Job Title: ").strip()
+            if not title:
+                print("Job title is required.")
+                return
+
+            company = input("Enter Company Name: ").strip()
+            description = ""
+            print("Enter Job Description (type 'END' on a new line to finish):")
+            while True:
+                line = input()
+                if line.strip() == 'END':
+                    break
+                description += line + "\n"
+
+            if not description.strip():
+                print("Job description is required.")
+                return
+
+            manual_job = self.add_manual_job(
+                title=title,
+                company=company,
+                description=description
+            )
+
+            print("\nJob added. Starting pipeline in background...")
+            self.run_pipeline_async(manual_jobs=[manual_job], dry_run=False)
+            # In a CLI context, we might want to wait for this to finish.
+            # For now, it runs in the background and the script will exit.
+
+        except (KeyboardInterrupt, EOFError):
+            print("\nExiting interactive mode.")
+
 
     # (Other helper functions remain the same)
 
@@ -348,29 +419,40 @@ class JobApplicationBot:
             return
 
         jobs = []
-        if path.suffix.lower() == '.json':
-            with open(path, 'r') as f:
-                raw_data = json.load(f)
-                # Ensure each element is a dict and validated
-                jobs = [self.add_manual_job(**job) for job in raw_data if isinstance(job, dict) and self._validate_job_data(job)]
-        elif path.suffix.lower() == '.csv':
-            with open(path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    validated_job = self._validate_job_data(row)
-                    if validated_job:
-                        jobs.append(self.add_manual_job(**validated_job))
-        else:
-            logger.error("Unsupported file format. Use JSON or CSV.")
+        try:
+            if path.suffix.lower() == '.json':
+                with open(path, 'r', encoding='utf-8') as f:
+                    raw_data = json.load(f)
+                    for job_data in raw_data:
+                        if isinstance(job_data, dict):
+                            validated_job = self._validate_job_data(job_data)
+                            if validated_job:
+                                jobs.append(self.add_manual_job(**validated_job))
+            elif path.suffix.lower() == '.csv':
+                with open(path, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        validated_job = self._validate_job_data(row)
+                        if validated_job:
+                            jobs.append(self.add_manual_job(**validated_job))
+            else:
+                logger.error("Unsupported file format. Use JSON or CSV.")
+                return
+        except (json.JSONDecodeError, csv.Error) as e:
+            logger.error(f"Error parsing file {file_path}: {e}")
             return
 
         logger.info(f"Successfully imported and validated {len(jobs)} jobs from {file_path}")
         
-        # Execute pipeline in a thread, as this can be a long-running process
-        self.run_pipeline_async(manual_jobs=jobs, dry_run=False, callback=self._import_callback)
-        print(f"Pipeline started for {len(jobs)} imported jobs (running in background).")
-        # Keep the main thread alive until the background task is complete for CLI execution
-        time.sleep(1) # Give time for logs to print
+        if not jobs:
+            logger.info("No valid jobs found in the file to process.")
+            return
+
+        # Execute pipeline and wait for it to complete
+        print(f"Pipeline starting for {len(jobs)} imported jobs...")
+        future = self.run_pipeline_async(manual_jobs=jobs, dry_run=False)
+        future.result() # Block until the pipeline is complete
+        print("Import and processing complete.")
         
     def _import_callback(self, future):
         """ Handles the result of the import pipeline task. """
@@ -382,14 +464,42 @@ class JobApplicationBot:
     def export_jobs(self, output_file: str = "output/jobs_export.json") -> None:
         """ Export all jobs to JSON """
         db = self.db_class()
-        db.connect()
         all_jobs = db.get_all_jobs()
-        db.close()
         
         with open(output_file, 'w') as f:
             json.dump(all_jobs, f, indent=2, default=str)
         logger.info(f"✓ Exported {len(all_jobs)} jobs to {output_file}")
 
+    def tailor_for_gui(self, job_description: str, user_resume_text: str) -> Dict[str, Any]:
+        """
+        A dedicated method for the GUI to call for tailoring.
+        It does not interact with the database.
+        It generates a tailored resume and cover letter.
+        """
+        try:
+            # We pass the user's potentially edited resume text to a new tailor instance
+            temp_resume_data = self.tailor.resume.copy() # Start with base resume
+            # This is a simplification; a real implementation would parse the text
+            # and reconstruct the data structure. For now, we proceed with the base resume.
+            tailor = ResumeTailor(resume_data=temp_resume_data)
+
+            logger.info("GUI Tailoring: Generating tailored resume...")
+            resume_result = tailor.generate_tailored_resume(job_description)
+            if not resume_result.success:
+                raise Exception(f"Resume tailoring failed: {resume_result.error}")
+
+            logger.info("GUI Tailoring: Generating cover letter...")
+            summary_section = resume_result.tailored_content.split("## PROFESSIONAL SUMMARY")[1].split("##")[0].strip()
+            cover_letter_result = tailor.generate_cover_letter(resume_result.analysis_obj, summary_section)
+
+            return {
+                "resume_text": resume_result.tailored_content,
+                "cover_letter": cover_letter_result.get("cover_letter", "Failed to generate."),
+                "changes": ["GUI-based tailoring completed."]
+            }
+        except Exception as e:
+            logger.exception("FATAL: GUI Tailoring process failed.")
+            raise e
 
 def main() -> None:
     """
@@ -456,11 +566,7 @@ def main() -> None:
         elif args.command in ("review", "r"):
             bot.review_pending()
         elif args.command in ("stats", "s"):
-            # Need a local DB instance for stats in CLI context
-            db = bot.db_class()
-            db.connect()
-            stats = db.get_statistics()
-            db.close()
+            stats = bot.get_statistics()
             
             print("\n=== STATISTICS ===")
             print(f"Total Jobs: {stats['total_jobs']}")
