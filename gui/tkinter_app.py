@@ -608,11 +608,11 @@ CERTIFICATIONS:
                 "location": "N/A",
             }
             
-            # 2. Call the full pipeline which handles matching and tailoring
-            result = self.bot.process_and_tailor(job, user_resume_text=resume_text)
+            # 2. Call the new GUI-specific tailoring method
+            result = self.bot.tailor_for_gui(job_description, user_resume_text=resume_text)
             
             # Check for specific failure case from the AI/pipeline
-            if not result.get("resume_text") or not result.get("cover_letter"):
+            if not result.get("resume_text"):
                  raise Exception("AI returned incomplete or empty tailoring results.")
 
             self.root.after(0, self.on_tailoring_complete, result, None)

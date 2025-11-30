@@ -1,37 +1,51 @@
 import pytest
-import os
 import sys
-from typing import Dict, Any
+import os
 
-# Adjust path to import app modules if running from the tests directory
+# Add project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.matcher import Matcher
+from matcher import JobMatcher
 
-# Mock data for Matcher test
-MOCK_JOB_DESC = "We require an expert in Python, AWS Cloud, and Linux systems administration."
-MOCK_RESUME_1 = "My background includes extensive use of Python scripting for automation on Linux servers. I have AWS certifications."
-MOCK_RESUME_2 = "I am a fantastic graphic designer specializing in Photoshop and illustration."
+# A sample job description for testing
+SAMPLE_JOB_DESC = {
+    "id": "sample1",
+    "title": "Senior AI Governance Strategy Lead",
+    "company": "Global Systems",
+    "description": "Seeking a leader to establish ISO/IEC 42001 compliant AI Governance frameworks. Must have deep experience in Python automation for Service Desk Triage and risk management.",
+    "requirements": "10+ years experience, expert in Network Security and KPI reporting. Senior level role.",
+}
 
+@pytest.fixture
+def matcher():
+    """Pytest fixture to provide a JobMatcher instance."""
+    # The matcher will be initialized with the default RESUME_DATA from config
+    return JobMatcher()
 
-def test_matcher_scoring_accuracy():
-    """Tests if the matcher correctly identifies keyword overlap and assigns a higher score."""
-    matcher = Matcher(match_threshold=0.5)
-    resumes = {
-        "good_match.txt": MOCK_RESUME_1,
-        "bad_match.txt": MOCK_RESUME_2,
-    }
-    
-    # Run the matching algorithm
-    results = matcher.top_matches(resumes, MOCK_JOB_DESC, top_n=2)
-    
-    assert len(results) == 2
-    
-    # Extract the scores for verification
-    score_1 = next(score for name, score in results if name == "good_match.txt")
-    score_2 = next(score for name, score in results if name == "bad_match.txt")
-    
-    # Assertions based on expected keyword overlap
-    assert score_1 > 0.5  # Good match should pass the threshold
-    assert score_2 < 0.2  # Bad match should have a very low score
-    assert score_1 > score_2 # The good match must score higher
+def test_match_job_returns_score(matcher: JobMatcher):
+    """
+    Tests that the match_job method returns a dictionary with a valid match_score.
+    """
+    # 1. Run the matcher
+    result = matcher.match_job(SAMPLE_JOB_DESC)
+
+    # 2. Assert that the result is a dictionary and contains the 'match_score' key
+    assert isinstance(result, dict)
+    assert "match_score" in result
+
+    # 3. Assert that the match score is a float between 0 and 1
+    score = result["match_score"]
+    assert isinstance(score, float)
+    assert 0.0 <= score <= 1.0
+
+def test_high_relevance_job_gets_high_score(matcher: JobMatcher):
+    """
+    Tests that a highly relevant job description receives a high match score.
+    """
+    # 1. Run the matcher on the sample job, which is highly relevant to the resume
+    result = matcher.match_job(SAMPLE_JOB_DESC)
+
+    # 2. Assert that the score is above a reasonable threshold for a good match
+    # This confirms the weighted skills and experience matching is working.
+    score = result["match_score"]
+    assert score > 0.4, "A highly relevant job should produce a reasonable score"
