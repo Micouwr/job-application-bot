@@ -1,52 +1,68 @@
 .PHONY: all clean install test build build-mac build-win package-mac
 
-# Default command
+# Default target
 all: build
 
-# Install dependencies
+# Install all dependencies (dev and runtime)
 install:
 	pip install -r requirements.txt
 	pip install -r requirements-dev.txt
-	pip install pyinstaller
+	pip install pyinstaller>=6.0.0
 
-# Clean build artifacts
+# Clean build artifacts and cache
 clean:
 	rm -rf build/ dist/
 	rm -rf *.spec
-	find . -type d -name "__pycache__" -exec rm -r {} +
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -name "*.pyc" -delete
 
-# Run tests
+# Run test suite
 test:
-	python -m pytest tests/
+	python -m pytest tests/ -v
 
-# --- Build Commands ---
+# --- Primary Build Commands ---
 
-# Generic build (defaults to mac)
-build: build-mac
+# Build for current platform
+build: clean
+	@echo "🔨 Building Job Application Bot for $(shell uname -s)..."
+	@if [ ! -f "job_application_bot.spec" ]; then \
+		echo "❌ job_application_bot.spec not found! Run: python build_standalone.py first"; \
+		exit 1; \
+	fi
+	pyinstaller --clean --noconfirm job_application_bot.spec
+	@echo "✅ Build complete in dist/ folder"
 
-# Build the macOS application bundle
-build-mac:
-	@echo "Building macOS application..."
-	pyinstaller --clean --noconfirm JobApplicationBot.spec
-	@echo "macOS build complete in dist/ folder."
+# Build for macOS (explicit)
+build-mac: clean
+	@echo "🔨 Building macOS application bundle..."
+	@if [ ! -f "job_application_bot.spec" ]; then \
+		echo "❌ job_application_bot.spec not found!"; \
+		exit 1; \
+	fi
+	pyinstaller --clean --noconfirm job_application_bot.spec
+	@echo "✅ macOS app bundle: dist/JobApplicationBot.app"
 
-# Build the Windows executable
-build-win:
-	@echo "Building Windows executable..."
-	pyinstaller --clean --noconfirm JobApplicationBot.spec
-	@echo "Windows build complete in dist/ folder."
+# Build for Windows (run from Windows)
+build-win: clean
+	@echo "🔨 Building Windows executable..."
+	@if not exist "job_application_bot.spec" ( \
+		echo ❌ job_application_bot.spec not found! & \
+		exit /b 1 \
+	)
+	pyinstaller --clean --noconfirm job_application_bot.spec
+	@echo "✅ Windows executable: dist\JobApplicationBot\JobApplicationBot.exe"
 
-# --- Packaging Commands (macOS Example) ---
+# --- Packaging (macOS only) ---
 
-# Create a DMG for macOS distribution (requires create-dmg)
+# Create DMG installer for macOS (requires: brew install create-dmg)
 package-mac: build-mac
-	@echo "Creating DMG package for macOS..."
+	@echo "📦 Creating DMG package for macOS..."
 	@if ! command -v create-dmg &> /dev/null; then \
-		echo "Warning: create-dmg command not found. Skipping DMG creation."; \
-		echo "Install with: brew install create-dmg"; \
+		echo "⚠️  create-dmg not found. Install with: brew install create-dmg"; \
+		echo "   Skipping DMG creation..."; \
 		exit 0; \
 	fi
-	create-dmg \
+	@create-dmg \
 		--volname "Job Application Bot" \
 		--window-pos 200 120 \
 		--window-size 800 400 \
@@ -54,6 +70,17 @@ package-mac: build-mac
 		--icon "JobApplicationBot.app" 200 190 \
 		--hide-extension "JobApplicationBot.app" \
 		--app-drop-link 600 185 \
-		"dist/JobApplicationBot.dmg" \
+		"dist/JobApplicationBot_v2.0.dmg" \
 		"dist/JobApplicationBot.app"
-	@echo "DMG package created successfully."
+	@echo "✅ DMG package created: dist/JobApplicationBot_v2.0.dmg"
+
+# Quick test run
+run:
+	python gui/tkinter_app.py
+
+# Development install (with pre-commit hooks)
+dev-install:
+	pip install -r requirements.txt
+	pip install -r requirements-dev.txt
+	pip install pyinstaller>=6.0.0 pre-commit
+	pre-commit install
