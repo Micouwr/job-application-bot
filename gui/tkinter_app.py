@@ -1,6 +1,6 @@
 """
-Tkinter GUI for the Job Application Bot.
-Enhanced with resume upload, selection, and management.
+Tkinter GUI for the Job Application Bot - Production Version
+Enhanced with thread-safe operations and resume management
 """
 
 import sys
@@ -34,10 +34,8 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-
 class ProgressDialog(tk.Toplevel):
     """Modal progress dialog for long-running operations."""
-
     def __init__(self, parent, title="Processing..."):
         super().__init__(parent)
         self.title(title)
@@ -63,12 +61,9 @@ class ProgressDialog(tk.Toplevel):
         self.progress.stop()
         self.destroy()
 
-
 class JobAppTkinter:
-    """
-    Main application window for the Job Application Bot, built with Tkinter.
-    """
-
+    """Main application window for the Job Application Bot."""
+    
     def __init__(self, root: tk.Tk, bot: JobApplicationBot, db: JobDatabase):
         self.root = root
         self.bot = bot
@@ -76,27 +71,28 @@ class JobAppTkinter:
         self.root.title("Job Application Bot - AI Resume Tailorer")
         self.root.geometry("1400x900")
 
-        # Use USER_DATA_DIR for all user-facing files
-        self.resume_dir = USER_DATA_DIR / "resumes"
-        self.resume_dir.mkdir(exist_ok=True, parents=True)
-        self.current_resume_path = None
-
         # Thread-safe queue for AI results
         self.tailoring_queue = queue.Queue()
         self.progress_dialog = None
 
-        # Widgets to manage during tailoring (must be initialized to None first)
+        # Widget references
         self.tailor_button = None
         self.clear_button = None
         self.job_text = None
         self.resume_text = None
         self.save_output_button = None
+        self.tailored_resume_text = None
+        self.cover_letter_text = None
+        self.status_var = None
 
-        # Create default resume if none exists
-        self._ensure_default_resume()
+        # Resume management
+        self.resume_dir = USER_DATA_DIR / "resumes"
+        self.resume_dir.mkdir(exist_ok=True, parents=True)
+        self.current_resume_path = None
 
+        self._create_default_resume()
         self._init_ui()
-
+        
         if sys.platform == "darwin":
             self.root.createcommand("tk::mac::ShowPreferences", self.open_preferences)
 
@@ -105,7 +101,6 @@ class JobAppTkinter:
         env_path = USER_DATA_DIR / ".env"
         if not env_path.exists():
             shutil.copy(BASE_DIR / ".env.example", env_path)
-
         self._open_file_externally(env_path)
 
     def _open_file_externally(self, path):
@@ -121,10 +116,9 @@ class JobAppTkinter:
             messagebox.showerror("Error", f"Could not open '{path}':\n{e}")
             logging.error(f"Failed to open external file/dir: {e}")
 
-    def _ensure_default_resume(self):
+    def _create_default_resume(self):
         """Creates a default resume template if no resumes exist."""
         default_path = self.resume_dir / "default_resume.txt"
-
         if not any(self.resume_dir.glob("*.txt")):
             default_content = """[Your Name]
 Email: [your.email@example.com]
@@ -153,14 +147,13 @@ A brief summary of your professional background and skills.
             active_path = self.resume_dir / "active_resume.txt"
             active_path.write_text(str(default_path.resolve()))
             self.current_resume_path = default_path
-
             messagebox.showinfo(
                 "Welcome",
                 "Created a default resume template. Please update it in the 'Manage Resumes' tab.",
             )
 
     def _init_ui(self):
-        """Initializes the user interface."""
+        """Initialize user interface with thread-safe components."""
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("TNotebook.Tab", font=("Arial", 11, "bold"))
@@ -193,9 +186,7 @@ A brief summary of your professional background and skills.
         notebook.add(stats_frame, text="📊 Statistics")
         self._create_stats_tab(stats_frame)
 
-        self.status_var = tk.StringVar(
-            value="Ready - Check your active resume in the Manage Resumes tab."
-        )
+        self.status_var = tk.StringVar(value="Ready - Check your active resume.")
         self.status_bar = ttk.Label(
             self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W
         )
@@ -205,6 +196,7 @@ A brief summary of your professional background and skills.
         main_frame = ttk.Frame(parent, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
+        # Resume selection frame
         resume_select_frame = ttk.LabelFrame(
             main_frame, text="Selected Resume", padding="5"
         )
@@ -225,6 +217,7 @@ A brief summary of your professional background and skills.
         )
         refresh_btn.pack(side=tk.RIGHT)
 
+        # Main content area
         center_frame = ttk.Frame(main_frame)
         center_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
@@ -234,6 +227,7 @@ A brief summary of your professional background and skills.
         right_frame = ttk.Frame(center_frame)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
+        # Resume input
         resume_input_frame = ttk.LabelFrame(
             input_frame, text="Active Resume Text (Editable)", padding="5"
         )
@@ -242,6 +236,7 @@ A brief summary of your professional background and skills.
         self.resume_text.pack(fill=tk.BOTH, expand=True)
         self.resume_text.insert("1.0", "Loading resume content...")
 
+        # Job description
         job_frame = ttk.LabelFrame(
             input_frame, text="Job Description (Paste Here)", padding="5"
         )
@@ -250,6 +245,7 @@ A brief summary of your professional background and skills.
         self.job_text.pack(fill=tk.BOTH, expand=True)
         self.job_text.insert("1.0", "Paste the complete job description here...")
 
+        # Tailored resume output
         resume_out_frame = ttk.LabelFrame(
             right_frame, text="✨ Tailored Resume", padding="5"
         )
@@ -260,6 +256,7 @@ A brief summary of your professional background and skills.
         self.tailored_resume_text.pack(fill=tk.BOTH, expand=True)
         self.tailored_resume_text.config(state=tk.DISABLED)
 
+        # Cover letter output
         cl_out_frame = ttk.LabelFrame(right_frame, text="✨ Cover Letter", padding="5")
         cl_out_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
         self.cover_letter_text = tk.Text(
@@ -268,6 +265,7 @@ A brief summary of your professional background and skills.
         self.cover_letter_text.pack(fill=tk.BOTH, expand=True)
         self.cover_letter_text.config(state=tk.DISABLED)
 
+        # Button frame
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(10, 0))
 
@@ -383,7 +381,6 @@ A brief summary of your professional background and skills.
         main_pane = ttk.PanedWindow(parent, orient=tk.VERTICAL)
         main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # --- Top Pane (Controls & TreeView) ---
         top_pane = ttk.Frame(main_pane)
         main_pane.add(top_pane, weight=3)
 
@@ -405,7 +402,6 @@ A brief summary of your professional background and skills.
         )
         export_btn.pack(side=tk.LEFT, padx=5)
 
-        # Treeview for jobs list
         tree_frame = ttk.Frame(top_pane)
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -431,7 +427,6 @@ A brief summary of your professional background and skills.
         self.jobs_tree.configure(yscrollcommand=tree_scroll.set)
         self.jobs_tree.bind("<<TreeviewSelect>>", self._on_job_select)
 
-        # --- Bottom Pane (Details) ---
         bottom_pane = ttk.Frame(main_pane)
         main_pane.add(bottom_pane, weight=2)
 
@@ -497,7 +492,7 @@ A brief summary of your professional background and skills.
 
     def _load_selected_resume(self):
         if not self.resume_text:
-            return  # Widget not initialized yet
+            return
 
         try:
             active_path_file = self.resume_dir / "active_resume.txt"
@@ -639,17 +634,13 @@ A brief summary of your professional background and skills.
                 self.resume_listbox.insert(tk.END, "No resumes found. Upload one!")
                 return
 
-            active_resume_name = (
-                self.current_resume_path.name if self.current_resume_path else ""
-            )
+            active_name = self.current_resume_path.name if self.current_resume_path else ""
             for resume in resumes:
                 display_name = resume.name
-                if resume.name == active_resume_name:
+                if resume.name == active_name:
                     display_name = f"✅ {resume.name} (ACTIVE)"
                     self.resume_listbox.insert(tk.END, display_name)
-                    self.resume_listbox.itemconfig(
-                        tk.END, {"bg": "#e8f5e9", "fg": "green"}
-                    )
+                    self.resume_listbox.itemconfig(tk.END, {"bg": "#e8f5e9", "fg": "green"})
                 else:
                     self.resume_listbox.insert(tk.END, display_name)
         except Exception as e:
@@ -670,9 +661,7 @@ A brief summary of your professional background and skills.
         try:
             if resume_path.exists():
                 content = resume_path.read_text(encoding="utf-8")
-                preview = content[:2000] + (
-                    "\n\n... [TRUNCATED] ..." if len(content) > 2000 else ""
-                )
+                preview = content[:2000] + ("\n\n... [TRUNCATED] ..." if len(content) > 2000 else "")
                 self.resume_preview.insert(tk.END, preview)
             else:
                 self.resume_preview.insert(tk.END, "File not found!")
@@ -682,92 +671,98 @@ A brief summary of your professional background and skills.
         finally:
             self.resume_preview.config(state=tk.DISABLED)
 
+    # --- Thread-Safe Tailoring Operations ---
+    
     def start_tailoring(self):
+        """Start tailoring in a background thread (main thread only)"""
         job_description = self.job_text.get("1.0", tk.END).strip()
         resume_text = self.resume_text.get("1.0", tk.END).strip()
 
-        if (
-            not job_description
-            or "paste the complete job description here..." in job_description.lower()
-        ):
-            messagebox.showwarning(
-                "Input Required", "Please paste a job description."
-            )
+        if not job_description or "paste the complete job description" in job_description.lower():
+            messagebox.showwarning("Input Required", "Please paste a job description.")
             return
 
-        if (
-            not self.current_resume_path
-            or not self.current_resume_path.exists()
-            or len(resume_text) < 100
-        ):
-            messagebox.showerror(
-                "Resume Error",
-                "Active resume is missing or too short. Check 'Manage Resumes' tab.",
-            )
+        if not self.current_resume_path or len(resume_text) < 100:
+            messagebox.showerror("Resume Error", "Active resume is missing or too short.")
             return
 
         self.status_var.set("🤖 AI is tailoring your application...")
         self.set_ui_enabled(False)
         self.progress_dialog = ProgressDialog(self.root, "Tailoring Application")
 
+        # Pass data to thread - do NOT access GUI from thread
+        thread_data = {
+            'job_description': job_description,
+            'resume_text': resume_text,
+            'bot': self.bot
+        }
+        
         threading.Thread(
-            target=self.tailor_application_thread,
-            args=(job_description, resume_text),
+            target=self._worker_thread,
+            args=(thread_data, self.tailoring_queue),
             daemon=True,
         ).start()
 
-        self.root.after(100, self._check_tailoring_queue)
+        self.root.after(100, self._process_queue)
 
-    def _check_tailoring_queue(self):
+    def _worker_thread(self, data: dict, result_queue: queue.Queue):
+        """Background worker - NO GUI ACCESS HERE"""
         try:
-            result = self.tailoring_queue.get_nowait()
-            if isinstance(result, Exception):
-                self.on_tailoring_complete(None, result)
-            else:
-                self.on_tailoring_complete(result, None)
-        except queue.Empty:
-            self.root.after(100, self._check_tailoring_queue)
-
-    def tailor_application_thread(self, job_description, resume_text):
-        try:
-            result = self.bot.tailor_for_gui(job_description, resume_text)
+            result = data['bot'].tailor_for_gui(
+                data['job_description'], 
+                data['resume_text']
+            )
             if not result or not result.get("resume_text"):
-                raise ValueError("AI returned incomplete or empty results.")
-            self.tailoring_queue.put(result)
+                raise ValueError("AI returned incomplete results.")
+            result_queue.put(('success', result))
         except Exception as e:
-            logging.error(f"Tailoring Thread Error: {e}", exc_info=True)
-            self.tailoring_queue.put(e)
+            logging.error(f"Worker thread error: {e}", exc_info=True)
+            result_queue.put(('error', str(e)))
 
-    def on_tailoring_complete(self, result, error):
-        if self.progress_dialog:
-            self.progress_dialog.close()
-            self.progress_dialog = None
+    def _process_queue(self):
+        """Process results from worker thread (main thread only)"""
+        try:
+            status, data = self.tailoring_queue.get_nowait()
+            
+            if self.progress_dialog:
+                self.progress_dialog.close()
+                self.progress_dialog = None
+            self.set_ui_enabled(True)
+            
+            if status == 'success':
+                self._update_gui_with_results(data)
+            elif status == 'error':
+                self._show_error(data)
+            
+        except queue.Empty:
+            # Check again later
+            self.root.after(100, self._process_queue)
 
-        self.set_ui_enabled(True)
+    def _update_gui_with_results(self, result: dict):
+        """Update GUI with tailoring results"""
+        self.save_output_button.config(state=tk.NORMAL)
+        
         for widget in [self.tailored_resume_text, self.cover_letter_text]:
             widget.config(state=tk.NORMAL)
             widget.delete("1.0", tk.END)
 
-        if error:
-            messagebox.showerror(
-                "❌ Tailoring Error", f"Failed to tailor application:\n{error}"
-            )
-            self.status_var.set("Tailoring failed. Check logs for details.")
-        else:
-            self.save_output_button.config(state=tk.NORMAL)
-            self.tailored_resume_text.insert(
-                tk.END, result.get("resume_text", "No resume generated.")
-            )
-            self.cover_letter_text.insert(
-                tk.END, result.get("cover_letter", "No cover letter generated.")
-            )
-            self.status_var.set("✅ Application tailored successfully! Ready to save.")
-            messagebox.showinfo(
-                "Success", "Application tailored! Review and save the outputs."
-            )
-
+        self.tailored_resume_text.insert(
+            tk.END, result.get("resume_text", "No resume generated.")
+        )
+        self.cover_letter_text.insert(
+            tk.END, result.get("cover_letter", "No cover letter generated.")
+        )
+        
         for widget in [self.tailored_resume_text, self.cover_letter_text]:
             widget.config(state=tk.DISABLED)
+
+        self.status_var.set("✅ Application tailored successfully!")
+        messagebox.showinfo("Success", "Application tailored! Review and save.")
+
+    def _show_error(self, error_msg: str):
+        """Show error dialog"""
+        messagebox.showerror("❌ Tailoring Error", f"Failed to tailor application:\n{error_msg}")
+        self.status_var.set("Tailoring failed. Check logs.")
 
     def save_outputs(self):
         self.tailored_resume_text.config(state=tk.NORMAL)
@@ -806,9 +801,7 @@ A brief summary of your professional background and skills.
 
             path = Path(file_path)
             if path.suffix.lower() == ".docx":
-                # Lazy import to speed up initial load
                 import docx as python_docx
-
                 doc = python_docx.Document()
                 doc.add_heading("Tailored Resume", level=1)
                 doc.add_paragraph(resume_content)
@@ -875,15 +868,13 @@ A brief summary of your professional background and skills.
                     job.get("title", "N/A"),
                     job.get("location", "N/A"),
                 )
-                self.jobs_tree.insert(
-                    "", tk.END, values=values, iid=job.get("id")
-                )  # Use DB id as item id
+                self.jobs_tree.insert("", tk.END, values=values, iid=job.get("id"))
             self.status_var.set(f"Loaded {len(jobs)} jobs.")
         except Exception as e:
             logging.error(f"Error loading jobs: {e}")
             messagebox.showerror("Database Error", f"Could not load jobs: {e}")
         finally:
-            self._on_job_select(None) # Clear details pane
+            self._on_job_select(None)
 
     def _sort_tree(self, col, reverse):
         """Sort treeview contents when a column header is clicked."""
@@ -891,17 +882,13 @@ A brief summary of your professional background and skills.
             (self.jobs_tree.set(child, col), child)
             for child in self.jobs_tree.get_children("")
         ]
-        # A bit of a hack for numeric sort on score
         if col == "score":
-            data.sort(
-                key=lambda t: float(t[0].replace("%", "")), reverse=reverse
-            )
+            data.sort(key=lambda t: float(t[0].replace("%", "")), reverse=reverse)
         else:
             data.sort(reverse=reverse)
 
         for index, (val, child) in enumerate(data):
             self.jobs_tree.move(child, "", index)
-        # Toggle sort direction for next click
         self.jobs_tree.heading(col, command=lambda: self._sort_tree(col, not reverse))
 
     def _on_job_select(self, event):
@@ -992,16 +979,10 @@ A brief summary of your professional background and skills.
                 stats_content += "No recent activity.\n"
 
             self.stats_text.insert(tk.END, stats_content)
-
-            self.stats_text.tag_configure(
-                "header", font=("Arial", 13, "bold"), foreground="#34495e"
-            )
-            # Apply tags as needed...
-
             self.status_var.set("Statistics refreshed")
         except Exception as e:
             logging.error(f"Error loading stats: {e}")
-            self.stats_text.insert("1.0", f"Error loading stats: {e}")
+            self.stats_text.insert(tk.END, f"Error loading stats: {e}")
         finally:
             self.stats_text.config(state=tk.DISABLED)
 
@@ -1055,19 +1036,12 @@ A brief summary of your professional background and skills.
             if widget:
                 widget.config(state=state)
 
-        # Save button is handled separately
-        if enabled:
-            # If disabling, always disable save. If enabling, do nothing here.
-            # `on_tailoring_complete` will handle enabling it if there's content.
-            pass
-        else:
-            if self.save_output_button:
-                self.save_output_button.config(state=tk.DISABLED)
+        if not enabled and self.save_output_button:
+            self.save_output_button.config(state=tk.DISABLED)
 
 
 def main():
     root = tk.Tk()
-    # These would be properly initialized in a real scenario
     db = JobDatabase()
     bot = JobApplicationBot(db=db, resume_path=Path("dummy.txt"))
     app = JobAppTkinter(root, bot, db)
