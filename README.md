@@ -10,42 +10,53 @@ Automated job application system with **full GUI** that finds, matches, and tail
 
 ### 🖥️ **Full Desktop GUI Interface**
 - **Tabbed Interface:** Tailor, Resume Management, View Jobs, Statistics
-- **Drag & Drop Resume Upload:** Multiple resume version support
-- **Real-time Preview:** See tailored outputs instantly
-- **Progress Indicators:** Status bar with live updates
-- **Cross-platform:** Works on Windows, macOS, Linux
+- **Resume Upload:** Upload and manage multiple resume versions.
+- **Real-time Preview:** See tailored outputs instantly.
+- **Progress Indicators:** Status bar with live updates.
+- **Cross-platform:** Works on Windows, macOS, Linux.
 
 ### 🤖 **AI-Powered Automation**
-- **Intelligent Job Matching:** 80%+ threshold with fuzzy logic and weighted skills
-- **Resume Tailoring:** No fabrication - only reorders and emphasizes existing content
-- **Cover Letter Generation:** Custom letters based on job requirements
-- **Token Management:** tiktoken prevents API overflow
-- **Response Caching:** Reduces API costs and latency
+- **Intelligent Job Matching:** Sophisticated algorithm with fuzzy logic and weighted skills.
+- **Resume Tailoring:** Reorders and emphasizes existing content from your resume without fabrication.
+- **Cover Letter Generation:** Creates custom cover letters based on the job requirements.
 
 ### 💾 **Data Management**
-- **Multiple Resumes:** Upload, select, delete resume versions
-- **SQLite Database:** Full ORM with soft deletes and audit trails
-- **Application Tracking:** Complete lifecycle management
-- **Export/Import:** CSV/JSON support for job lists
-- **Automatic Backups:** Timestamped database backups
+- **Multiple Resumes:** Upload, select, and delete different resume versions.
+- **SQLite Database:** Uses a robust SQLite database with a full ORM.
+- **Application Tracking:** Manage the entire lifecycle of your job applications.
+- **Export/Import:** Export your job list to CSV/JSON.
+- **Automatic Backups:** Creates timestamped backups of your application database.
 
 ### 🛡️ **Enterprise Reliability**
-- **Custom Exceptions:** MaxRetriesExceeded, JobNotFoundError
-- **Exponential Backoff:** For API calls and user prompts
-- **Size Validation:** Prevents oversized fields from crashing
-- **Connection Pooling:** SQLAlchemy with pre-ping verification
-- **User-Agent Rotation:** Avoids bot detection
+- **Custom Exceptions:** Handles specific errors like `JobNotFoundError`.
+- **Connection Pooling:** Uses SQLAlchemy for efficient database connection management.
+- **User-Agent Rotation:** Rotates User-Agents to avoid bot detection during scraping.
 
 ---
 
-## 🚀 Quick Start (GUI Mode)
+## 🚀 Quick Start (Running from Source)
 
-### 1. Download & Install
-**Standalone Executable (Recommended):**
-- Download `JobApplicationBot_v2.0.exe` (Windows) or `JobApplicationBot.app` (macOS) from [Releases](https://github.com/Micouwr/job-application-bot/releases)
-
-**Or Run from Source:**
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/Micouwr/job-application-bot.git
 cd job-application-bot
+```
+
+### 2. Set Up Your Environment
+Create a `.env` file in the root of the project by copying the example file:
+```bash
+cp .env_example .env
+```
+Now, open the `.env` file and add your Google Gemini API key. You must also fill in your personal information (name, email, etc.).
+
+### 3. Install Dependencies
+Install the required Python packages:
+```bash
 pip install -r requirements.txt
+```
+
+### 4. Run the Application
+Launch the desktop GUI:
+```bash
+python gui_app.py
+```

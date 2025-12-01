@@ -1,0 +1,19 @@
+VSVersionInfo(
+  ffi=FixedFileInfo(filevers=(1,0,0,0), prodvers=(1,0,0,0)),
+  kids=[
+    StringFileInfo([
+      StringTable([
+        ('CompanyName', 'Micouwr'),
+        ('FileDescription', 'Job Application Bot - AI Resume Tailoring'),
+        ('FileVersion', '1.0.0'),
+        ('InternalName', 'JobApplicationBot'),
+        ('LegalCopyright', '© 2024 Micouwr'),
+        ('OriginalFilename', 'JobApplicationBot.exe'),
+        ('ProductName', 'Job Application Bot'),
+        ('ProductVersion', '1.0.0'),
+        ('Comments', 'AI-powered job application automation tool')
+      ])
+    ]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)
