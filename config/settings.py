@@ -28,10 +28,10 @@ USER_DATA_DIR = get_user_data_path()
 # Define user-writable subdirectories
 DATA_DIR: Path = USER_DATA_DIR / "data"
 LOGS_DIR: Path = USER_DATA_DIR / "logs"
-OUTPUT_DIR: Path = USER_DATA_DIR / "output"
+OUTPUT_DIR: Path = USER_DATA_DIR / "outputs"
 RESUMES_DIR: Path = USER_DATA_DIR / "resumes"
 COVER_LETTERS_DIR: Path = OUTPUT_DIR / "cover_letters"
-
+BASE_DIR = Path(__file__).resolve().parent.parent
 # Platform-specific log directory for macOS (as per best practice)
 if sys.platform == 'darwin':
     LOGS_DIR = Path.home() / 'Library' / 'Logs' / 'JobApplicationBot'
