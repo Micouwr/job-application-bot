@@ -1,22 +1,7 @@
-# Core AI & Data
+# Core runtime dependencies
 google-generativeai>=0.8.5,<1.0.0
-pydantic>=2.5.0,<3.0.0          # <-- NEW: needed for MatchResult schema in matcher.py
+pydantic>=2.5.0,<3.0.0
 pydantic-settings>=2.0.0,<3.0.0
 python-dotenv>=1.0.0,<2.0.0
-
-# Prompt Templating (New for external prompts)
 jinja2>=3.1.0,<4.0.0
-
-# CLI & Progress
 tqdm>=4.66.0,<5.0.0
-argparse  # stdlib, but explicit for clarity
-
-# Database & Files
-sqlite3  # stdlib
-pathlib  # stdlib
-
-# GUI (Tkinter) - stdlib on most platforms
-# Note: On some Linux, may need `sudo apt install python3-tk`
-
-# Testing (dev only)
-pytest>=7.4.0,<8.0.0  # From PR #11 tests overhaul
