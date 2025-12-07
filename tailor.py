@@ -1,16 +1,17 @@
-# tailor.py - Fully externalized, Gemini 2.5 Flash powered, 10/10 version
+# tailor.py - AI-powered resume + cover letter generation (robust & accurate)
 
 import logging
+import json
 from dataclasses import dataclass
 from datetime import datetime
-import hashlib
 from pathlib import Path
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
 
 from config.prompt_manager import prompts
 from config.settings import RESUME_DATA, OUTPUT_PATH
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class TailoringResult:
@@ -23,14 +24,17 @@ class TailoringResult:
 
 
 class ResumeTailor:
-    def __init__(self, resume_data: Dict = None):
+    def __init__(self, resume_data: Optional[Dict] = None):
         self.resume = resume_data or RESUME_DATA
         self.full_name = self.resume.get("name", "Candidate")
         self.base_summary = self.resume.get("summary", "")
-        self.core_skills = [s for cat in self.resume.get("core_competencies", {}).values() for s in cat]
+        self.core_skills = [
+            skill for cat in self.resume.get("core_competencies", {}).values() for skill in cat
+        ]
         self.certifications = self.resume.get("certifications", [])
         self.projects = self.resume.get("projects", [])
-        logger.info("ResumeTailor initialized - Gemini 2.5 Flash + external prompts ready")
+        self.experience = self.resume.get("experience", [])
+        logger.info("ResumeTailor initialized - Gemini 2.5 Flash + external prompts")
 
     def generate_tailored_resume(
         self,
@@ -40,8 +44,9 @@ class ResumeTailor:
         output_format: str = "markdown"
     ) -> TailoringResult:
 
-        logger.info("Starting full resume tailoring with Gemini 2.5 Flash")
+        logger.info("Starting full resume + cover letter tailoring")
 
+        total_tokens = 0
         try:
             # Auto-detect senior role
             is_senior = any(
@@ -52,60 +57,77 @@ class ResumeTailor:
             # Step 1: Extract required skills
             required_skills = prompts.extract_skills(job_description)
 
-            # Step 2: Generate full tailored resume in ONE call (best quality)
-            prompt = prompts.load("full_resume_tailor").render(
+            # Step 2: Full resume generation
+            resume_prompt = prompts.load("full_resume_tailor").render(
                 full_name=self.full_name,
                 base_summary=self.base_summary,
                 core_skills=", ".join(self.core_skills[:20]),
                 certifications=", ".join(self.certifications),
-                projects_json=str(self.projects),  # Gemini handles this fine
-                experience_json=str(self.resume.get("experience", [])),
+                projects_json=json.dumps(self.projects, ensure_ascii=False, indent=2),
+                experience_json=json.dumps(self.experience, ensure_ascii=False, indent=2),
                 job_title=job_title or "Target Role",
                 company=company or "Hiring Company",
                 job_description=job_description,
                 required_skills=", ".join(required_skills[:15])
             )
 
-            full_resume = prompts.generate(prompt, senior_voice=is_senior)
+            resume_response = prompts.generate(resume_prompt, senior_voice=is_senior)
+            resume_tokens = (
+                resume_response.usage_metadata.prompt_token_count +
+                resume_response.usage_metadata.candidates_token_count
+                if hasattr(resume_response, "usage_metadata")
+                else 0
+            )
+            total_tokens += resume_tokens
 
-            # Step 3: Generate cover letter (optional, but included)
+            # Step 3: Cover letter
             cover_prompt = prompts.load("cover_letter").render(
                 full_name=self.full_name,
                 job_title=job_title,
                 company=company,
                 key_achievements=self._extract_key_achievements(),
                 required_skills=", ".join(required_skills[:10]),
-                personal_summary=self.base_summary.split(".")[0] + "."
+                personal_summary=self.base_summary.split(".", 1)[0] + "."
             )
-            cover_letter = prompts.generate(cover_prompt, senior_voice=is_senior)
+
+            cover_response = prompts.generate(cover_prompt, senior_voice=is_senior)
+            cover_tokens = (
+                cover_response.usage_metadata.prompt_token_count +
+                cover_response.usage_metadata.candidates_token_count
+                if hasattr(cover_response, "usage_metadata")
+                else 0
+            )
+            total_tokens += cover_tokens
 
             # Combine
-            final_content = f"# TAILORED RESUME\n\n{full_resume}\n\n---\n\n# COVER LETTER\n\n{cover_letter}"
+            final_content = (
+                f"# TAILORED RESUME\n\n{resume_response.text}\n\n"
+                f"---\n\n# COVER LETTER\n\n{cover_response.text}"
+            )
 
             # Save
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            safe_title = "".join(c if c.isalnum() else "_" for c in job_title)[:30]
+            safe_title = "".join(c if c.isalnum() or c in " _-" else "_" for c in job_title)[:30]
             filename = f"tailored_{safe_title}_{timestamp}.md"
             filepath = OUTPUT_PATH / filename
             filepath.parent.mkdir(parents=True, exist_ok=True)
             filepath.write_text(final_content, encoding="utf-8")
 
-            logger.info(f"Tailored application generated: {filepath}")
+            logger.info(f"Tailored application saved: {filepath} ({total_tokens} tokens)")
             return TailoringResult(
                 success=True,
                 tailored_content=final_content,
                 file_path=str(filepath),
-                tokens_used=999,  # approximate
+                tokens_used=total_tokens,
                 sections_generated=2
             )
 
         except Exception as e:
-            logger.error(f"Tailoring failed: {e}")
-            return TailoringResult(success=False, error=str(e))
+            logger.error(f"Tailoring failed: {e}", exc_info=True)
+            return TailoringResult(success=False, error=str(e), tokens_used=total_tokens)
 
     def _extract_key_achievements(self) -> str:
-        """Pull 3 strongest achievements from experience"""
+        """Pull up to 3 strongest achievements from recent experience"""
         achievements = []
-        for exp in self.resume.get("experience", [])[:2]:
-            achievements.extend(exp.get("achievements", [])[:2])
-        return "\n".join(f"• {a}" for a in achievements[:3])
+        for exp in self.experience[:2]:
+            achievements
