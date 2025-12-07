@@ -91,7 +91,7 @@ No code changes. No rebuild. Just edit → run.
 
 ## License
 
-MIT.
+**MIT License.** This means the project is open-source and allows for use, modification, distribution, and commercial use, provided the original copyright notice and license text are included.
 
 ---
 
