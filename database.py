@@ -335,21 +335,39 @@ class JobDatabase:
         """Update job with match score and details (delegates to bulk)"""
         self.bulk_update_match_scores([(job_id, match_result)])
 
-    def save_application(self, job_id: str, resume: str, cover_letter: str, 
-                        changes: List[str]) -> bool:
-        """Save a tailored application"""
+    def save_application(self, job_id: str, tailoring_result: 'TailoringResult') -> bool:
+        """
+        Save a tailored application from TailoringResult object.
+        Extracts resume, cover letter, and metadata from the result.
+        """
         try:
             with self.get_session() as session:
-                # Truncate large text fields defensively
-                resume = resume[:5_000_000] if len(resume) > 5_000_000 else resume
-                cover_letter = cover_letter[:5_000_000] if len(cover_letter) > 5_000_000 else cover_letter
+                if not tailoring_result.success:
+                    logger.error(f"Cannot save failed tailoring for job {job_id}: {tailoring_result.error}")
+                    return False
+
+                # Extract content from combined tailored_content
+                if tailoring_result.tailored_content:
+                    parts = tailoring_result.tailored_content.split("---")
+                    resume_text = parts[0].replace("# TAILORED RESUME", "").strip() if len(parts) > 0 else ""
+                    cover_letter_text = parts[1].replace("# COVER LETTER", "").strip() if len(parts) > 1 else ""
+                else:
+                    resume_text = ""
+                    cover_letter_text = ""
+
+                # Truncate large fields
+                resume_text = resume_text[:5_000_000] if len(resume_text) > 5_000_000 else resume_text
+                cover_letter_text = cover_letter_text[:5_000_000] if len(cover_letter_text) > 5_000_000 else cover_letter_text
+
+                # Create changes summary from metadata
+                changes_summary = f"AI tailoring complete: {tailoring_result.tokens_used} tokens used"
                 
                 application = Application(
                     job_id=job_id,
-                    tailored_resume=resume,
-                    cover_letter=cover_letter,
-                    changes_summary=json.dumps(changes),
-                    status="pending_review" # Ready for the user to submit
+                    tailored_resume=resume_text,
+                    cover_letter=cover_letter_text,
+                    changes_summary=json.dumps([changes_summary]),
+                    status="pending_review"
                 )
                 session.add(application)
                 
@@ -359,7 +377,7 @@ class JobDatabase:
                     job.status = "pending_review"
                 
                 self._log_activity(session, job_id, "application_prepared", 
-                                 "Tailored application ready")
+                                 f"Tailored application ready ({tailoring_result.tokens_used} tokens)")
                 return True
         except Exception as e:
             logger.error(f"Error saving application: {e}")

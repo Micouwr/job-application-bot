@@ -609,7 +609,7 @@ CERTIFICATIONS:
             }
             
             # 2. Call the full pipeline which handles matching and tailoring
-            result = self.bot.process_and_tailor(job, user_resume_text=resume_text)
+            result = self.bot.process_and_tailor_from_gui(job, user_resume_text=resume_text)
             
             # Check for specific failure case from the AI/pipeline
             if not result.get("resume_text") or not result.get("cover_letter"):

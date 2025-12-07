@@ -29,7 +29,7 @@ from config.settings import (
 )
 from database import JobDatabase, create_backup
 from matcher import JobMatcher
-from tailor import ResumeTailor
+from tailor import ResumeTailor, TailoringResult
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
@@ -143,44 +143,67 @@ class JobApplicationBot:
         }
         return job
 
+    def process_and_tailor_from_gui(self, job: Dict, user_resume_text: str) -> Dict:
+        logger.info(f"Starting GUI-based tailoring for: {job.get('title', 'Unknown')}")
+        temp_resume_data = RESUME_DATA.copy()
+        temp_resume_data["summary"] = user_resume_text
+        matcher = JobMatcher(temp_resume_data)
+        tailor = ResumeTailor(temp_resume_data)
+        try:
+            result = tailor.generate_tailored_resume(
+                job_description=job.get("description", ""),
+                job_title=job.get("title", ""),
+                company=job.get("company", "")
+            )
+            if result.success and result.tailored_content:
+                parts = result.tailored_content.split("---")
+                resume_text = parts[0].replace("# TAILORED RESUME", "").strip()
+                cover_letter_text = parts[1].replace("# COVER LETTER", "").strip() if len(parts) > 1 else ""
+                return {"resume_text": resume_text, "cover_letter": cover_letter_text, "success": True}
+            else:
+                raise Exception(result.error or "Unknown error")
+        except Exception as e:
+            logger.error(f"Failed: {e}")
+            return {"resume_text": "", "cover_letter": "", "success": False, "error": str(e)}
+
 
 def main():
     bot = JobApplicationBot()
-    print("Job Application Bot - Manual Mode")
-    print("Paste jobs manually or import from CSV/JSON")
-    print("Type 'help' for commands\n")
-
+    print("Job Application Bot - Manual Mode\n")
     while True:
         try:
             cmd = input("> ").strip()
-            if cmd in ["quit", "exit", "q"]:
-                break
-            elif cmd == "help":
-                print("add - Add a job manually")
-                print("import <file> - Import from CSV/JSON")
-                print("run - Process all jobs")
-                print("gui - Launch GUI")
+            if cmd in ["quit", "exit", "q"]: break
+            elif cmd == "help": print("\nCommands: add, import <file>, run, gui, quit\n")
             elif cmd == "gui":
-                from app.gui import start_gui
-                start_gui()
+                try:
+                    from gui.tkinter_app import main as gui_main
+                    gui_main()
+                except Exception as e: print(f"❌ GUI failed: {e}")
                 break
             elif cmd.startswith("import "):
                 path = cmd[7:].strip()
-                # Simple import stub - expand later
-                print(f"Import from {path} not yet implemented")
+                try: print(f"Import from {path} not yet implemented")
+                except FileNotFoundError: print(f"❌ File not found: {path}")
+                except Exception as e: print(f"❌ Import failed: {e}")
             elif cmd == "add":
-                title = input("Job Title: ")
-                company = input("Company (optional): ")
-                desc = input("Job Description (paste, then Ctrl+D/Ctrl+Z):\n")
-                job = bot.add_manual_job(title, company, desc)
-                bot.run_pipeline_async([job], dry_run=False)
-                print("Job added and processing started")
+                try:
+                    title = input("Job Title: ").strip()
+                    if not title: print("❌ Title required"); continue
+                    company = input("Company (optional): ").strip()
+                    print("Description (Ctrl+D/Z to finish):")
+                    desc = "\n".join(iter(input, "")).strip()
+                    if not desc: print("❌ Description required"); continue
+                    job = bot.add_manual_job(title, company, desc)
+                    bot.run_pipeline_async([job], dry_run=False)
+                    print("✅ Job added")
+                except Exception as e: print(f"❌ Add failed: {e}")
             elif cmd == "run":
-                bot.run_pipeline_async([], dry_run=False)
-            else:
-                print("Unknown command. Type 'help'")
-        except (EOFError, KeyboardInterrupt):
-            break
+                try: bot.run_pipeline_async([], dry_run=False); print("🚀 Pipeline started")
+                except Exception as e: print(f"❌ Run failed: {e}")
+            else: print(f"❌ Unknown: '{cmd}'. Type 'help'")
+        except (EOFError, KeyboardInterrupt): print("\n👋 Goodbye!"); break
+        except Exception as e: logger.exception(f"CLI error: {e}"); print(f"\n❌ Error: {e}")
 
 
 if __name__ == "__main__":
