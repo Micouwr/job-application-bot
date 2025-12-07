@@ -1,5 +1,6 @@
 # Core AI & Data
 google-generativeai>=0.8.5,<1.0.0
+pydantic>=2.5.0,<3.0.0          # <-- NEW: needed for MatchResult schema in matcher.py
 pydantic-settings>=2.0.0,<3.0.0
 python-dotenv>=1.0.0,<2.0.0
 
