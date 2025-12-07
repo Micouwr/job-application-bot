@@ -1,0 +1,4 @@
+# Development / testing only
+-r requirements.txt
+pytest>=7.4.0,<8.0.0
+pytest-mock>=3.11.0,<4.0.0
