@@ -1,4 +1,4 @@
-# Job Application Bot — AI-Powered, Manual-Only (Safe & Legal Compliance)
+# Job Application Bot — AI Job Hunter: Intelligence-Driven, Zero-Scraping Architecture
 
 Your personal IT/DevOps/AI Governance job hunter.
 Uses **Gemini 2.5 Flash** + fully editable prompt templates to:
