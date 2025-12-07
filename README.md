@@ -1,51 +1,36 @@
-# 🤖 Job Application Bot - AI-Powered Application Automation
+# Job Application Bot — AI-Powered, Fully Customizable
 
-**Standalone Desktop Application** | **AI Model:** Gemini 2.5 Flash | **SDK:** Google GenAI (2025 Standard)
+**Your personal IT/DevOps/AI Governance job hunter.**  
+Uses **Gemini 2.5 Flash** + external prompt templates to:
+- Understand any job description (not just keyword spam)
+- Generate perfectly tailored resumes & cover letters
+- Auto-switch to **senior/staff voice** for Staff+ roles
+- Let you edit prompts in plain text — no Python required
 
-Automated job application system with **full GUI** that finds, matches, and tailors applications for IT Infrastructure roles using Google's Gemini AI. Built with Tkinter for cross-platform desktop deployment.
+Fully open-source, local-first, zero tracking.
 
----
+## Features
 
-## ✨ Features
+- **AI-Powered Matching** — understands context, not just regex
+- **One-click tailored resume + cover letter** (Markdown output)
+- **External prompts** — edit `prompts/*.jinja2` to change tone, style, or strategy
+- **Senior voice auto-detect** — sounds like a Staff+ engineer when needed
+- **100% offline-capable** (just needs your Gemini API key)
+- **No PII in repo** — resume & keys stored in `.env` (gitignored)
 
-### 🖥️ **Full Desktop GUI Interface**
-- **Tabbed Interface:** Tailor, Resume Management, View Jobs, Statistics
-- **Drag & Drop Resume Upload:** Multiple resume version support
-- **Real-time Preview:** See tailored outputs instantly
-- **Progress Indicators:** Status bar with live updates
-- **Cross-platform:** Works on Windows, macOS, Linux
+## Quick Start
 
-### 🤖 **AI-Powered Automation**
-- **Intelligent Job Matching:** 80%+ threshold with fuzzy logic and weighted skills
-- **Resume Tailoring:** No fabrication - only reorders and emphasizes existing content
-- **Cover Letter Generation:** Custom letters based on job requirements
-- **Token Management:** tiktoken prevents API overflow
-- **Response Caching:** Reduces API costs and latency
-
-### 💾 **Data Management**
-- **Multiple Resumes:** Upload, select, delete resume versions
-- **SQLite Database:** Full ORM with soft deletes and audit trails
-- **Application Tracking:** Complete lifecycle management
-- **Export/Import:** CSV/JSON support for job lists
-- **Automatic Backups:** Timestamped database backups
-
-### 🛡️ **Enterprise Reliability**
-- **Custom Exceptions:** MaxRetriesExceeded, JobNotFoundError
-- **Exponential Backoff:** For API calls and user prompts
-- **Size Validation:** Prevents oversized fields from crashing
-- **Connection Pooling:** SQLAlchemy with pre-ping verification
-- **User-Agent Rotation:** Avoids bot detection
-
----
-
-## 🚀 Quick Start (GUI Mode)
-
-### 1. Download & Install
-**Standalone Executable (Recommended):**
-- Download `JobApplicationBot_v2.0.exe` (Windows) or `JobApplicationBot.app` (macOS) from [Releases](https://github.com/Micouwr/job-application-bot/releases)
-
-**Or Run from Source:**
 ```bash
 git clone https://github.com/Micouwr/job-application-bot.git
 cd job-application-bot
+
+# 1. Install
 pip install -r requirements.txt
+
+# 2. Set up your secrets & resume
+cp .env.example .env
+# Edit .env → add your GEMINI_API_KEY
+# Edit resume.json → your real resume (gitignored)
+
+# 3. Run
+python main.py interactive
