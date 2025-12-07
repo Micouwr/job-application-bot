@@ -1,4 +1,4 @@
-# Job Application Bot — AI Job Hunter: Intelligence-Driven, Zero-Scraping Architecture
+# [Prototype] Job Application Bot — AI Job Hunter: Intelligence-Driven, Zero-Scraping Architecture
 
 Your personal IT/DevOps/AI Governance job hunter.
 Uses **Gemini 2.5 Flash** + fully editable prompt templates to:
@@ -80,7 +80,7 @@ No code changes. No rebuild. Just edit → run.
 
 ## Project Status
 
-**v1.0.0 — Stable Release**
+**v1.0.0 — Feature Complete (Internal Use)**
 * Gemini 2.5 Flash locked
 * External prompts
 * Senior voice detection
