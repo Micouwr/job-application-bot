@@ -1,97 +1,27 @@
 #!/usr/bin/env python3
-"""JobApplicationBot Standalone Builder
-Builds a PyInstaller bundle with hidden imports and proper configuration."""
+"""
+Build script for JobApplicationBot - Creates standalone executable with PyInstaller
+"""
 
-import os
-import shutil
+import platform
+import subprocess
 import sys
 from pathlib import Path
-import subprocess
 
-# Project root
-ROOT_DIR = Path(__file__).parent
-GUI_SCRIPT = ROOT_DIR / "gui" / "tkinter_app.py"
-DIST_DIR = ROOT_DIR / "dist"
-BUILD_DIR = ROOT_DIR / "build"
-
-def check_environment():
-    """Verify build environment has all required tools."""
-    print("🔍 Verifying build environment...")
-    print("=" * 60)
+def build_executable():
+    ROOT_DIR = Path(__file__).parent.resolve()
+    MAIN_SCRIPT = ROOT_DIR / "gui" / "tkinter_app.py"
     
-    # Check Python
-    print(f"✅ Python {sys.version.split()[0]}")
-    
-    # Check PyInstaller
-    try:
-        import PyInstaller
-        print(f"✅ PyInstaller {PyInstaller.__version__}")
-    except ImportError:
-        print("❌ PyInstaller not found")
-        print("Install with: pip install pyinstaller")
-        return False
-    
-    # Check Pillow
-    try:
-        import PIL
-        print("✅ Pillow (for icon conversion)")
-    except ImportError:
-        print("❌ Pillow not found")
-        print("Install with: pip install Pillow")
-        return False
-    
-    # Check GUI script
-    if GUI_SCRIPT.exists():
-        print(f"✅ Main GUI script found: {GUI_SCRIPT}")
-    else:
-        print(f"❌ GUI script not found: {GUI_SCRIPT}")
-        return False
-    
-    # Check .env
-    if (ROOT_DIR / ".env").exists():
-        print("✅ .env configuration file found (Will NOT be bundled)")
-    else:
-        print("⚠️  .env file not found (users must provide their own)")
-    
-    # Check icons
-    windows_icon = ROOT_DIR / "assets" / "icon.ico"
-    macos_icon = ROOT_DIR / "assets" / "icon.icns"
-    
-    print("   Icon Files:")
-    if windows_icon.exists():
-        print(f"✅    - Windows icon: {windows_icon} ({windows_icon.stat().st_size} bytes)")
-    if macos_icon.exists():
-        print(f"✅    - macOS icon: {macos_icon} ({macos_icon.stat().st_size} bytes)")
-    
-    print("-" * 60)
-    print()
-    return True
-
-def build():
-    """Build the application using PyInstaller."""
-    
-    if not check_environment():
-        sys.exit(1)
-    
-    print("⚙️  Running PyInstaller...")
-    print("=" * 60)
-    
-    # Clean previous builds
-    if DIST_DIR.exists():
-        shutil.rmtree(DIST_DIR)
-    if BUILD_DIR.exists():
-        shutil.rmtree(BUILD_DIR)
-    
-    # PyInstaller command with all hidden imports
-    cmd = [
-        "pyinstaller",
-        str(GUI_SCRIPT),
+    # Base PyInstaller command (cross-platform compatible)
+    pyinstaller_cmd = [
+        sys.executable, "-m", "PyInstaller",
+        str(MAIN_SCRIPT),
         "--name", "JobApplicationBot",
         "--onedir",
         "--windowed",
         "--clean",
         "--noconfirm",
-        # Hidden imports for all modules
+        "--paths", str(ROOT_DIR),
         "--hidden-import", "database",
         "--hidden-import", "main",
         "--hidden-import", "tailor",
@@ -103,47 +33,98 @@ def build():
         "--hidden-import", "jinja2",
         "--hidden-import", "PIL",
         "--hidden-import", "tkinter",
-        # Data files
-        "--add-data", f"{ROOT_DIR}/config:config",
-        "--add-data", f"{ROOT_DIR}/prompts:prompts",
-        "--add-data", f"{ROOT_DIR}/assets:assets",
-        # Splash screen
-        "--splash", f"{ROOT_DIR}/assets/splash.png",
+        "--add-data", f"{ROOT_DIR / 'config'}:config",
+        "--add-data", f"{ROOT_DIR / 'prompts'}:prompts",
+        "--add-data", f"{ROOT_DIR / 'assets'}:assets",
+        "--icon", str(ROOT_DIR / "assets" / "icon.icns"),
     ]
     
-    # Add macOS icon if available
-    macos_icon = ROOT_DIR / "assets" / "icon.icns"
-    if macos_icon.exists():
-        cmd.extend(["--icon", str(macos_icon)])
+    # Add splash screen only on non-macOS platforms
+    if platform.system() != "Darwin":
+        splash_path = ROOT_DIR / "assets" / "splash.png"
+        if splash_path.exists():
+            pyinstaller_cmd.extend(["--splash", str(splash_path)])
+        else:
+            print(f"⚠️  Splash screen not found at {splash_path}")
     
-    print(f"   Running: {' '.join(cmd)}")
-    print()
+    print(f"🔍 Verifying build environment...")
+    print("=" * 60)
+    
+    # Verify Python version
+    print(f"✅ Python {sys.version.split()[0]}")
+    
+    # Verify PyInstaller
+    try:
+        import PyInstaller
+        print(f"✅ PyInstaller {PyInstaller.__version__}")
+    except ImportError:
+        print("❌ PyInstaller not found. Install with: pip install pyinstaller")
+        return False
+    
+    # Verify Pillow
+    try:
+        import PIL
+        print(f"✅ Pillow (for icon conversion)")
+    except ImportError:
+        print("❌ Pillow not found. Install with: pip install Pillow")
+        return False
+    
+    # Verify main script
+    if MAIN_SCRIPT.exists():
+        print(f"✅ Main GUI script found: {MAIN_SCRIPT}")
+    else:
+        print(f"❌ Main script not found: {MAIN_SCRIPT}")
+        return False
+    
+    # Verify .env file
+    env_file = ROOT_DIR / ".env"
+    if env_file.exists():
+        print(f"✅ .env configuration file found (Will NOT be bundled)")
+        print("   (This is correct - users must provide their own API keys)")
+    else:
+        print(f"⚠️  Warning: .env file not found at {env_file}")
+        print("   (Users will need to create this themselves)")
+    
+    # Verify icon files
+    icon_dir = ROOT_DIR / "assets"
+    if (icon_dir / "icon.ico").exists():
+        print(f"✅    - Windows icon: {icon_dir / 'icon.ico'} ({(icon_dir / 'icon.ico').stat().st_size:,} bytes)")
+    if (icon_dir / "icon.icns").exists():
+        print(f"✅    - macOS icon: {icon_dir / 'icon.icns'} {(icon_dir / 'icon.icns').stat().st_size:,} bytes)")
+    
+    print("-" * 60)
     
     # Run PyInstaller
-    result = subprocess.run(cmd, cwd=ROOT_DIR)
+    print(f"\n⚙️  Running PyInstaller...")
+    print("=" * 60)
+    print(f"   Running: {' '.join(pyinstaller_cmd)}\n")
     
-    if result.returncode != 0:
-        print("❌ Build failed!")
-        sys.exit(1)
-    
-    print()
-    print("=" * 60)
-    print("✅ Build completed successfully!")
-    print("=" * 60)
-    print()
-    print("📦 Distribution Instructions")
-    print("=" * 60)
-    print("✅ The executable is located in the './dist' folder.")
-    print("⚠️  CRITICAL: Users must place their own '.env' file containing API keys")
-    print("⚠️            in the same directory as the executable.")
-    print("✅ App bundle: ./dist/JobApplicationBot.app")
-    print()
-    print("📋 NEXT STEPS & VERIFICATION")
-    print("=" * 60)
-    print("⚠️  1. CRITICAL: Provide the .env file with your API keys next to the executable.")
-    print("2. Launch the application from the 'dist' folder to verify functionality.")
-    print("3. Check for the customized icon on the application file/bundle.")
-    print()
+    try:
+        result = subprocess.run(pyinstaller_cmd, check=True, capture_output=False)
+        print("\n" + "=" * 60)
+        print("✅ Build completed successfully!")
+        print("=" * 60)
+        
+        print("\n📦 Distribution Instructions")
+        print("=" * 60)
+        print("✅ The executable is located in the './dist' folder.")
+        print("⚠️  CRITICAL: Users must place their own '.env' file containing API keys")
+        print("⚠️            in the same directory as the executable.")
+        print(f"✅ App bundle: ./dist/JobApplicationBot.app")
+        
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        print(f"\n❌ Build failed!")
+        print(f"Error code: {e.returncode}")
+        return False
+    except KeyboardInterrupt:
+        print("\n\n⏹️  Build interrupted by user")
+        return False
+    except Exception as e:
+        print(f"\n❌ Build failed with unexpected error: {e}")
+        return False
 
 if __name__ == "__main__":
-    build()
+    success = build_executable()
+    sys.exit(0 if success else 1)
