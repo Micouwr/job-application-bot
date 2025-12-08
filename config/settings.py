@@ -277,9 +277,9 @@ RESUME_DATA: Dict[str, Any] = {
 }
 
 def validate_config() -> bool:
-    """ Legacy validation function - now handled by Pydantic """
+    """Legacy validation function - now handled by Pydantic"""
     return True
 
 def get_config() -> JobSearchConfig:
-    """ Get the Pydantic configuration object """
+    """Get the Pydantic configuration object"""
     return config
