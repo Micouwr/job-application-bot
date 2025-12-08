@@ -43,7 +43,9 @@ class JobAppTkinter:
         self.bot = JobApplicationBot()
         self.db = JobDatabase()
 
+        # Initialize UI-related attributes early (FIX 4)
         self.current_resume_path = None
+        self.status_var = tk.StringVar(value="Initializing...")
         self.resume_dir = Path("data/resumes")
         self.resume_dir.mkdir(exist_ok=True, parents=True)
 
@@ -143,8 +145,7 @@ CERTIFICATIONS:
         notebook.add(stats_frame, text="📊 Statistics")
         self._create_stats_tab(stats_frame)
 
-        # Status bar
-        self.status_var = tk.StringVar(value="Ready - Check your active resume in the Manage Resumes tab.")
+        # Status bar (uses the status_var created in __init__)
         self.status_bar = ttk.Label(
             self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W
         )
@@ -718,7 +719,7 @@ CERTIFICATIONS:
                 jobs = [job for job in all_jobs if job.get('status') == status_filter]
 
             if not jobs:
-                self.jobs_text.insert("1.0", f"No jobs found for filter: {status_filter}")
+                self.jobs_text.insert(tk.END, f"No jobs found for filter: {status_filter}")
                 return
 
             for i, job in enumerate(jobs, 1):
@@ -735,7 +736,7 @@ CERTIFICATIONS:
 
         except Exception as e:
             logging.error(f"Error loading jobs: {e}")
-            self.jobs_text.insert("1.0", f"Error loading jobs: {e}")
+            self.jobs_text.insert(tk.END, f"Error loading jobs: {e}")
             self.status_var.set(f"Error: {e}")
         finally:
             self.jobs_text.config(state=tk.DISABLED)
@@ -770,7 +771,7 @@ CERTIFICATIONS:
                     ts_str = log['timestamp'].strftime('%Y-%m-%d %H:%M') if isinstance(log['timestamp'], datetime) else str(log['timestamp'])
                     self.stats_text.insert(tk.END, f"[{ts_str}] Job {log.get('job_id', 'N/A')}: {log['action']} - {log['details']}\n", "activity")
             else:
-                self.stats_text.insert(tk.END", "No recent activity.\n", "normal")
+                self.stats_text.insert(tk.END, "No recent activity.\n", "normal")
 
             # Tag configurations for styling
             self.stats_text.tag_configure("header", font=('Arial', 13, 'bold'), foreground='#34495e')
@@ -784,7 +785,7 @@ CERTIFICATIONS:
 
         except Exception as e:
             logging.error(f"Error loading stats: {e}")
-            self.stats_text.insert("1.0", f"Error loading stats: {e}")
+            self.stats_text.insert(tk.END, f"Error loading stats: {e}")
             self.status_var.set(f"Error: {e}")
         finally:
             self.stats_text.config(state=tk.DISABLED)
