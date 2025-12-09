@@ -12,6 +12,7 @@ from config.settings import RESUME_DATA, OUTPUT_PATH
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class TailoringResult:
     success: bool
