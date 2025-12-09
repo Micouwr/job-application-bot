@@ -12,7 +12,6 @@ from config.settings import RESUME_DATA, OUTPUT_PATH
 
 logger = logging.getLogger(__name__)
 
-
 @dataclass
 class TailoringResult:
     success: bool
@@ -58,12 +57,13 @@ class ResumeTailor:
             required_skills = prompts.extract_skills(job_description)
 
             # Step 2: Full resume generation
-            cert_names = [cert.get("name", "") if isinstance(cert, dict) else str(cert) for cert in self.certifications]
+            cert_names = [cert.get("name", "") for cert in self.certifications if isinstance(cert, dict)]
+            certifications = ", ".join(cert_names)
             resume_prompt = prompts.load("full_resume_tailor").render(
                 full_name=self.full_name,
                 base_summary=self.base_summary,
                 core_skills=", ".join(self.core_skills[:20]),
-                certifications=", ".join(cert_names),
+                certifications=certifications,
                 projects_json=json.dumps(self.projects, ensure_ascii=False, indent=2),
                 experience_json=json.dumps(self.experience, ensure_ascii=False, indent=2),
                 job_title=job_title or "Target Role",
