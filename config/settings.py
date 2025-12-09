@@ -283,3 +283,4 @@ def validate_config() -> bool:
 def get_config() -> JobSearchConfig:
     """Get the Pydantic configuration object"""
     return config
+OUTPUT_PATH = OUTPUT_DIR  # Alias for compatibility with tailor.py
