@@ -78,25 +78,25 @@ Experienced in implementing robust governance frameworks and leveraging cloud pl
 to drive business transformation. Holds a CompTIA A+ certification, specializing in AI solutions.
 
 CORE SKILLS:
-\- AWS, Azure, Python
-\- AI Governance, Machine Learning Principles, NLP (Natural Language Processing)
-\- ITIL, CISSP, CompTIA A+, TWO AI CERTIFICATIONS (REDACTED FOR PRIVACY)
+- AWS, Azure, Python
+- AI Governance, Machine Learning Principles, NLP (Natural Language Processing)
+- ITIL, CISSP, CompTIA A+, TWO AI CERTIFICATIONS (REDACTED FOR PRIVACY)
 
 EXPERIENCE:
 Company Name - IT Infrastructure Manager (2020-Present)
-\- Led cloud migration projects, resulting in 30% cost reduction.
-\- Designed and implemented AI governance framework, ensuring compliance and ethical use of AI models.
-\- Managed a team of 10 help desk and infrastructure specialists.
+- Led cloud migration projects, resulting in 30% cost reduction.
+- Designed and implemented AI governance framework, ensuring compliance and ethical use of AI models.
+- Managed a team of 10 help desk and infrastructure specialists.
 
 EDUCATION:
 B.S. Computer Science, University Name
 
 CERTIFICATIONS:
-\- AWS Solutions Architect
-\- ITIL v4
-\- CompTIA A+
-\- Advanced AI/ML Certification 1
-\- Advanced AI/ML Certification 2
+- AWS Solutions Architect
+- ITIL v4
+- CompTIA A+
+- Advanced AI/ML Certification 1
+- Advanced AI/ML Certification 2
 """
             default_path.write_text(default_content, encoding="utf-8")
 
@@ -311,115 +311,13 @@ CERTIFICATIONS:
         # Load resume list
         self._refresh_resume_list()
 
-    def _create_view_jobs_tab(self, parent):
-        """Creates the 'View Jobs' tab."""
-        control_frame = ttk.Frame(parent)
-        control_frame.pack(fill=tk.X, pady=10, padx=10)
-
-        ttk.Label(control_frame, text="Status Filter:").pack(side=tk.LEFT, padx=(0, 5))
-
-        self.filter_var = tk.StringVar(value="pending_review")
-        filter_combo = ttk.Combobox(
-            control_frame,
-            textvariable=self.filter_var,
-            values=["all", "new", "low_match", "matched", "pending_review", "applied", "interview", "rejected", "archived"],
-            state="readonly",
-            width=15
-        )
-        filter_combo.pack(side=tk.LEFT, padx=(0, 10))
-        filter_combo.bind('<<ComboboxSelected>>', lambda e: self.refresh_jobs())
-
-        refresh_btn = ttk.Button(control_frame, text="🔄 Refresh", command=self.refresh_jobs)
-        refresh_btn.pack(side=tk.LEFT, padx=5)
-
-        export_btn = ttk.Button(control_frame, text="📤 Export List", command=self.export_jobs)
-        export_btn.pack(side=tk.LEFT, padx=5)
-
-        self.jobs_text = scrolledtext.ScrolledText(
-            parent, width=100, height=35, wrap=tk.WORD, font=('Arial', 9)
-        )
-        self.jobs_text.pack(padx=10, pady=(0, 10), fill="both", expand=True)
-
-        self.refresh_jobs()
-
-    def _create_stats_tab(self, parent):
-        """Creates the 'Statistics' tab."""
-        control_frame = ttk.Frame(parent)
-        control_frame.pack(fill=tk.X, pady=10, padx=10)
-
-        refresh_btn = ttk.Button(control_frame, text="🔄 Refresh Stats", command=self.refresh_stats)
-        refresh_btn.pack(side=tk.LEFT)
-
-        self.stats_text = scrolledtext.ScrolledText(
-            parent, width=100, height=35, wrap=tk.WORD, font=('Arial', 10, 'bold')
-        )
-        self.stats_text.pack(padx=10, pady=(0, 10), fill="both", expand=True)
-
-        self.refresh_stats()
-
-    def _load_selected_resume(self):
-        """Loads the currently selected resume path and updates UI."""
-        if not self.resume_text:
-            # Widget not initialized yet, skip
-            return
-
-        try:
-            active_path = self.resume_dir / "active_resume.txt"
-
-            # 1. Determine the path of the active resume
-            if active_path.exists():
-                self.current_resume_path = Path(active_path.read_text().strip())
-            else:
-                # Default to first resume found
-                resumes = list(self.resume_dir.glob("*.txt"))
-                if resumes:
-                    self.current_resume_path = resumes[0]
-                    active_path.write_text(str(self.current_resume_path.absolute()))
-                else:
-                    self.current_resume_path = None
-
-            # 2. Update UI with resume status and content
-            if self.current_resume_path and self.current_resume_path.exists():
-                display_name = self.current_resume_path.name
-
-                # Update status label
-                self.selected_resume_label.config(
-                    text=f"✅ Active: {display_name}",
-                    foreground="green",
-                    font=('Arial', 10)
-                )
-
-                # Load content into the editable text widget on the main tab
-                content = self.current_resume_path.read_text(encoding='utf-8')
-                self.resume_text.delete("1.0", tk.END)
-                self.resume_text.insert(tk.END, content)
-
-                self.status_var.set(f"Active resume loaded: {display_name}")
-            else:
-                # Handle no resume state
-                self.selected_resume_label.config(
-                    text="❌ No active resume. Upload one in 'Manage Resumes' tab.",
-                    foreground="red",
-                    font=('Arial', 10, 'italic')
-                )
-                self.resume_text.delete("1.0", tk.END)
-                self.resume_text.insert(tk.END, "No active resume. Please upload or set one in the 'Manage Resumes' tab.")
-                self.status_var.set("Error: No active resume found.")
-
-        except Exception as e:
-            logging.error(f"Error loading selected resume: {e}")
-            self.selected_resume_label.config(
-                text=f"❌ Error loading resume: {e}",
-                foreground="red"
-            )
-            self.status_var.set("Error during resume load.")
-
     def upload_resume(self):
         """Uploads a new resume file (TXT, DOCX, PDF) and converts non-TXT to TXT placeholder."""
         path = filedialog.askopenfilename(
             title="Upload Resume",
             filetypes=[
                 ("Text Files", "*.txt"),
+                ("PDF Files", "*.pdf"),
                 ("All Files", "*.*")
             ],
         )
@@ -428,27 +326,52 @@ CERTIFICATIONS:
 
         try:
             source = Path(path)
-            # Ensure the destination is always .txt for AI processing
-            dest = self.resume_dir / f"{source.stem}.txt"
+            
+            # Handle PDF files
+            if source.suffix.lower() == '.pdf':
+                try:
+                    import PyPDF2
+                    with open(source, 'rb') as file:
+                        reader = PyPDF2.PdfReader(file)
+                        text = ""
+                        for page in reader.pages:
+                            text += page.extract_text() or ""
+                    
+                    # Save as .txt
+                    dest = self.resume_dir / f"{source.stem}.txt"
+                    # Handle duplicates
+                    counter = 1
+                    while dest.exists():
+                        dest = self.resume_dir / f"{source.stem}_{counter}.txt"
+                        counter += 1
+                    
+                    dest.write_text(text, encoding='utf-8')
+                    messagebox.showinfo("Success", f"PDF converted and saved: {dest.name}")
+                except ImportError:
+                    messagebox.showerror("Missing Dependency", "PyPDF2 is not installed. Please install it with: pip install PyPDF2")
+                    return
+                except Exception as e:
+                    messagebox.showerror("PDF Error", f"Failed to extract text from PDF: {e}")
+                    return
+            else:
+                # For TXT files, just copy
+                dest = self.resume_dir / f"{source.stem}.txt"
+                # Handle duplicates
+                counter = 1
+                while dest.exists():
+                    dest = self.resume_dir / f"{source.stem}_{counter}.txt"
+                    counter += 1
+                shutil.copy2(source, dest)
+                
+                # Basic content check
+                content = dest.read_text(encoding='utf-8')
+                if len(content) < 100:
+                    messagebox.showwarning(
+                        "Short Resume",
+                        f"The uploaded resume '{dest.name}' appears very short. Please verify content for AI processing."
+                    )
+                messagebox.showinfo("Success", f"Resume uploaded: {dest.name}")
 
-            # Handle duplicates
-            counter = 1
-            while dest.exists():
-                dest = self.resume_dir / f"{source.stem}_{counter}.txt"
-                counter += 1
-
-            # Copy file
-            shutil.copy2(source, dest)
-
-            # Basic content check
-            content = dest.read_text(encoding='utf-8')
-            if len(content) < 100:
-                messagebox.showwarning(
-                    "Short Resume",
-                    f"The uploaded resume '{dest.name}' appears very short. Please verify content for AI processing."
-                )
-
-            messagebox.showinfo("Success", f"Resume uploaded: {dest.name}")
             self._refresh_resume_list()
 
         except Exception as e:
@@ -695,138 +618,6 @@ CERTIFICATIONS:
         except Exception as e:
             logging.error(f"Save outputs error: {e}")
             messagebox.showerror("Save Error", f"Failed to save outputs: {e}")
-
-    def refresh_jobs(self):
-        """Refresh jobs list with filter."""
-        self.jobs_text.config(state=tk.NORMAL)
-        self.jobs_text.delete("1.0", tk.END)
-        self.jobs_text.tag_configure("title", font=('Arial', 10, 'bold'), foreground='#2c3e50')
-        self.jobs_text.tag_configure("applied", foreground='#27ae60')
-        self.jobs_text.tag_configure("rejected", foreground='#e74c3c')
-        self.jobs_text.tag_configure("default", font=('Arial', 9), foreground='black')
-
-        try:
-            status_filter = self.filter_var.get()
-
-            # FIX 2: Use self.db instance and filter locally since get_jobs_by_status
-            # is not in the reviewed database.py
-            all_jobs = self.db.get_all_jobs()
-
-            if status_filter == "all":
-                jobs: List[Dict[str, Any]] = all_jobs
-            else:
-                # Filter job list by the selected status
-                jobs = [job for job in all_jobs if job.get('status') == status_filter]
-
-            if not jobs:
-                self.jobs_text.insert(tk.END, f"No jobs found for filter: {status_filter}")
-                return
-
-            for i, job in enumerate(jobs, 1):
-                status = job['status']
-                status_tag = status if status in ["applied", "rejected"] else "default"
-
-                self.jobs_text.insert(tk.END, f"{i}. {job['title']}\n", "title")
-                self.jobs_text.insert(tk.END, f"   Company: {job['company']} | Status: {job['status'].replace('_', ' ').title()}\n", status_tag)
-                self.jobs_text.insert(tk.END, f"   Match Score: {job.get('match_score', 0)*100:.1f}%\n", "default")
-                self.jobs_text.insert(tk.END, f"   Location: {job.get('location', 'N/A')}\n", "default")
-                self.jobs_text.insert(tk.END, f"   URL: {job.get('url', 'N/A')}\n\n", "default")
-
-            self.status_var.set(f"Loaded {len(jobs)} jobs (filter: {status_filter})")
-
-        except Exception as e:
-            logging.error(f"Error loading jobs: {e}")
-            self.jobs_text.insert(tk.END, f"Error loading jobs: {e}")
-            self.status_var.set(f"Error: {e}")
-        finally:
-            self.jobs_text.config(state=tk.DISABLED)
-
-    def refresh_stats(self):
-        """Refresh statistics."""
-        self.stats_text.config(state=tk.NORMAL)
-        self.stats_text.delete("1.0", tk.END)
-
-        try:
-            # FIX 3: Use self.db instance
-            stats = self.db.get_statistics()
-
-            self.stats_text.insert(tk.END, "📈 APPLICATION STATISTICS\n", "header")
-            self.stats_text.insert(tk.END, f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n")
-
-            self.stats_text.insert(tk.END, f"Total Jobs Processed: {stats['total_jobs']:,}\n", "normal")
-            self.stats_text.insert(tk.END, f"High Matches (≥80%): {stats['high_matches']:,}\n", "highlight")
-            self.stats_text.insert(tk.END, f"Average Match Score: {stats['avg_match_score']*100:.1f}%\n\n", "highlight")
-
-            self.stats_text.insert(tk.END, "📊 Applications by Status:\n", "subheader")
-            for status, count in stats.get("by_status", {}).items():
-                self.stats_text.insert(tk.END, f"  • {status.replace('_', ' ').title()}: {count:,}\n", "normal")
-
-            # NOTE: success_rate is not calculated in database.py, display a placeholder or skip
-            # self.stats_text.insert(tk.END, f"\n🏆 Success Rate (Applied to Interview/Hired): {stats.get('success_rate', 0)*100:.1f}%\n", "success")
-
-            self.stats_text.insert(tk.END, "\n--- Recent Activity ---\n", "subheader")
-            if stats["recent_activity"]:
-                for log in stats["recent_activity"]:
-                    # Assuming timestamp is a datetime object or can be formatted
-                    ts_str = log['timestamp'].strftime('%Y-%m-%d %H:%M') if isinstance(log['timestamp'], datetime) else str(log['timestamp'])
-                    self.stats_text.insert(tk.END, f"[{ts_str}] Job {log.get('job_id', 'N/A')}: {log['action']} - {log['details']}\n", "activity")
-            else:
-                self.stats_text.insert(tk.END, "No recent activity.\n", "normal")
-
-            # Tag configurations for styling
-            self.stats_text.tag_configure("header", font=('Arial', 13, 'bold'), foreground='#34495e')
-            self.stats_text.tag_configure("subheader", font=('Arial', 11, 'bold'), foreground='#2c3e50')
-            self.stats_text.tag_configure("highlight", font=('Arial', 10, 'bold'), foreground='#27ae60')
-            self.stats_text.tag_configure("success", font=('Arial', 11, 'bold'), foreground='#e67e22')
-            self.stats_text.tag_configure("normal", font=('Arial', 10))
-            self.stats_text.tag_configure("activity", font=('Arial', 9, 'italic'), foreground='#7f8c8d')
-
-            self.status_var.set("Statistics refreshed")
-
-        except Exception as e:
-            logging.error(f"Error loading stats: {e}")
-            self.stats_text.insert(tk.END, f"Error loading stats: {e}")
-            self.status_var.set(f"Error: {e}")
-        finally:
-            self.stats_text.config(state=tk.DISABLED)
-
-    def export_jobs(self):
-        """Exports job list to file."""
-        try:
-            file_path = filedialog.asksaveasfilename(
-                title="Export Job List",
-                defaultextension=".csv",
-                filetypes=[
-                    ("CSV Files", "*.csv"),
-                    ("JSON Files", "*.json"),
-                    ("All Files", "*.*")
-                ]
-            )
-            if not file_path:
-                return
-
-            # FIX 4: Use self.db instance
-            jobs = self.db.get_all_jobs()
-
-            if file_path.lower().endswith('.json'):
-                with open(file_path, 'w') as f:
-                    # Use default=str to serialize UUIDs or other non-JSON types
-                    json.dump(jobs, f, indent=2, default=str)
-            else: # Default to CSV
-                with open(file_path, 'w', newline='') as f:
-                    if jobs:
-                        writer = csv.DictWriter(f, fieldnames=jobs[0].keys())
-                        writer.writeheader()
-                        writer.writerows(jobs)
-                    else:
-                        f.write("No job data found.")
-
-            messagebox.showinfo("Export Complete", f"Exported {len(jobs)} jobs to {file_path}")
-            self.status_var.set(f"📤 Exported to {Path(file_path).name}")
-
-        except Exception as e:
-            logging.error(f"Export error: {e}")
-            messagebox.showerror("Export Error", f"Failed to export: {e}")
 
     def clear_fields(self):
         """Clears all input and output fields in the Tailor tab."""
