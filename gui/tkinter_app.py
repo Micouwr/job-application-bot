@@ -311,6 +311,63 @@ CERTIFICATIONS:
         # Load resume list
         self._refresh_resume_list()
 
+    def _load_selected_resume(self):
+        """Loads the currently selected resume path and updates UI."""
+        if not self.resume_text:
+            # Widget not initialized yet, skip
+            return
+
+        try:
+            active_path = self.resume_dir / "active_resume.txt"
+
+            # 1. Determine the path of the active resume
+            if active_path.exists():
+                self.current_resume_path = Path(active_path.read_text().strip())
+            else:
+                # Default to first resume found
+                resumes = list(self.resume_dir.glob("*.txt"))
+                if resumes:
+                    self.current_resume_path = resumes[0]
+                    active_path.write_text(str(self.current_resume_path.absolute()))
+                else:
+                    self.current_resume_path = None
+
+            # 2. Update UI with resume status and content
+            if self.current_resume_path and self.current_resume_path.exists():
+                display_name = self.current_resume_path.name
+
+                # Update status label
+                self.selected_resume_label.config(
+                    text=f"✅ Active: {display_name}",
+                    foreground="green",
+                    font=('Arial', 10)
+                )
+
+                # Load content into the editable text widget on the main tab
+                content = self.current_resume_path.read_text(encoding='utf-8')
+                self.resume_text.delete("1.0", tk.END)
+                self.resume_text.insert(tk.END, content)
+
+                self.status_var.set(f"Active resume loaded: {display_name}")
+            else:
+                # Handle no resume state
+                self.selected_resume_label.config(
+                    text="❌ No active resume. Upload one in 'Manage Resumes' tab.",
+                    foreground="red",
+                    font=('Arial', 10, 'italic')
+                )
+                self.resume_text.delete("1.0", tk.END)
+                self.resume_text.insert(tk.END, "No active resume. Please upload or set one in the 'Manage Resumes' tab.")
+                self.status_var.set("Error: No active resume found.")
+
+        except Exception as e:
+            logging.error(f"Error loading selected resume: {e}")
+            self.selected_resume_label.config(
+                text=f"❌ Error loading resume: {e}",
+                foreground="red"
+            )
+            self.status_var.set("Error during resume load.")
+
     def upload_resume(self):
         """Uploads a new resume file (TXT, DOCX, PDF) and converts non-TXT to TXT placeholder."""
         path = filedialog.askopenfilename(
@@ -580,44 +637,6 @@ CERTIFICATIONS:
             "Success",
             "Application tailored successfully!\n\nReview the outputs and save your documents."
         )
-
-    def save_outputs(self):
-        """Saves the tailored resume and cover letter to files."""
-        # FIX: Ensure outputs are readable before saving
-        resume_text_content = self.tailored_resume_text.get("1.0", tk.END).strip()
-        cover_text_content = self.cover_letter_text.get("1.0", tk.END).strip()
-
-        if not resume_text_content and not cover_text_content:
-            messagebox.showwarning("No Output", "No tailored content available to save.")
-            return
-
-        try:
-            job_title = "Tailored_Application"
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-            # Create output directory
-            output_dir = Path("output") / f"{job_title}_{timestamp}"
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-            # Save resume
-            if resume_text_content:
-                resume_path = output_dir / "tailored_resume.txt"
-                resume_path.write_text(resume_text_content, encoding='utf-8')
-
-            # Save cover letter
-            if cover_text_content:
-                cover_path = output_dir / "cover_letter.txt"
-                cover_path.write_text(cover_text_content, encoding='utf-8')
-
-            messagebox.showinfo(
-                "Saved",
-                f"Files saved to:\n{output_dir.resolve()}\n\n(Note: Outputs are currently disabled in this tab to prevent accidental editing.)"
-            )
-            self.status_var.set(f"📁 Saved to: {output_dir.name}")
-
-        except Exception as e:
-            logging.error(f"Save outputs error: {e}")
-            messagebox.showerror("Save Error", f"Failed to save outputs: {e}")
 
     def clear_fields(self):
         """Clears all input and output fields in the Tailor tab."""
