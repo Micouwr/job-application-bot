@@ -1,136 +1,70 @@
-# tailor.py - AI-powered resume + cover letter generation (robust & accurate)
-
-import logging
+import google.generativeai as genai
+import os
+import re
 import json
-from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List
+from datetime import datetime
+from dotenv import load_dotenv
+from config.settings import OUTPUT_PATH
 
-from config.prompt_manager import prompts
-from config.settings import RESUME_DATA, OUTPUT_PATH
+def process_and_tailor_from_gui(job_title, company, job_description, job_url, resume_text, applicant_name="Applicant"):
+    """
+    Process and tailor resume from GUI inputs
+    """
+    # Load API key
+    load_dotenv()
+    api_key = os.getenv("GEMINI_API_KEY")
+    
+    if not api_key:
+        raise Exception("Gemini API key not found. Please set GEMINI_API_KEY in .env file")
+    
+    genai.configure(api_key=api_key)
+    
+    # Create prompt
+    prompt = f"""
+    You are an expert resume and cover letter writer. Create a tailored resume and cover letter based on the following information:
+    
+    APPLICANT NAME: {applicant_name}
+    JOB TITLE: {job_title}
+    COMPANY: {company}
+    JOB DESCRIPTION: {job_description}
+    JOB URL: {job_url}
+    
+    EXISTING RESUME:
+    {resume_text}
+    
+    Please provide:
+    1. A tailored resume optimized for this position
+    2. A customized cover letter
+    
+    Format your response as JSON with keys "resume_text" and "cover_letter".
+    """
+    
+    # Call Gemini API
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    response = model.generate_content(prompt)
+    
+    # Parse response
+    try:
+        # Extract JSON from response
+        response_text = response.text
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        
+        if json_match:
+            result = json.loads(json_match.group())
+            return {
+                "resume_text": result.get("resume_text", ""),
+                "cover_letter": result.get("cover_letter", "")
+            }
+        else:
+            # Fallback if JSON not found
+            return {
+                "resume_text": response_text,
+                "cover_letter": "Cover letter generation failed - see resume text"
+            }
+            
+    except Exception as e:
+        raise Exception(f"Failed to parse AI response: {e}")
 
-logger = logging.getLogger(__name__)
-
-
-@dataclass
-class TailoringResult:
-    success: bool
-    tailored_content: Optional[str] = None
-    file_path: Optional[str] = None
-    error: Optional[str] = None
-    tokens_used: int = 0
-    sections_generated: int = 0
-
-
-class ResumeTailor:
-    def __init__(self, resume_data: Optional[Dict] = None):
-        self.resume = resume_data or RESUME_DATA
-        self.full_name = self.resume.get("name", "Candidate")
-        self.base_summary = self.resume.get("summary", "")
-        self.core_skills = [
-            skill for cat in self.resume.get("core_competencies", {}).values() for skill in cat
-        ]
-        self.certifications = self.resume.get("certifications", [])
-        self.projects = self.resume.get("projects", [])
-        self.experience = self.resume.get("experience", [])
-        logger.info("ResumeTailor initialized - Gemini 2.5 Flash + external prompts")
-
-    def generate_tailored_resume(
-        self,
-        job_description: str,
-        job_title: str = "",
-        company: str = "",
-        output_format: str = "markdown"
-    ) -> TailoringResult:
-
-        logger.info("Starting full resume + cover letter tailoring")
-
-        total_tokens = 0
-        try:
-            # Auto-detect senior role
-            is_senior = any(
-                kw in job_title.lower()
-                for kw in ["staff", "principal", "lead", "architect", "director", "head of", "vp", "chief"]
-            )
-
-            # Step 1: Extract required skills
-            required_skills = prompts.extract_skills(job_description)
-
-            # Step 2: Full resume generation
-            cert_names = [cert.get("name", "") for cert in self.certifications if isinstance(cert, dict)]
-            certifications = ", ".join(cert_names)
-            resume_prompt = prompts.load("full_resume_tailor").render(
-                full_name=self.full_name,
-                base_summary=self.base_summary,
-                core_skills=", ".join(self.core_skills[:20]),
-                certifications=certifications,
-                projects_json=json.dumps(self.projects, ensure_ascii=False, indent=2),
-                experience_json=json.dumps(self.experience, ensure_ascii=False, indent=2),
-                job_title=job_title or "Target Role",
-                company=company or "Hiring Company",
-                job_description=job_description,
-                required_skills=", ".join(required_skills[:15])
-            )
-
-            resume_response = prompts.generate(resume_prompt, senior_voice=is_senior)
-            resume_tokens = (
-                resume_response.usage_metadata.prompt_token_count +
-                resume_response.usage_metadata.candidates_token_count
-                if hasattr(resume_response, "usage_metadata")
-                else 0
-            )
-            total_tokens += resume_tokens
-
-            # Step 3: Cover letter
-            cover_prompt = prompts.load("cover_letter").render(
-                full_name=self.full_name,
-                job_title=job_title,
-                company=company,
-                key_achievements=self._extract_key_achievements(),
-                required_skills=", ".join(required_skills[:10]),
-                personal_summary=self.base_summary.split(".", 1)[0] + "."
-            )
-
-            cover_response = prompts.generate(cover_prompt, senior_voice=is_senior)
-            cover_tokens = (
-                cover_response.usage_metadata.prompt_token_count +
-                cover_response.usage_metadata.candidates_token_count
-                if hasattr(cover_response, "usage_metadata")
-                else 0
-            )
-            total_tokens += cover_tokens
-
-            # Combine
-            final_content = (
-                f"# TAILORED RESUME\n\n{resume_response.text}\n\n"
-                f"---\n\n# COVER LETTER\n\n{cover_response.text}"
-            )
-
-            # Save
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            safe_title = "".join(c if c.isalnum() or c in " _-" else "_" for c in job_title)[:30]
-            filename = f"tailored_{safe_title}_{timestamp}.md"
-            filepath = OUTPUT_PATH / filename
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            filepath.write_text(final_content, encoding="utf-8")
-
-            logger.info(f"Tailored application saved: {filepath} ({total_tokens} tokens)")
-            return TailoringResult(
-                success=True,
-                tailored_content=final_content,
-                file_path=str(filepath),
-                tokens_used=total_tokens,
-                sections_generated=2
-            )
-
-        except Exception as e:
-            logger.error(f"Tailoring failed: {e}", exc_info=True)
-            return TailoringResult(success=False, error=str(e), tokens_used=total_tokens)
-
-    def _extract_key_achievements(self) -> str:
-        """Pull up to 3 strongest achievements from recent experience"""
-        achievements = []
-        for exp in self.experience[:2]:
-            achievements.extend(exp.get("achievements", [])[:2])
-        return "\n".join(f"- {a}" for a in achievements[:3])
+if __name__ == "__main__":
+    print("Tailor module loaded successfully")

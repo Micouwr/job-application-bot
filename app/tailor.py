@@ -29,7 +29,7 @@ class APIClient:
         api_key: Optional[str] = config.GEMINI_API_KEY,
         timeout: int = 30,
         # Ensure the model used supports search grounding
-        model_name: str = "gemini-2.5-flash-preview-09-2025", 
+        model_name: str = "gemini-2.5-flash", 
         temperature: float = config.LLM_TEMPERATURE,
     ) -> None:
         self.api_key = api_key
@@ -197,3 +197,28 @@ class ResumeTailor:
         raw_result = self.client.call_model(prompt)
         
         return self._parse_response(raw_result)
+
+class TailoringResult:
+    """Result object from resume tailoring operation"""
+    
+    def __init__(self, success: bool, tailored_content: str = "", error: str = ""):
+        self.success = success
+        self.tailored_content = tailored_content
+        self.error = error
+    
+    @property
+    def resume_text(self) -> str:
+        """Extract resume text from tailored content"""
+        if "---" in self.tailored_content:
+            parts = self.tailored_content.split("---")
+            return parts[0].replace("# TAILORED RESUME", "").strip()
+        return self.tailored_content
+    
+    @property
+    def cover_letter(self) -> str:
+        """Extract cover letter from tailored content"""
+        if "---" in self.tailored_content:
+            parts = self.tailored_content.split("---")
+            if len(parts) > 1:
+                return parts[1].replace("# COVER LETTER", "").strip()
+        return ""

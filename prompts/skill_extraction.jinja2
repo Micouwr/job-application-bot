@@ -1,0 +1,16 @@
+You are a resume skill extraction specialist. Analyze this job description and extract the core skills, qualifications, and requirements.
+
+Job Description:
+{{ job_description }}
+
+Return a clean, structured list of required skills and qualifications, organized by category (Technical Skills, Soft Skills, Education, Experience, Certifications).
+
+Format as a JSON object:
+{
+  "technical_skills": ["skill1", "skill2", ...],
+  "soft_skills": ["skill1", "skill2", ...],
+  "education_requirements": ["requirement1", ...],
+  "experience_requirements": ["requirement1", ...],
+  "certifications": ["cert1", ...],
+  "keywords": ["keyword1", "keyword2", ...]
+}

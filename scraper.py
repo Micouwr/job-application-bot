@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class URLValidator:
-    """✅ QoL: Validate and normalize URLs"""
+    """ QoL: Validate and normalize URLs"""
     
     @staticmethod
     def is_valid_url(url: str) -> bool:
@@ -48,10 +48,10 @@ class URLValidator:
 
 class JobBoardIntegration:
     """
-    ✅ QoL: Integration class for various job boards using ScraperAPI
+     QoL: Integration class for various job boards using ScraperAPI
     """
     
-    #: ✅ QoL: User-Agent rotation pool to avoid detection
+    #:  QoL: User-Agent rotation pool to avoid detection
     USER_AGENTS = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -62,7 +62,7 @@ class JobBoardIntegration:
     def __init__(self, scraper_api_key: Optional[str] = None):
         self.scraper_api_key = scraper_api_key
         self.session = requests.Session()
-        # ✅ QoL: Set random User-Agent to avoid detection
+        #  QoL: Set random User-Agent to avoid detection
         self.session.headers.update({
             "User-Agent": random.choice(self.USER_AGENTS)
         })
@@ -74,11 +74,11 @@ class JobBoardIntegration:
             "glassdoor.com": self._parse_glassdoor_job,
         }
         
-        logger.info(f"✓ JobBoardIntegration initialized")
+        logger.info(f" JobBoardIntegration initialized")
 
     def _get_with_headers(self, url: str, **kwargs) -> requests.Response:
         """
-        ✅ QoL: Make HTTP request with randomized headers to avoid blocking
+         QoL: Make HTTP request with randomized headers to avoid blocking
         
         Args:
             url: URL to fetch
@@ -135,7 +135,7 @@ class JobBoardIntegration:
         source: str = "manual",
     ) -> Dict[str, Any]:
         """
-        ✅ Fix: Enhanced manual job addition with validation and deduplication
+         Fix: Enhanced manual job addition with validation and deduplication
         """
         # Validate URL
         if url and not URLValidator.is_valid_url(url):
@@ -149,10 +149,10 @@ class JobBoardIntegration:
         job_id = hashlib.md5(normalized_url.encode()).hexdigest()[:12]
         job_id = f"{source}_{job_id}"
         
-        # ✅ Fix: Improved job type detection with correct priority
+        #  Fix: Improved job type detection with correct priority
         job_type = self._guess_job_type(description)
         
-        # ✅ Fix: Enhanced experience level detection
+        #  Fix: Enhanced experience level detection
         exp_level = self._guess_experience_level(title, description)
         
         job = {
@@ -168,7 +168,7 @@ class JobBoardIntegration:
             "experience_level": exp_level,
             "source": source,
             "scraped_at": datetime.now().isoformat(),
-            "tags": self._auto_tag_job(description),  # ✅ QoL: Auto-tagging
+            "tags": self._auto_tag_job(description),  #  QoL: Auto-tagging
         }
 
         logger.info(f"Added manual job: {title} at {company} (ID: {job_id})")
@@ -200,7 +200,7 @@ class JobBoardIntegration:
 
     def _guess_job_type(self, text: str) -> str:
         """
-        ✅ Fix: Improved job type detection with correct priority
+         Fix: Improved job type detection with correct priority
         Handles cases like "hybrid remote" correctly
         """
         if not text:
@@ -220,14 +220,14 @@ class JobBoardIntegration:
 
     def _guess_experience_level(self, title: str, description: str) -> str:
         """
-        ✅ Fix: Enhanced experience level detection with multiple indicators
+         Fix: Enhanced experience level detection with multiple indicators
         """
         if not title and not description:
             return "Unknown"
         
         combined = f"{title} {description}".lower()
         
-        # ✅ QoL: Prioritize explicit indicators in order (junior checked first)
+        #  QoL: Prioritize explicit indicators in order (junior checked first)
         level_indicators = {
             "junior": ["junior", "jr.", "jr ", "entry", "associate", "intern", "trainee", "junior level", "early career"],
             "mid": ["mid", "intermediate", "mid-level", "ii", "2", "level 2"],
@@ -261,7 +261,7 @@ class JobBoardIntegration:
 
     def _extract_salary(self, text: str) -> Optional[str]:
         """
-        ✅ QoL: Extract and normalize salary information using regex patterns
+         QoL: Extract and normalize salary information using regex patterns
         
         Returns:
             Normalized salary string in format "50000-80000" (annual) or None
@@ -286,7 +286,7 @@ class JobBoardIntegration:
                 groups = match.groups()
                 if len(groups) == 2:  # Range
                     try:
-                        # ✅ QoL: Normalize to annual salary, remove "k"
+                        #  QoL: Normalize to annual salary, remove "k"
                         min_salary = float(groups[0].replace('k', '').replace('K', '')) * 1000
                         max_salary = float(groups[1].replace('k', '').replace('K', '')) * 1000
                         return f"{int(min_salary)}-{int(max_salary)}"
@@ -296,7 +296,7 @@ class JobBoardIntegration:
                     try:
                         salary = float(groups[0].replace('k', '').replace('K', '')) * 1000
                         
-                        # ✅ QoL: Check if hourly and annualize (assuming 2080 work hours/year)
+                        #  QoL: Check if hourly and annualize (assuming 2080 work hours/year)
                         if 'hour' in text.lower() or 'hr' in text.lower():
                             salary = salary * 2080
                             return f"{int(salary)} (annualized from hourly)"
@@ -309,7 +309,7 @@ class JobBoardIntegration:
 
     def _auto_tag_job(self, description: str) -> List[str]:
         """
-        ✅ QoL: Auto-tag jobs based on content
+         QoL: Auto-tag jobs based on content
         """
         tags = []
         desc_lower = description.lower()
@@ -348,7 +348,7 @@ class JobBoardIntegration:
         return list(set(tags))  # Remove duplicates
 
     def _parse_linkedin_job(self, url: str) -> Optional[Dict[str, Any]]:
-        """✅ QoL: Parse LinkedIn job page (placeholder)"""
+        """ QoL: Parse LinkedIn job page (placeholder)"""
         try:
             # TODO: Implement LinkedIn parsing with ScraperAPI
             # This would handle LinkedIn's dynamic content
@@ -361,7 +361,7 @@ class JobBoardIntegration:
             return None
 
     def _parse_indeed_job(self, url: str) -> Optional[Dict[str, Any]]:
-        """✅ QoL: Parse Indeed job page (placeholder)"""
+        """ QoL: Parse Indeed job page (placeholder)"""
         try:
             # TODO: Implement Indeed parsing
             logger.info(f"Parsing Indeed job: {url}")
@@ -371,7 +371,7 @@ class JobBoardIntegration:
             return None
 
     def _parse_glassdoor_job(self, url: str) -> Optional[Dict[str, Any]]:
-        """✅ QoL: Parse Glassdoor job page (placeholder)"""
+        """ QoL: Parse Glassdoor job page (placeholder)"""
         try:
             # TODO: Implement Glassdoor parsing
             logger.info(f"Parsing Glassdoor job: {url}")
@@ -387,13 +387,13 @@ class JobScraper:
     def __init__(self):
         self.jobs: List[Dict[str, Any]] = []
         self.integrations = JobBoardIntegration()
-        logger.info("✓ JobScraper initialized (legacy mode)")
+        logger.info(" JobScraper initialized (legacy mode)")
 
     def scrape_all(
         self, keywords: List[str], location: str, max_jobs: int = 50
     ) -> List[Dict[str, Any]]:
         """
-        ⚠️ Deprecated: Use JobBoardIntegration instead
+         Deprecated: Use JobBoardIntegration instead
         """
         logger.warning(
             "JobScraper.scrape_all() is deprecated. Use JobBoardIntegration.scrape_all() instead."
@@ -414,7 +414,7 @@ class JobScraper:
 
     def add_from_url(self, url: str, title: str, company: str) -> Dict[str, Any]:
         """
-        ✅ QoL: Quick add a job from URL with automatic fetching
+         QoL: Quick add a job from URL with automatic fetching
         """
         if not url:
             raise ValueError("URL is required")
@@ -423,7 +423,7 @@ class JobScraper:
         job_data = self._fetch_job_from_url(url)
         
         if job_data:
-            logger.info(f"✓ Automatically fetched job details from {url}")
+            logger.info(f" Automatically fetched job details from {url}")
             return self.add_manual_job(
                 title=job_data.get("title", title),
                 company=job_data.get("company", company),
@@ -439,7 +439,7 @@ class JobScraper:
 
     def _fetch_job_from_url(self, url: str) -> Optional[Dict[str, Any]]:
         """
-        ✅ QoL: Fetch job details from URL using BeautifulSoup with enhanced headers
+         QoL: Fetch job details from URL using BeautifulSoup with enhanced headers
         
         Args:
             url: Job posting URL
@@ -459,18 +459,18 @@ class JobScraper:
             elif "glassdoor.com" in domain:
                 return self.integrations._parse_glassdoor_job(url)
             
-            # ✅ Fix: Generic fallback parser with stricter title detection
+            #  Fix: Generic fallback parser with stricter title detection
             response = self.integrations._get_with_headers(url, timeout=10)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # ✅ Fix: Be more strict - look for h1 only for job title
+            #  Fix: Be more strict - look for h1 only for job title
             title = None
             title_elem = soup.find('h1')
             if title_elem:
                 title_text = title_elem.get_text().strip()
-                # ✅ Fix: Filter out obviously wrong titles
+                #  Fix: Filter out obviously wrong titles
                 if any(indicator in title_text.lower() for indicator in ['job', 'career', 'position']):
                     title = title_text
             
@@ -499,7 +499,7 @@ class JobScraper:
                     description = desc_elem.get_text(separator='\n').strip()
                     break
             
-            # ✅ QoL: Try to find location
+            #  QoL: Try to find location
             location = ""
             location_selectors = [
                 '[class*="location"]',
@@ -512,7 +512,7 @@ class JobScraper:
                     location = loc_elem.get_text().strip()
                     break
             
-            # ✅ QoL: Try to find company
+            #  QoL: Try to find company
             company = ""
             company_selectors = [
                 '[class*="company"]',

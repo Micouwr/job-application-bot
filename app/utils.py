@@ -131,7 +131,7 @@ def generate_pdf_from_markdown(markdown_content: str, output_path: str, is_cover
                 bulletType='bullet',
                 bulletColor='black',
                 start='bulletchar',
-                bulletChar='•',
+                bulletChar='',
                 leftIndent=25
             )
             story.append(list_flowable)

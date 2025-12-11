@@ -1,286 +1,40 @@
-"""
-Configuration settings for Job Application Bot using Pydantic for validation.
-"""
-
-import os
-import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional
 
-from dotenv import load_dotenv
-from pydantic import BaseModel, Field, ValidationError, field_validator
-from pydantic_settings import BaseSettings
+# Base project paths
+PROJECT_ROOT = Path(__file__).parent.parent
+OUTPUT_PATH = PROJECT_ROOT / "output"
+DB_PATH = PROJECT_ROOT / "database" / "applications.db"
+CERTS_PATH = PROJECT_ROOT / "certs"
 
-# Load environment variables
-load_dotenv()
+# API Configuration
+GEMINI_API_KEY = ""  # Set via .env file
 
-# Base paths
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR: Path = BASE_DIR / "data"
-LOGS_DIR: Path = BASE_DIR / "logs"
-OUTPUT_DIR: Path = BASE_DIR / "output"
-RESUMES_DIR: Path = OUTPUT_DIR / "resumes"
-COVER_LETTERS_DIR: Path = OUTPUT_DIR / "cover_letters"
+# Model Configuration (Future-proof: easily upgraded to 2.5-pro)
+MODEL_NAME = "gemini-2.5-flash"  # Stable, fast, sufficient for resume tailoring
+DEFAULT_TEMPERATURE = 0.7
+MAX_OUTPUT_TOKENS = 8192
 
-# Create directories if they don't exist
-for directory in [DATA_DIR, LOGS_DIR, OUTPUT_DIR, RESUMES_DIR, COVER_LETTERS_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)
+# Application Configuration
+APP_NAME = "Job Application Bot - AI Resume Tailorer"
+APP_VERSION = "1.0.0"
+DEFAULT_WINDOW_SIZE = "1400x900"
 
-    # Verify directory is writable
-    if not os.access(directory, os.W_OK):
-        print(f"❌ Error: Directory {directory} is not writable!")
-        print("Please check permissions and try again.")
-        sys.exit(1)
-
-
-class JobSearchConfig(BaseSettings):
-    """
-    Pydantic model for job search configuration with validation.
-    """
-
-    # --- API Keys ---
-    gemini_api_key: str = Field(..., alias="GEMINI_API_KEY", description="Google Gemini API Key")
-    scraper_api_key: Optional[str] = Field(None, alias="SCRAPER_API_KEY", description="ScraperAPI Key (Optional)")
-
-    # --- Job Search Settings ---
-    job_location: str = Field("Louisville, KY", alias="JOB_LOCATION")
-    max_jobs_per_platform: int = Field(50, alias="MAX_JOBS_PER_PLATFORM", ge=1, le=1000)
-    match_threshold: float = Field(0.80, alias="MATCH_THRESHOLD", ge=0.0, le=1.0)
-
-    # --- Personal Information ---
-    your_name: str = Field(..., alias="YOUR_NAME", min_length=1)
-    your_email: str = Field(..., alias="YOUR_EMAIL", pattern=r"^[^@]+@[^@]+\.[^@]+$")
-    your_phone: str = Field(..., alias="YOUR_PHONE", min_length=10)
-    your_linkedin: str = Field("linkedin.com/in/yourprofile", alias="YOUR_LINKEDIN")
-    your_github: str = Field("github.com/yourusername", alias="YOUR_GITHUB")
-
-    # --- Logging ---
-    log_level: str = Field("INFO", alias="LOG_LEVEL")
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-
-    @field_validator("gemini_api_key")
-    @classmethod
-    def validate_gemini_key(cls, v: str) -> str:
-        """Validate Gemini API key format (strict check for common developer key)"""
-        if not v or not v.startswith("AIza"):
-            raise ValueError("GEMINI_API_KEY must be a valid Google API key starting with 'AIza'")
-        if len(v) != 39:
-            raise ValueError("GEMINI_API_KEY must be 39 characters long")
-        return v
-
-    @field_validator("scraper_api_key")
-    @classmethod
-    def validate_scraper_key(cls, v: Optional[str]) -> Optional[str]:
-        """Validate ScraperAPI key format if provided"""
-        if v and (len(v) < 20 or not v[0].isalpha()):
-            raise ValueError("SCRAPER_API_KEY appears to be invalid format")
-        return v
-
-
-# Safe configuration initialization with error handling
-try:
-    config = JobSearchConfig()
-except ValidationError as e:
-    print("❌ Configuration validation failed:")
-    for error in e.errors():
-        field = error['loc'][0] if error['loc'] else 'unknown'
-        print(f"  {field}: {error['msg']}")
-    print("\nPlease check your .env file and try again.")
-    sys.exit(1)
-
-
-# Export configuration values for backward compatibility and quick access
-GEMINI_API_KEY: str = config.gemini_api_key
-SCRAPER_API_KEY: Optional[str] = config.scraper_api_key
-JOB_LOCATION: str = config.job_location
-MAX_JOBS_PER_PLATFORM: int = config.max_jobs_per_platform
-MATCH_THRESHOLD: float = config.match_threshold
-
-YOUR_INFO: Dict[str, str] = {
-    "name": config.your_name,
-    "email": config.your_email,
-    "phone": config.your_phone,
-    "linkedin": config.your_linkedin,
-    "github": config.your_github,
-    "location": config.job_location,
-}
-
-# --- Core Application Constants ---
-
-# Job Search Keywords (Optimized for AI/Architectural Transition)
-JOB_KEYWORDS: List[str] = [
-    "IT Infrastructure Architect",
-    "Senior Infrastructure Architect",
-    "AI Governance",
-    "ISO 42001",
-    "Cloud Infrastructure Architect",
-    "Systems Architect",
-    "Service Desk Manager",
-    "Technical Support Manager",
+# Resume Processing
+DEFAULT_RESUME_NAME = "Default Resume"
+SUPPORTED_FILE_TYPES = [
+    ("Text files", "*.txt"),
+    ("PDF files", "*.pdf"),
+    ("All files", "*.*")
 ]
 
-# Database
-DATABASE_PATH: Path = DATA_DIR / "job_applications.db"
+# Date format for filenames
+FILENAME_DATE_FORMAT = "%Y%m%d_%H%M%S"
 
-# Logging
-LOG_FILE: Path = LOGS_DIR / "job_application.log"
-LOG_LEVEL: str = config.log_level
+# Output directories (created on startup)
+RESUMES_DIR = OUTPUT_PATH / "resumes"
+COVER_LETTERS_DIR = OUTPUT_PATH / "cover_letters"
 
-# Scraping Settings
-SCRAPING: Dict[str, Any] = {
-    "headless": True,
-    "timeout": 30000,  # milliseconds
-    "delay_between_requests": 2,  # seconds
-    "max_retries": 3,
-    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-}
-
-# Matching Settings
-MATCHING: Dict[str, Any] = {
-    "threshold": MATCH_THRESHOLD,
-    # High weights ensure alignment with core resume sections is prioritized
-    "weights": {"skills": 0.40, "experience": 0.40, "keywords": 0.20},
-    "experience_level_multiplier": 0.85,  # Applied if level doesn't match
-}
-
-# Tailoring Settings
-TAILORING: Dict[str, Any] = {
-    "max_tokens": 4000,
-    "temperature": 0.7,
-    "model": "gemini-2.5-flash-preview-09-2025", # Use the correct model name for grounding/structured output
-}
-
-# Resume Data Structure
-RESUME_DATA: Dict[str, Any] = {
-    "personal": YOUR_INFO,
-    "summary": "Senior IT Infrastructure Architect with 20+ years bridging legacy systems and modern cloud platforms. Certified in AI governance (ISO/IEC 42001), generative AI, and cloud fundamentals.",
-    "skills": {
-        "ai_cloud": [
-            "AI Governance",
-            "ISO/IEC 42001",
-            "Prompt Engineering",
-            "AWS Cloud Infrastructure",
-            "Generative AI",
-        ],
-        "infrastructure_security": [
-            "Network Security",
-            "Cisco Meraki",
-            "Identity & Access Management",
-            "Active Directory",
-            "VPN Configuration",
-            "Firewall Configuration",
-        ],
-        "service_leadership": [
-            "Help Desk Leadership",
-            "SLA Optimization",
-            "Technical Training",
-            "Team Leadership",
-            "Tier 1-3 Support",
-        ],
-        "technical": [
-            "Python",
-            "Linux",
-            "Windows Server",
-            "CAD/CAM Systems",
-            "Automated Testing",
-        ],
-    },
-    "experience": [
-        {
-            "company": "CIMSystem",
-            "title": "Digital Dental Technical Specialist",
-            "dates": "2018-2025",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Led 10 person help desk supporting ~150 dealer partners, managing CAD/CAM systems and milling machines",
-                "Built dealer enablement ecosystem: delivered MillBox 101 program, reducing time-to-first-mill by 50%",
-                "Presented technical sessions at Lab Day West conventions (2023-2024) for audiences of 100+ professionals",
-            ],
-            "skills_used": [
-                "Help Desk Leadership",
-                "Technical Training",
-                "Knowledge Base Architecture",
-                "Team Leadership",
-            ],
-        },
-        {
-            "company": "AccuCode",
-            "title": "Network Architect",
-            "dates": "2017-2018",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Engineered secure network architecture with Cisco Meraki and Linux imaging, cutting deployment time by 50%",
-                "Implemented VPN and firewall configurations supporting distributed workforce",
-                "Served as Tier 3 escalation support for field agents",
-            ],
-            "skills_used": [
-                "Network Security",
-                "Cisco Meraki",
-                "VPN Configuration",
-                "Tier 3 Support",
-            ],
-        },
-        {
-            "company": "CompuCom (Contract: Booz Allen Hamilton)",
-            "title": "Service Desk Analyst and Trainer",
-            "dates": "2013-2017",
-            "location": "Louisville, KY",
-            "achievements": [
-                "Delivered Tier 1-2 support for 1,000+ federal and enterprise users",
-                "Achieved 90% first-contact resolution, reducing escalations",
-                "Developed training curriculum and mentored analysts",
-            ],
-            "skills_used": [
-                "Tier 1-2 Support",
-                "Active Directory",
-                "Training Curriculum Development",
-            ],
-        },
-    ],
-    "projects": [
-        {
-            "name": "AI Triage Bot Prototype",
-            "github": "github.com/Micouwr/AI-TRIAGE_Bot",
-            "dates": "November 2025-Present",
-            "description": "Developed prototype ticket classification engine in Python aligned with ISO/IEC 42001 transparency principles",
-            "achievements": [
-                "Designed modular system for intelligent routing and PII detection",
-                "Implemented automated testing with assertion-based validation",
-            ],
-        }
-    ],
-    "certifications": [
-        {
-            "name": "ISO/IEC 42001:2023 – AI Management System Fundamentals",
-            "issuer": "Alison",
-            "date": "November 2025",
-        },
-        {"name": "AWS Cloud Practitioner Essentials", "issuer": "AWS", "date": "2025"},
-        {"name": "Google AI Essentials", "issuer": "Coursera", "date": "2025"},
-        {"name": "Generative AI Fundamentals", "issuer": "Databricks", "date": "2025"},
-        {"name": "CompTIA A+", "issuer": "CompTIA", "status": "Active"},
-    ],
-    "education": [
-        {
-            "institution": "Sullivan University",
-            "program": "CodeLouisville Graduate – Front-End Web Development",
-        },
-        {
-            "institution": "Western Kentucky University",
-            "program": "General Studies Coursework",
-        },
-    ],
-}
-
-def validate_config() -> bool:
-    """Legacy validation function - now handled by Pydantic"""
-    return True
-
-def get_config() -> JobSearchConfig:
-    """Get the Pydantic configuration object"""
-    return config
-OUTPUT_PATH = OUTPUT_DIR  # Alias for compatibility with tailor.py
+# Future-proofing: Migration path to Option B
+# When ready to upgrade, replace with:
+# from config.settings_orm import *
+# And implement Pydantic models for validation

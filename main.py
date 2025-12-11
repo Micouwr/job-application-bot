@@ -29,7 +29,7 @@ from config.settings import (
 )
 from database import JobDatabase, create_backup
 from matcher import JobMatcher
-from tailor import ResumeTailor, TailoringResult
+from app.tailor import ResumeTailor, TailoringResult
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
@@ -179,31 +179,31 @@ def main():
                 try:
                     from gui.tkinter_app import main as gui_main
                     gui_main()
-                except Exception as e: print(f"❌ GUI failed: {e}")
+                except Exception as e: print(f" GUI failed: {e}")
                 break
             elif cmd.startswith("import "):
                 path = cmd[7:].strip()
                 try: print(f"Import from {path} not yet implemented")
-                except FileNotFoundError: print(f"❌ File not found: {path}")
-                except Exception as e: print(f"❌ Import failed: {e}")
+                except FileNotFoundError: print(f" File not found: {path}")
+                except Exception as e: print(f" Import failed: {e}")
             elif cmd == "add":
                 try:
                     title = input("Job Title: ").strip()
-                    if not title: print("❌ Title required"); continue
+                    if not title: print(" Title required"); continue
                     company = input("Company (optional): ").strip()
                     print("Description (Ctrl+D/Z to finish):")
                     desc = "\n".join(iter(input, "")).strip()
-                    if not desc: print("❌ Description required"); continue
+                    if not desc: print(" Description required"); continue
                     job = bot.add_manual_job(title, company, desc)
                     bot.run_pipeline_async([job], dry_run=False)
-                    print("✅ Job added")
-                except Exception as e: print(f"❌ Add failed: {e}")
+                    print(" Job added")
+                except Exception as e: print(f" Add failed: {e}")
             elif cmd == "run":
-                try: bot.run_pipeline_async([], dry_run=False); print("🚀 Pipeline started")
-                except Exception as e: print(f"❌ Run failed: {e}")
-            else: print(f"❌ Unknown: '{cmd}'. Type 'help'")
-        except (EOFError, KeyboardInterrupt): print("\n👋 Goodbye!"); break
-        except Exception as e: logger.exception(f"CLI error: {e}"); print(f"\n❌ Error: {e}")
+                try: bot.run_pipeline_async([], dry_run=False); print(" Pipeline started")
+                except Exception as e: print(f" Run failed: {e}")
+            else: print(f" Unknown: '{cmd}'. Type 'help'")
+        except (EOFError, KeyboardInterrupt): print("\n Goodbye!"); break
+        except Exception as e: logger.exception(f"CLI error: {e}"); print(f"\n Error: {e}")
 
 
 if __name__ == "__main__":
