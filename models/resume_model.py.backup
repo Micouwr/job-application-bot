@@ -1,0 +1,70 @@
+import sqlite3
+from pathlib import Path
+from config.settings import DB_PATH
+
+class ResumeModel:
+    def __init__(self):
+        self.db_path = DB_PATH
+    
+    def add_resume(self, file_path, name, is_active=False):
+        """Add a new resume to the database"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute('''
+                INSERT INTO resumes (name, file_path, is_active)
+                VALUES (?, ?, ?)
+            ''', (name, str(file_path), 1 if is_active else 0))
+            
+            conn.commit()
+            return cursor.lastrowid
+    
+    def list_resumes(self):
+        """List all resumes in the database"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT id, name, file_path, is_active, created_at 
+                FROM resumes 
+                ORDER BY created_at DESC
+            ''')
+            
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_active_resume(self):
+        """Get the currently active resume"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute('''
+                SELECT id, name, file_path, is_active, created_at 
+                FROM resumes 
+                WHERE is_active = 1 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            ''')
+            
+            rows = cursor.fetchall()
+            return dict(rows[0]) if rows else None
+    
+    def set_active_resume_by_path(self, file_path):
+        """Set a resume as active by its file path"""
+        with sqlite3.connect(self.db_path) as conn:
+            # Deactivate all resumes
+            conn.execute('UPDATE resumes SET is_active = 0')
+            
+            # Activate selected resume
+            conn.execute('''
+                UPDATE resumes 
+                SET is_active = 1 
+                WHERE file_path = ?
+            ''', (str(file_path),))
+            
+            conn.commit()
+    
+    def delete_resume_by_path(self, file_path):
+        """Delete a resume by its file path"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute('DELETE FROM resumes WHERE file_path = ?', (str(file_path),))
+            conn.commit()
+
+# Future-proofing: When migrating to Option B (SQLAlchemy),
+# Replace this file with models/resume_model_orm.py
+# No other code changes needed - the interface remains identical

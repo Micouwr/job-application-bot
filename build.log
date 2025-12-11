@@ -1,0 +1,73 @@
+204 INFO: PyInstaller: 6.17.0, contrib hooks: 2025.10
+204 INFO: Python: 3.11.14
+217 INFO: Platform: macOS-11.7.10-x86_64-i386-64bit
+217 INFO: Python environment: /Users/chellenicole/job-application-bot/venv
+222 INFO: Removing temporary files and cleaning cache in /Users/chellenicole/Library/Application Support/pyinstaller
+251 INFO: Module search paths (PYTHONPATH):
+['/Users/chellenicole/.pyenv/versions/3.11.14/lib/python311.zip',
+ '/Users/chellenicole/.pyenv/versions/3.11.14/lib/python3.11',
+ '/Users/chellenicole/.pyenv/versions/3.11.14/lib/python3.11/lib-dynload',
+ '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages',
+ '/Users/chellenicole/job-application-bot/gui',
+ '/Users/chellenicole/job-application-bot']
+475 INFO: Appending 'datas' from .spec
+476 INFO: checking Analysis
+476 INFO: Building Analysis because Analysis-00.toc is non existent
+476 INFO: Looking for Python shared library...
+486 INFO: Using Python shared library: /Users/chellenicole/.pyenv/versions/3.11.14/lib/libpython3.11.dylib
+486 INFO: Running Analysis Analysis-00.toc
+486 INFO: Target bytecode optimization level: 0
+486 INFO: Initializing module dependency graph...
+488 INFO: Initializing module graph hook caches...
+510 INFO: Analyzing modules for base_library.zip ...
+1406 INFO: Processing standard module hook 'hook-heapq.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+1522 INFO: Processing standard module hook 'hook-encodings.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+3301 INFO: Processing standard module hook 'hook-pickle.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+5316 INFO: Caching module dependency graph...
+5367 INFO: Analyzing /Users/chellenicole/job-application-bot/gui/tkinter_app.py
+5413 INFO: Processing pre-find-module-path hook 'hook-tkinter.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_find_module_path'
+5414 INFO: TclTkInfo: initializing cached Tcl/Tk info...
+5705 INFO: Processing standard module hook 'hook-_tkinter.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+6148 INFO: Processing standard module hook 'hook-reportlab.lib.utils.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+6201 INFO: Processing standard module hook 'hook-PIL.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+6325 INFO: Processing standard module hook 'hook-PIL.Image.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+6743 INFO: Processing standard module hook 'hook-xml.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+6824 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+7085 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+7474 INFO: Processing standard module hook 'hook-platform.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+8012 INFO: Processing standard module hook 'hook-reportlab.pdfbase._fontdata.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+8592 INFO: Processing standard module hook 'hook-charset_normalizer.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+8787 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+8795 INFO: SetuptoolsInfo: initializing cached setuptools info...
+13916 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+14375 INFO: Processing standard module hook 'hook-_ctypes.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+16836 INFO: Processing standard module hook 'hook-xml.dom.domreg.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+16968 INFO: Processing standard module hook 'hook-sqlalchemy.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+17750 INFO: Processing standard module hook 'hook-sysconfig.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+17767 INFO: Processing standard module hook 'hook-_osx_support.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+17778 INFO: Processing pre-safe-import-module hook 'hook-importlib_metadata.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+17779 INFO: Setuptools: 'importlib_metadata' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.importlib_metadata'!
+17788 INFO: Processing standard module hook 'hook-setuptools.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+17804 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+17805 INFO: Processing pre-find-module-path hook 'hook-distutils.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_find_module_path'
+18070 INFO: Processing standard module hook 'hook-distutils.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+18103 INFO: Processing standard module hook 'hook-distutils.util.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+18166 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+18410 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+18411 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+18423 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+18424 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+18436 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+18437 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+18583 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+18583 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+19110 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+19111 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+19727 INFO: Processing standard module hook 'hook-pkg_resources.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+19937 INFO: Processing pre-safe-import-module hook 'hook-platformdirs.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+19937 INFO: Setuptools: 'platformdirs' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.platformdirs'!
+20173 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+20174 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+20437 INFO: Processing standard module hook 'hook-setuptools._vendor.importlib_metadata.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks'
+20438 INFO: Processing pre-safe-import-module hook 'hook-zipp.py' from '/Users/chellenicole/job-application-bot/venv/lib/python3.11/site-packages/PyInstaller/hooks/pre_safe_import_module'
+20439 INFO: Setuptools: 'zipp' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.zipp'!

@@ -143,7 +143,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         # Create notebook for tabs
         self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.notebook.grid(row=0, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Create tabs
         self._create_add_job_tab()
@@ -178,13 +178,16 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=4, column=0, columnspan=3, pady=10)
+        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
         
         self.clear_button = ttk.Button(button_frame, text="Clear Fields", command=self.clear_fields)
         self.clear_button.grid(row=0, column=0, padx=5)
         
         self.start_button = ttk.Button(button_frame, text="Start Tailoring", command=self.start_tailoring)
         self.start_button.grid(row=0, column=1, padx=5)
+        
+        self.quit_button = ttk.Button(button_frame, text="Quit", command=self.master.quit)
+        self.quit_button.grid(row=0, column=2, padx=5)
         
         # Configure grid weights
         tab.columnconfigure(1, weight=1)
@@ -209,7 +212,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self.resume_tree.column('Path', width=400)
         self.resume_tree.column('Active', width=50)
         
-        self.resume_tree.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        self.resume_tree.grid(row=1, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Add scrollbar
         scrollbar = ttk.Scrollbar(tab, orient=tk.VERTICAL, command=self.resume_tree.yview)
@@ -222,11 +225,11 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         # Resume Preview Section
         ttk.Label(tab, text="Resume Preview:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
         self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD)
-        self.resume_preview.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        self.resume_preview.grid(row=3, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=4, column=0, columnspan=3, pady=10)
+        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
         
         self.upload_button = ttk.Button(button_frame, text="Upload Resume", command=self.upload_resume)
         self.upload_button.grid(row=0, column=0, padx=5)
@@ -586,7 +589,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
     
     def _check_api_key(self):
         """Check if Gemini API key is configured"""
-        load_dotenv()
+        load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
         api_key = os.getenv("GEMINI_API_KEY")
         
         if not api_key or api_key == "your_api_key_here":
