@@ -6,6 +6,37 @@ from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 from config.settings import OUTPUT_PATH
+from jinja2 import Environment, FileSystemLoader
+from pathlib import Path
+import os
+
+PROMPTS_DIR = Path(__file__).parent / "prompts"
+
+def load_prompt_template(role_level="Standard"):
+    """Load Jinja2 prompt template for role level."""
+    env = Environment(loader=FileSystemLoader(str(PROMPTS_DIR)))
+    
+    # Map roles to template files
+    template_map = {
+        "Standard": "system.txt.j2",
+        "Senior": "senior.txt.j2",
+        "Lead": "senior.txt.j2",
+        "Principal": "senior.txt.j2"
+    }
+    
+    template_name = template_map.get(role_level, "system.txt.j2")
+    return env.get_template(template_name)
+
+def load_user_prompt_template(prompt_name="custom_template.txt.j2"):
+    """Load user-created prompt template."""
+    user_prompts_dir = PROMPTS_DIR / "user"
+    
+    if not (user_prompts_dir / prompt_name).exists():
+        return None
+    
+    env = Environment(loader=FileSystemLoader(str(user_prompts_dir)))
+    return env.get_template(prompt_name)
+
 
 def process_and_tailor_from_gui(job_title, company, job_description, job_url, resume_text, applicant_name="Applicant"):
     """
