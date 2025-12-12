@@ -1,6 +1,0 @@
-2025-12-08 19:51:23,880 - main - INFO - ================================================================================
-2025-12-08 19:51:23,881 - main - INFO - Job Application Bot Starting - Manual Mode Only
-2025-12-08 19:51:23,881 - main - INFO - ================================================================================
-2025-12-08 19:51:23,881 - matcher - INFO - JobMatcher initialized - Gemini 2.5 Flash powered
-2025-12-08 19:51:23,881 - tailor - INFO - ResumeTailor initialized - Gemini 2.5 Flash + external prompts
-2025-12-08 19:51:23,881 - main - INFO - All components initialized (no web scraping)

@@ -43,3 +43,10 @@ output/
 # Database (user data - optional)
 # Uncomment if you want to track schema but not data
 # database/applications.db
+data/
+*.backup
+__pycache__/
+*.pyc
+.env
+dist/
+build/
