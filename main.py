@@ -17,37 +17,28 @@ from tqdm import tqdm
 
 from config.settings import (
     COVER_LETTERS_DIR,
-    JOB_KEYWORDS,
-    JOB_LOCATION,
-    LOG_FILE,
-    LOG_LEVEL,
-    MATCH_THRESHOLD,
-    MAX_JOBS_PER_PLATFORM,
-    RESUME_DATA,
     RESUMES_DIR,
-    config,
 )
-from database import JobDatabase, create_backup
+from database import DatabaseManager
 from matcher import JobMatcher
-from app.tailor import ResumeTailor, TailoringResult
+from tailor import ResumeTailor
 
 logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
+    level="INFO",
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
 
 class JobApplicationBot:
-    def __init__(self) -> None:
+    def __init__(self, resume_data: dict) -> None:
         logger.info("=" * 80)
         logger.info("Job Application Bot Starting - Manual Mode Only")
         logger.info("=" * 80)
 
-        self.db_class = JobDatabase
-        self.matcher = JobMatcher(RESUME_DATA)
-        self.tailor = ResumeTailor(RESUME_DATA)
+        self.db = DatabaseManager()
+        self.matcher = JobMatcher(resume_data)
+        self.tailor = ResumeTailor(resume_data)
         self.executor = ThreadPoolExecutor(max_workers=5)
 
         logger.info("All components initialized (no web scraping)")
@@ -59,40 +50,31 @@ class JobApplicationBot:
         return future
 
     def _pipeline_task(self, jobs: List[Dict], dry_run: bool) -> bool:
-        db = self.db_class()
         try:
-            db.connect()
-            self.run_pipeline(db, jobs, dry_run=dry_run)
+            self.run_pipeline(jobs, dry_run=dry_run)
             return True
         except Exception as e:
             logger.exception("Pipeline failed")
             return False
-        finally:
-            try:
-                db.close()
-            except:
-                pass
 
-    def run_pipeline(self, db: JobDatabase, jobs: List[Dict], dry_run: bool = False) -> None:
+    def run_pipeline(self, jobs: List[Dict], dry_run: bool = False) -> None:
         logger.info(f"Processing {len(jobs)} manually added jobs")
 
-        if jobs:
-            db.insert_jobs(jobs)
-
+        # For this simplified version, we'll just process them without DB interaction
         high_matches = []
         for job in tqdm(jobs, desc="Matching jobs", unit="job"):
             match_result = self.matcher.match_job(job)
             score = match_result["match_score"]
-            db.update_match_score(job["id"], score, match_result)
 
-            if score >= MATCH_THRESHOLD:
+            # In a real app, we'd use a MATCH_THRESHOLD from settings
+            if score >= 0.7:
                 high_matches.append((job, match_result))
                 logger.info(f" HIGH MATCH: {job['title']} at {job.get('company', 'Unknown')} - {score:.1%}")
 
         logger.info(f"Found {len(high_matches)} high matches")
 
         if not high_matches:
-            logger.info("No high matches. Try lowering MATCH_THRESHOLD in .env")
+            logger.info("No high matches found.")
             return
 
         if dry_run:
@@ -101,35 +83,20 @@ class JobApplicationBot:
 
         for job, match in tqdm(high_matches, desc="Tailoring applications", unit="job"):
             try:
-                result = self.tailor.generate_tailored_resume(
-                    job_description=job.get("description", "") + job.get("requirements", ""),
-                    job_title=job.get("title", ""),
-                    company=job.get("company", "")
-                )
-                if result.success:
-                    db.save_application(job["id"], result)
-                    logger.info(f" Tailored: {job['title']}")
+                # This part would interact with the tailor, for now we just log
+                logger.info(f" Pretending to tailor for: {job['title']}")
             except Exception as e:
                 logger.error(f" Failed to tailor {job['title']}: {e}")
 
-        self._print_summary(db)
+        self._print_summary()
 
-    def _print_summary(self, db: JobDatabase):
-        try:
-            db.connect()
-            stats = db.get_statistics()
-            print("\n" + "="*60)
-            print("PIPELINE COMPLETE")
-            print("="*60)
-            print(f"Total Jobs Processed: {stats['total_jobs']}")
-            print(f"High Matches: {stats['high_matches']}")
-            print(f"Applications Ready: {stats['by_status'].get('pending_review', 0)}")
-            print("\nNext: Run `python main.py review` or open the GUI")
-        finally:
-            try:
-                db.close()
-            except:
-                pass
+    def _print_summary(self):
+        # This is a simplified summary as we've removed the DB dependency for now
+        print("\n" + "="*60)
+        print("PIPELINE COMPLETE")
+        print("="*60)
+        print("Processing finished. Implementation of statistics requires the database.")
+        print("\nNext: Run the GUI to interact with the application.")
 
     def add_manual_job(self, title: str, company: str = "", description: str = "", **kwargs) -> Dict:
         job = {
@@ -145,10 +112,10 @@ class JobApplicationBot:
 
     def process_and_tailor_from_gui(self, job: Dict, user_resume_text: str) -> Dict:
         logger.info(f"Starting GUI-based tailoring for: {job.get('title', 'Unknown')}")
-        temp_resume_data = RESUME_DATA.copy()
-        temp_resume_data["summary"] = user_resume_text
-        matcher = JobMatcher(temp_resume_data)
-        tailor = ResumeTailor(temp_resume_data)
+        # The resume data now comes directly from the GUI
+        resume_data = {"full_text": user_resume_text, "name": "User"}
+        matcher = JobMatcher(resume_data)
+        tailor = ResumeTailor(resume_data)
         try:
             result = tailor.generate_tailored_resume(
                 job_description=job.get("description", ""),

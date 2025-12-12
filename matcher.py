@@ -7,7 +7,6 @@ from typing import List, Optional
 from pydantic import BaseModel, ValidationError
 
 from config.prompt_manager import prompts
-from config.settings import RESUME_DATA
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +20,11 @@ class MatchResult(BaseModel):
 
 
 class JobMatcher:
-    def __init__(self, resume_data: Optional[dict] = None):
-        self.resume_text = (resume_data or RESUME_DATA).get("full_text", "")
-        self.name = (resume_data or RESUME_DATA).get("name", "Candidate")
+    def __init__(self, resume_data: dict):
+        if not resume_data or "full_text" not in resume_data:
+            raise ValueError("JobMatcher requires resume_data with a 'full_text' key.")
+        self.resume_text = resume_data.get("full_text", "")
+        self.name = resume_data.get("name", "Candidate")
         logger.info("JobMatcher initialized - Gemini 2.5 Flash powered")
 
     def match_job(self, job: dict) -> dict:

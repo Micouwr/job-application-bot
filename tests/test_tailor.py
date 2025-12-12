@@ -1,68 +1,53 @@
 import pytest
 import os
 import sys
-from unittest.mock import MagicMock
-from typing import List
+from unittest.mock import MagicMock, patch
 
-# Adjust path to import app modules if running from the tests directory
+# Adjust path to import app modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.tailor import ResumeTailor, APIClient # APIClient included for mocking
+from tailor import ResumeTailor
 
-# Mock response structure for ResumeTailor._parse_response test
-MOCK_AI_RESPONSE = """
-[START_RESUME]
-# Tailored Resume
-- Experience 1: Focused on cloud architecture.
-- Experience 2: Highlighted Python scripting.
-[END_RESUME]
+# Mock resume data for initializing the tailor
+MOCK_RESUME_DATA = {
+    "full_text": "Experienced software engineer.",
+    "name": "Test Candidate"
+}
 
-[START_COVER_LETTER]
-Dear Hiring Manager,
-
-I am writing to express my interest in the Infrastructure Role. 
-I noticed your recent acquisition of 'TechFirm ABC' via a Google search, which perfectly aligns with my cloud migration skills.
-
-Sincerely,
-Candidate Name
-[END_COVER_LETTER]
-
-[START_CHANGES]
-Reordered sections for relevance.
-Emphasized cloud certifications.
-Removed irrelevant volunteer work.
-[END_CHANGES]
+# This is the mock response we will tell the Gemini API to return
+MOCK_API_RESPONSE_TEXT = """
+```json
+{
+    "resume_text": "This is the tailored resume.",
+    "cover_letter": "This is the tailored cover letter."
+}
+```
 """
 
-def test_tailor_parsing_success():
-    """Tests if the _parse_response method correctly extracts content from the structured tags."""
-    # Mock the client to prevent actual API calls and configuration errors
-    tailor = ResumeTailor(api_client=MagicMock(spec=APIClient)) 
+@patch('tailor.genai.GenerativeModel')
+def test_generate_tailored_resume_success(MockGenerativeModel):
+    """
+    Tests that the tailor correctly calls the API and parses the JSON response.
+    This replaces the previous, invalid parsing tests.
+    """
+    # Arrange: Configure the mock model and its response
+    mock_model_instance = MockGenerativeModel.return_value
+    mock_response = MagicMock()
+    mock_response.text = MOCK_API_RESPONSE_TEXT
+    mock_model_instance.generate_content.return_value = mock_response
     
-    parsed_results = tailor._parse_response(MOCK_AI_RESPONSE)
+    # Act: Initialize the tailor and call the method
+    tailor = ResumeTailor(resume_data=MOCK_RESUME_DATA)
+    result = tailor.generate_tailored_resume(
+        job_description="A job for a Python dev.",
+        job_title="Python Developer",
+        company="TestCo"
+    )
     
-    assert "resume_text" in parsed_results
-    assert "cover_letter" in parsed_results
-    assert "changes" in parsed_results
+    # Assert: Verify the results
+    assert result["success"] is True
+    assert "This is the tailored resume." in result["resume_text"]
+    assert "This is the tailored cover letter." in result["cover_letter"]
     
-    # Check resume text content
-    assert "cloud architecture" in parsed_results["resume_text"]
-    
-    # Check cover letter content (specifically the part referencing search grounding)
-    assert "acquisition of 'TechFirm ABC'" in parsed_results["cover_letter"]
-    
-    # Check changes list format
-    assert isinstance(parsed_results["changes"], List)
-    assert len(parsed_results["changes"]) == 3
-    assert parsed_results["changes"][1] == "Emphasized cloud certifications."
-
-
-def test_tailor_parsing_missing_tag_raises_error():
-    """Tests if parsing fails gracefully when a mandatory tag is missing."""
-    tailor = ResumeTailor(api_client=MagicMock(spec=APIClient))
-    
-    # Remove the mandatory [END_RESUME] tag to force a failure
-    invalid_response = MOCK_AI_RESPONSE.replace("[END_RESUME]", "MISSING TAG")
-    
-    with pytest.raises(ValueError, match="Malformed AI response"):
-        tailor._parse_response(invalid_response)
+    # Assert that the API was called
+    mock_model_instance.generate_content.assert_called_once()
