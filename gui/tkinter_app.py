@@ -1,607 +1,687 @@
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog, scrolledtext
-import json
-import os
+"""
+Tkinter GUI for the Job Application Bot.
+Enhanced with resume upload, selection, and management.
+"""
+
 import sys
 import threading
-import queue
-import shutil
-from pathlib import Path
-from datetime import datetime
-from dotenv import load_dotenv
+import tkinter as tk
 import logging
+from pathlib import Path
+from tkinter import filedialog, messagebox, scrolledtext, ttk
+from datetime import datetime
+import shutil
+import json
+import csv
+from typing import List, Dict, Any
 
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Add project root to path to allow direct execution
+# Note: Assuming 'database.py' and 'main.py' are one directory up
+try:
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+except NameError:
+    # Handle environment where __file__ is not defined (e.g., interactive console)
+    sys.path.insert(0, str(Path("..").resolve()))
 
-from config.settings import OUTPUT_PATH, DB_PATH
-from database import DatabaseManager
-from tailor import process_and_tailor_from_gui
-from models.resume_model import ResumeModel
+from database import JobDatabase
+from main import JobApplicationBot
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class JobAppTkinter:
-    def __init__(self, master=None):
-        self.master = master
-        self.master.title("Job Application Bot - AI Resume Tailorer")
-        self.master.geometry("1000x700")
-        
-        # Initialize models and database
-        self.db_manager = DatabaseManager()
-        self.resume_model = ResumeModel()
-        self.selected_resume_path = None
-        self.active_resume_id = None
-        
-        # Ensure output directory exists
-        os.makedirs(OUTPUT_PATH, exist_ok=True)
-        
-        # Create default resume if none exists
-        self._ensure_default_resume()
-        
-        # Queue for thread communication
-        self.tailoring_queue = queue.Queue()
-        
-        # Initialize UI
+    """
+    Main application window for the Job Application Bot, built with Tkinter.
+    """
+
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Job Application Bot - AI Resume Tailorer")
+        self.root.geometry("1400x900")
+
+        # Initialize Bot and Database once (FIX 1)
+        self.bot = JobApplicationBot()
+        self.db = JobDatabase()
+
+        # Initialize UI-related attributes early (FIX 4)
+        self.current_resume_path = None
+        self.status_var = tk.StringVar(value="Initializing...")
+        self.resume_dir = Path("data/resumes")
+        self.resume_dir.mkdir(exist_ok=True, parents=True)
+
+        # Widgets to manage during tailoring (must be initialized to None first)
+        self.tailor_button = None
+        self.clear_button = None
+        self.job_text = None
+        self.resume_text = None
+        self.save_output_button = None
+
+        # Initialize UI first (critical for macOS - prevents dialog blocking)
         self._init_ui()
         
-        # Check for API key
-        self._check_api_key()
-        
-        # Start queue checker
-        self._check_queue()
-    
+        # Then check for resume after a brief delay
+        self.root.after(100, self._ensure_default_resume)
+
     def _ensure_default_resume(self):
-        """Create default resume if no resumes exist in database"""
-        resumes = self.resume_model.list_resumes()
-        
-        if not resumes:
-            default_resume_text = """MICHELLE NICOLE
-AI Developer & Automation Specialist
-San Francisco Bay Area | michellenicole@example.com | (555) 123-4567 | linkedin.com/in/michellenicole | github.com/michellenicole
+        """Creates a default resume template if no resumes exist."""
+        default_path = self.resume_dir / "default_resume.txt"
 
-PROFESSIONAL SUMMARY
-Innovative AI Developer with expertise in building intelligent automation systems and cross-platform desktop applications. Proven track record of implementing machine learning solutions that improve efficiency by up to 85%. Strong background in Python, GPT API integration, and PyInstaller deployment for macOS, Windows, and Linux.
+        # Check if ANY .txt resume exists
+        if not list(self.resume_dir.glob("*.txt")):
+            default_content = """YOUR NAME
+Email: your.email@example.com
+Phone: (123) 456-7890
 
-TECHNICAL SKILLS
-Languages: Python, JavaScript, SQL, Bash, HTML/CSS
-AI/ML: GPT-4 API, LangChain, TensorFlow, Scikit-learn, Prompt Engineering
-Tools: PyInstaller, Git, Docker, PostgreSQL, SQLite, REST APIs
-Frameworks: Tkinter, PyQt, Flask, FastAPI, Node.js
-Certifications: Two AI certifications (redacted for privacy)
+PROFESSIONAL SUMMARY:
+Senior IT Infrastructure Architect with extensive experience in cloud and AI governance.
+Experienced in implementing robust governance frameworks and leveraging cloud platforms (AWS, Azure)
+to drive business transformation. Holds a CompTIA A+ certification, specializing in AI solutions.
 
-PROFESSIONAL EXPERIENCE
+CORE SKILLS:
+- AWS, Azure, Python
+- AI Governance, Machine Learning Principles, NLP (Natural Language Processing)
+- ITIL, CISSP, CompTIA A+, TWO AI CERTIFICATIONS (REDACTED FOR PRIVACY)
 
-Senior AI Developer | Tech Innovations Inc. | 2022-Present
-- Developed AI-powered resume tailoring system using GPT-4 API, reducing application time by 80%
-- Implemented cross-platform desktop application with PyInstaller for 500+ users
-- Created automated job application bot that increased interview rate by 3x
-- Led team of 3 developers in building machine learning pipeline
+EXPERIENCE:
+Company Name - IT Infrastructure Manager (2020-Present)
+- Led cloud migration projects, resulting in 30% cost reduction.
+- Designed and implemented AI governance framework, ensuring compliance and ethical use of AI models.
+- Managed a team of 10 help desk and infrastructure specialists.
 
-Full Stack Developer | Automation Solutions Corp. | 2020-2022
-- Built web scraping automation tools that processed 10,000+ job postings daily
-- Integrated multiple APIs (LinkedIn, Indeed) for seamless data collection
-- Developed database systems for candidate tracking and analytics
-- Deployed applications across Windows, macOS, and Linux platforms
+EDUCATION:
+B.S. Computer Science, University Name
 
-AI Developer | Machine Learning Startup | 2019-2020
-- Created predictive models for applicant tracking systems (ATS)
-- Implemented natural language processing for resume optimization
-- Built custom algorithms for job matching and candidate ranking
-
-EDUCATION
-Bachelor of Science in Computer Science
-University of California, Berkeley | 2019
-Relevant Coursework: Machine Learning, AI Systems, Data Structures, Algorithms
-
-PROJECTS
-Job Application Bot - AI Resume Tailorer
-- Desktop application using Tkinter and GPT-4 API for automated resume tailoring
-- Features: PDF upload, database management, cross-platform compatibility
-- Technologies: Python, PyInstaller, SQLite, Threading
-
-Cross-Platform Automation Suite
-- Built with PyInstaller for deployment on Windows, macOS, and Linux
-- Automated job search, application tracking, and follow-up emails
-- Integrated with 15+ job boards via API and web scraping
-
-AI Resume Analyzer & Optimizer
-- Machine learning model analyzing resume effectiveness
-- Provides suggestions for ATS optimization and keyword targeting
-- Used by 200+ job seekers with 90% satisfaction rate
-
-PROFESSIONAL DEVELOPMENT
-- Continuous learning in AI/ML technologies and frameworks
-- Active contributor to open-source automation projects
-- Member: AI Developers Association, Python Software Foundation
-
-REFERENCES
-Available upon request. Technical portfolio and code samples accessible via GitHub repository.
+CERTIFICATIONS:
+- AWS Solutions Architect
+- ITIL v4
+- CompTIA A+
+- Advanced AI/ML Certification 1
+- Advanced AI/ML Certification 2
 """
-            
-            # Save to file
-            default_path = OUTPUT_PATH / "default_resume.txt"
-            with open(default_path, 'w', encoding='utf-8') as f:
-                f.write(default_resume_text)
-            
-            # Add to database
-            self.resume_model.add_resume(str(default_path), "Default Resume", is_active=True)
-            logging.info("Default resume created successfully")
-    
+            default_path.write_text(default_content, encoding="utf-8")
+
+            # Also set the default as the active resume
+            active_path = self.resume_dir / "active_resume.txt"
+            active_path.write_text(str(default_path.absolute()))
+            self.current_resume_path = default_path
+
+            messagebox.showinfo(
+                "Welcome",
+                "Created a default resume template. Note that I've added placeholders for your new AI certifications! Please update it in the 'Manage Resumes' tab."
+            )
+
     def _init_ui(self):
-        """Initialize the main UI components"""
-        # Main container
-        main_frame = ttk.Frame(self.master, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        self.master.columnconfigure(0, weight=1)
-        self.master.rowconfigure(0, weight=1)
-        
-        # Create notebook for tabs
-        self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=0, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # Create tabs
-        self._create_add_job_tab()
-        self._create_resume_mgmt_tab()
-        self._create_output_tab()
-        
-        # Make notebook expandable
-        main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(0, weight=1)
-    
-    def _create_add_job_tab(self):
-        """Create the Add Job Application tab"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="Add Job Application")
-        
-        # Job Details Section
-        ttk.Label(tab, text="Job Title:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.job_title_entry = ttk.Entry(tab, width=50)
-        self.job_title_entry.grid(row=0, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
-        ttk.Label(tab, text="Company:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.company_entry = ttk.Entry(tab, width=50)
-        self.company_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
-        ttk.Label(tab, text="Job Description:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.job_desc_text = scrolledtext.ScrolledText(tab, width=80, height=15, wrap=tk.WORD)
-        self.job_desc_text.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        
-        ttk.Label(tab, text="Job URL:", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.job_url_entry = ttk.Entry(tab, width=50)
-        self.job_url_entry.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
-        # Buttons
-        button_frame = ttk.Frame(tab)
-        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
-        
-        self.clear_button = ttk.Button(button_frame, text="Clear Fields", command=self.clear_fields)
-        self.clear_button.grid(row=0, column=0, padx=5)
-        
-        self.start_button = ttk.Button(button_frame, text="Start Tailoring", command=self.start_tailoring)
-        self.start_button.grid(row=0, column=1, padx=5)
-        
-        self.quit_button = ttk.Button(button_frame, text="Quit", command=self.master.quit)
-        self.quit_button.grid(row=0, column=2, padx=5)
-        
-        # Configure grid weights
-        tab.columnconfigure(1, weight=1)
-        tab.rowconfigure(2, weight=1)
-    
-    def _create_resume_mgmt_tab(self):
-        """Create the Resume Management tab"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="Resume Management")
-        
-        # Resume List Section
-        ttk.Label(tab, text="Available Resumes:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
-        
-        # Create treeview for resumes
-        columns = ('Name', 'Path', 'Active')
-        self.resume_tree = ttk.Treeview(tab, columns=columns, show='headings', height=10)
-        self.resume_tree.heading('Name', text='Resume Name')
-        self.resume_tree.heading('Path', text='File Path')
-        self.resume_tree.heading('Active', text='Active')
-        
-        self.resume_tree.column('Name', width=150)
-        self.resume_tree.column('Path', width=400)
-        self.resume_tree.column('Active', width=50)
-        
-        self.resume_tree.grid(row=1, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(tab, orient=tk.VERTICAL, command=self.resume_tree.yview)
-        self.resume_tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.grid(row=1, column=3, sticky=(tk.N, tk.S))
-        
-        # Bind selection event
-        self.resume_tree.bind('<<TreeviewSelect>>', self._on_resume_select)
-        
-        # Resume Preview Section
-        ttk.Label(tab, text="Resume Preview:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD)
-        self.resume_preview.grid(row=3, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        
-        # Buttons
-        button_frame = ttk.Frame(tab)
-        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
-        
-        self.upload_button = ttk.Button(button_frame, text="Upload Resume", command=self.upload_resume)
-        self.upload_button.grid(row=0, column=0, padx=5)
-        
-        self.delete_button = ttk.Button(button_frame, text="Delete Selected", command=self.delete_selected_resume)
-        self.delete_button.grid(row=0, column=1, padx=5)
-        
-        self.set_active_button = ttk.Button(button_frame, text="Set as Active", command=self.set_active_resume)
-        self.set_active_button.grid(row=0, column=2, padx=5)
-        
-        # Refresh resume list
-        self._refresh_resume_list()
-        
-        # Configure grid weights
-        tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(1, weight=1)
-        tab.rowconfigure(3, weight=1)
-    
-    def _create_output_tab(self):
-        """Create the Output/Logs tab"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="Output & Logs")
-        
-        ttk.Label(tab, text="Application Logs:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
-        
-        self.log_text = scrolledtext.ScrolledText(tab, width=80, height=25, wrap=tk.WORD)
-        self.log_text.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        
-        # Configure grid weights
-        tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(1, weight=1)
-    
-    def _on_resume_select(self, event):
-        """Handle resume selection in treeview"""
-        selection = self.resume_tree.selection()
-        if selection:
-            item = self.resume_tree.item(selection[0])
-            resume_path = item['values'][1]
-            
-            try:
-                with open(resume_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    self.resume_preview.delete('1.0', tk.END)
-                    self.resume_preview.insert('1.0', content)
-            except Exception as e:
-                self._log_message(f"Error loading resume preview: {e}", "error")
-    
-    def _refresh_resume_list(self):
-        """Refresh the resume list in treeview"""
-        # Clear existing items
-        for item in self.resume_tree.get_children():
-            self.resume_tree.delete(item)
-        
-        # Load resumes from database
-        resumes = self.resume_model.list_resumes()
-        for resume in resumes:
-            active_status = "Yes" if resume['is_active'] else "No"
-            self.resume_tree.insert('', tk.END, values=(
-                resume['name'],
-                resume['file_path'],
-                active_status
-            ))
-        
-        # Set active resume path
-        active_resume = self.resume_model.get_active_resume()
-        if active_resume:
-            self.active_resume_id = active_resume['id']
-    
-    def upload_resume(self):
-        """Upload a new resume file"""
-        file_path = filedialog.askopenfilename(
-            title="Select Resume File",
-            filetypes=[
-                ("PDF files", "*.pdf"),
-                ("Text files", "*.txt"),
-                ("Word files", "*.docx"),
-                ("All files", "*.*")
-            ]
+        """Initializes the user interface."""
+        # Configure styles
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('TNotebook.Tab', font=('Arial', 11, 'bold'))
+        style.configure('TButton', font=('Arial', 10))
+        style.configure('Accent.TButton', foreground='white', background='#3498db', font=('Arial', 10, 'bold'))
+        style.map('Accent.TButton', background=[('active', '#2980b9')])
+        style.configure('Header.TLabel', font=('Arial', 12, 'bold'))
+
+        # Main container with tabs
+        notebook = ttk.Notebook(self.root)
+        notebook.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Tab 1: Add Job & Tailor
+        add_job_frame = ttk.Frame(notebook)
+        notebook.add(add_job_frame, text="🎯 Tailor Application")
+        self._create_add_job_tab(add_job_frame)
+
+        # Tab 2: Resume Management
+        resume_mgmt_frame = ttk.Frame(notebook)
+        notebook.add(resume_mgmt_frame, text="📄 Manage Resumes")
+        self._create_resume_mgmt_tab(resume_mgmt_frame)
+
+        # Tab 3: View Jobs
+        view_jobs_frame = ttk.Frame(notebook)
+        notebook.add(view_jobs_frame, text="📋 View Applications")
+        self._create_view_jobs_tab(view_jobs_frame)
+
+        # Tab 4: Statistics
+        stats_frame = ttk.Frame(notebook)
+        notebook.add(stats_frame, text="📊 Statistics")
+        self._create_stats_tab(stats_frame)
+
+        # Status bar (uses the status_var created in __init__)
+        self.status_bar = ttk.Label(
+            self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W
         )
-        
-        if not file_path:
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
+    def _create_add_job_tab(self, parent):
+        """Creates the 'Add Job & Tailor' tab."""
+        main_frame = ttk.Frame(parent, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Resume selection display
+        resume_select_frame = ttk.LabelFrame(main_frame, text="Selected Resume", padding="5")
+        resume_select_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.selected_resume_label = ttk.Label(
+            resume_select_frame,
+            text="Loading active resume...",
+            foreground="gray",
+            font=('Arial', 10, 'italic')
+        )
+        self.selected_resume_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        refresh_btn = ttk.Button(
+            resume_select_frame,
+            text="Refresh Active Resume",
+            command=self._load_selected_resume
+        )
+        refresh_btn.pack(side=tk.RIGHT)
+
+        # --- Center Frame: Split Inputs (Left) vs Outputs (Right) ---
+        center_frame = ttk.Frame(main_frame)
+        center_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        # Left Frame: Inputs
+        input_frame = ttk.Frame(center_frame)
+        input_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+
+        # Right Frame: Outputs
+        right_frame = ttk.Frame(center_frame)
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+
+        # --- Resume Input (Left Side, Top) ---
+        resume_input_frame = ttk.LabelFrame(input_frame, text="Active Resume Text (Editable)", padding="5")
+        resume_input_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
+
+        self.resume_text = tk.Text(resume_input_frame, wrap=tk.WORD, font=('Arial', 10))
+        self.resume_text.pack(fill=tk.BOTH, expand=True)
+        self.resume_text.insert("1.0", "Loading resume content...")
+
+        # --- Job Description Input (Left Side, Bottom) ---
+        job_frame = ttk.LabelFrame(input_frame, text="Job Description (Paste Here)", padding="5")
+        job_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+
+        self.job_text = tk.Text(job_frame, wrap=tk.WORD, font=('Arial', 10))
+        self.job_text.pack(fill=tk.BOTH, expand=True)
+        self.job_text.insert("1.0", "Paste the complete job description here...")
+
+        # --- Tailored Resume Output (Right Side, Top) ---
+        resume_out_frame = ttk.LabelFrame(right_frame, text="✨ Tailored Resume", padding="5")
+        resume_out_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.tailored_resume_text = tk.Text(
+            resume_out_frame, wrap=tk.WORD, font=('Arial', 10),
+            bg='#f0f0f0', state=tk.DISABLED
+        )
+        self.tailored_resume_text.pack(fill=tk.BOTH, expand=True)
+
+        # --- Cover Letter Output (Right Side, Bottom) ---
+        cl_out_frame = ttk.LabelFrame(right_frame, text="✨ Cover Letter", padding="5")
+        cl_out_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+
+        self.cover_letter_text = tk.Text(
+            cl_out_frame, wrap=tk.WORD, font=('Arial', 10),
+            bg='#f0f0f0', state=tk.DISABLED
+        )
+        self.cover_letter_text.pack(fill=tk.BOTH, expand=True)
+
+        # --- Action Buttons (Global Bottom) ---
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.tailor_button = ttk.Button(
+            button_frame, text="🚀 Tailor Application", command=self.start_tailoring,
+            style='Accent.TButton'
+        )
+        self.tailor_button.pack(side=tk.LEFT, padx=5)
+
+        self.clear_button = ttk.Button(
+            button_frame, text="🗑️ Clear All", command=self.clear_fields
+        )
+        self.clear_button.pack(side=tk.LEFT, padx=5)
+
+        self.save_output_button = ttk.Button(
+            button_frame, text="💾 Save Outputs", command=self.save_outputs,
+            state=tk.DISABLED
+        )
+        self.save_output_button.pack(side=tk.LEFT, padx=5)
+
+        # Load current resume on startup
+        self._load_selected_resume()
+
+    def _create_resume_mgmt_tab(self, parent):
+        """Creates the 'Resume Management' tab."""
+        main_frame = ttk.Frame(parent, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Instructions
+        instr_frame = ttk.Frame(main_frame)
+        instr_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(
+            instr_frame,
+            text="Upload, select, and manage multiple resume versions. Only .txt files can be read by the AI bot.",
+            font=('Arial', 10, 'italic'),
+            foreground='blue'
+        ).pack(side=tk.LEFT)
+
+        # --- Controls ---
+        control_frame = ttk.Frame(main_frame)
+        control_frame.pack(fill=tk.X, pady=(0, 10))
+
+        upload_btn = ttk.Button(
+            control_frame, text="⬆️ Upload New Resume", command=self.upload_resume,
+            style='Accent.TButton'
+        )
+        upload_btn.pack(side=tk.LEFT, padx=5)
+
+        delete_btn = ttk.Button(
+            control_frame, text="🗑️ Delete Selected", command=self.delete_selected_resume
+        )
+        delete_btn.pack(side=tk.LEFT, padx=5)
+
+        set_active_btn = ttk.Button(
+            control_frame, text="✅ Set as Active", command=self.set_active_resume
+        )
+        set_active_btn.pack(side=tk.LEFT, padx=5)
+
+        # --- Resume List ---
+        list_frame = ttk.LabelFrame(main_frame, text="Available Resumes (.txt)", padding="5")
+        list_frame.pack(fill=tk.BOTH, expand=False, side=tk.LEFT, padx=(0, 10)) # Do not expand list frame
+
+        self.resume_listbox = tk.Listbox(
+            list_frame, width=40, font=('Arial', 10), selectmode=tk.SINGLE
+        )
+        self.resume_listbox.pack(side=tk.LEFT, fill=tk.Y, expand=False)
+
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.resume_listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.resume_listbox.configure(yscrollcommand=scrollbar.set)
+
+        # --- Preview Pane ---
+        preview_frame = ttk.LabelFrame(main_frame, text="Preview Content", padding="5")
+        preview_frame.pack(fill=tk.BOTH, expand=True, side=tk.RIGHT)
+
+        self.resume_preview = tk.Text(
+            preview_frame, wrap=tk.WORD, font=('Arial', 9), bg='#f5f5f5'
+        )
+        self.resume_preview.pack(fill=tk.BOTH, expand=True)
+
+        # Bind selection event
+        self.resume_listbox.bind('<<ListboxSelect>>', self._on_resume_select)
+
+        # Load resume list
+        self._refresh_resume_list()
+
+    def _load_selected_resume(self):
+        """Loads the currently selected resume path and updates UI."""
+        if not self.resume_text:
+            # Widget not initialized yet, skip
             return
-        
+
         try:
-            # Get file name
-            name = Path(file_path).stem
+            active_path = self.resume_dir / "active_resume.txt"
+
+            # 1. Determine the path of the active resume
+            if active_path.exists():
+                self.current_resume_path = Path(active_path.read_text().strip())
+            else:
+                # Default to first resume found
+                resumes = list(self.resume_dir.glob("*.txt"))
+                if resumes:
+                    self.current_resume_path = resumes[0]
+                    active_path.write_text(str(self.current_resume_path.absolute()))
+                else:
+                    self.current_resume_path = None
+
+            # 2. Update UI with resume status and content
+            if self.current_resume_path and self.current_resume_path.exists():
+                display_name = self.current_resume_path.name
+
+                # Update status label
+                self.selected_resume_label.config(
+                    text=f"✅ Active: {display_name}",
+                    foreground="green",
+                    font=('Arial', 10)
+                )
+
+                # Load content into the editable text widget on the main tab
+                content = self.current_resume_path.read_text(encoding='utf-8')
+                self.resume_text.delete("1.0", tk.END)
+                self.resume_text.insert(tk.END, content)
+
+                self.status_var.set(f"Active resume loaded: {display_name}")
+            else:
+                # Handle no resume state
+                self.selected_resume_label.config(
+                    text="❌ No active resume. Upload one in 'Manage Resumes' tab.",
+                    foreground="red",
+                    font=('Arial', 10, 'italic')
+                )
+                self.resume_text.delete("1.0", tk.END)
+                self.resume_text.insert(tk.END, "No active resume. Please upload or set one in the 'Manage Resumes' tab.")
+                self.status_var.set("Error: No active resume found.")
+
+        except Exception as e:
+            logging.error(f"Error loading selected resume: {e}")
+            self.selected_resume_label.config(
+                text=f"❌ Error loading resume: {e}",
+                foreground="red"
+            )
+            self.status_var.set("Error during resume load.")
+
+    def upload_resume(self):
+        """Uploads a new resume file (TXT, DOCX, PDF) and converts non-TXT to TXT placeholder."""
+        path = filedialog.askopenfilename(
+            title="Upload Resume",
+            filetypes=[
+                ("Text Files", "*.txt"),
+                ("PDF Files", "*.pdf"),
+                ("All Files", "*.*")
+            ],
+        )
+        if not path:
+            return
+
+        try:
+            source = Path(path)
             
             # Handle PDF files
-            if file_path.lower().endswith('.pdf'):
+            if source.suffix.lower() == '.pdf':
                 try:
                     import PyPDF2
-                    with open(file_path, 'rb') as pdf_file:
-                        pdf_reader = PyPDF2.PdfReader(pdf_file)
-                        text_content = ""
-                        for page in pdf_reader.pages:
-                            text_content += page.extract_text() + "\n"
+                    with open(source, 'rb') as file:
+                        reader = PyPDF2.PdfReader(file)
+                        text = ""
+                        for page in reader.pages:
+                            text += page.extract_text() or ""
                     
-                    # Save as text file
-                    txt_path = OUTPUT_PATH / f"{name}.txt"
-                    with open(txt_path, 'w', encoding='utf-8') as f:
-                        f.write(text_content)
+                    # Save as .txt
+                    dest = self.resume_dir / f"{source.stem}.txt"
+                    # Handle duplicates
+                    counter = 1
+                    while dest.exists():
+                        dest = self.resume_dir / f"{source.stem}_{counter}.txt"
+                        counter += 1
                     
-                    file_path = str(txt_path)
-                except Exception as e:
-                    self._log_message(f"PDF processing error: {e}", "error")
+                    dest.write_text(text, encoding='utf-8')
+                    messagebox.showinfo("Success", f"PDF converted and saved: {dest.name}")
+                except ImportError:
+                    messagebox.showerror("Missing Dependency", "PyPDF2 is not installed. Please install it with: pip install PyPDF2")
                     return
-            
-            # Add to database
-            self.resume_model.add_resume(file_path, name, is_active=False)
-            self._refresh_resume_list()
-            self._log_message(f"Resume uploaded successfully: {name}", "success")
-            
-        except Exception as e:
-            self._log_message(f"Error uploading resume: {e}", "error")
-    
-    def delete_selected_resume(self):
-        """Delete the selected resume"""
-        selection = self.resume_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select a resume to delete")
-            return
-        
-        # Confirm deletion
-        if not messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this resume?"):
-            return
-        
-        try:
-            item = self.resume_tree.item(selection[0])
-            resume_path = item['values'][1]
-            
-            # Delete from database
-            self.resume_model.delete_resume_by_path(resume_path)
-            
-            # Refresh list
-            self._refresh_resume_list()
-            self.resume_preview.delete('1.0', tk.END)
-            
-            self._log_message("Resume deleted successfully", "success")
-            
-        except Exception as e:
-            self._log_message(f"Error deleting resume: {e}", "error")
-    
-    def set_active_resume(self):
-        """Set the selected resume as active"""
-        selection = self.resume_tree.selection()
-        if not selection:
-            messagebox.showwarning("Warning", "Please select a resume to set as active")
-            return
-        
-        try:
-            item = self.resume_tree.item(selection[0])
-            resume_path = item['values'][1]
-            
-            # Set as active in database
-            self.resume_model.set_active_resume_by_path(resume_path)
-            
-            # Refresh list
-            self._refresh_resume_list()
-            
-            self._log_message(f"Active resume set to: {item['values'][0]}", "success")
-            
-        except Exception as e:
-            self._log_message(f"Error setting active resume: {e}", "error")
-    
-    def _load_selected_resume(self):
-        """Load the currently active resume"""
-        try:
-            active_resume = self.resume_model.get_active_resume()
-            if not active_resume:
-                self._log_message("No active resume found. Please upload a resume first.", "error")
-                return None
-            
-            resume_path = active_resume['file_path']
-            
-            with open(resume_path, 'r', encoding='utf-8') as f:
-                return f.read()
+                except Exception as e:
+                    messagebox.showerror("PDF Error", f"Failed to extract text from PDF: {e}")
+                    return
+            else:
+                # For TXT files, just copy
+                dest = self.resume_dir / f"{source.stem}.txt"
+                # Handle duplicates
+                counter = 1
+                while dest.exists():
+                    dest = self.resume_dir / f"{source.stem}_{counter}.txt"
+                    counter += 1
+                shutil.copy2(source, dest)
                 
+                # Basic content check
+                content = dest.read_text(encoding='utf-8')
+                if len(content) < 100:
+                    messagebox.showwarning(
+                        "Short Resume",
+                        f"The uploaded resume '{dest.name}' appears very short. Please verify content for AI processing."
+                    )
+                messagebox.showinfo("Success", f"Resume uploaded: {dest.name}")
+
+            self._refresh_resume_list()
+
         except Exception as e:
-            self._log_message(f"Error loading resume: {e}", "error")
-            return None
-    
+            logging.error(f"Failed to upload resume: {e}")
+            messagebox.showerror("Upload Error", f"Failed to upload resume: {e}")
+
+    def delete_selected_resume(self):
+        """Deletes the selected resume file."""
+        selection = self.resume_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a resume to delete.")
+            return
+
+        # Extract clean filename (remove emojis and markers)
+        resume_name_full = self.resume_listbox.get(selection[0])
+        resume_name = resume_name_full.replace('✅ ', '').replace(' (ACTIVE)', '')
+        resume_path = self.resume_dir / resume_name
+
+        if not resume_path.exists():
+            messagebox.showerror("Error", "Selected file does not exist on disk.")
+            return
+
+        # Prevent deleting active resume
+        if self.current_resume_path and resume_path.resolve() == self.current_resume_path.resolve():
+            messagebox.showerror(
+                "Cannot Delete",
+                "This is the active resume. Please set another resume as active first."
+            )
+            return
+
+        if messagebox.askyesno(
+            "Confirm Delete",
+            f"Delete '{resume_name}'?\nThis cannot be undone."
+        ):
+            try:
+                resume_path.unlink()
+                self._refresh_resume_list()
+                messagebox.showinfo("Deleted", f"Deleted: {resume_name}")
+            except Exception as e:
+                logging.error(f"Failed to delete resume: {e}")
+                messagebox.showerror("Delete Error", f"Failed to delete: {e}")
+
+    def set_active_resume(self):
+        """Sets the selected resume as active for tailoring."""
+        selection = self.resume_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a resume to activate.")
+            return
+
+        # Extract clean filename
+        resume_name_full = self.resume_listbox.get(selection[0])
+        resume_name = resume_name_full.replace('✅ ', '').replace(' (ACTIVE)', '')
+        resume_path = self.resume_dir / resume_name
+
+        try:
+            active_path = self.resume_dir / "active_resume.txt"
+            active_path.write_text(str(resume_path.absolute()))
+
+            # Update internal state and UI
+            self._load_selected_resume()
+            self._refresh_resume_list()
+
+            messagebox.showinfo(
+                "Resume Activated",
+                f"Active resume set to: {resume_name}"
+            )
+        except Exception as e:
+            logging.error(f"Failed to set active resume: {e}")
+            messagebox.showerror("Activation Error", f"Failed to set active resume: {e}")
+
+    def _refresh_resume_list(self):
+        """Refreshes the resume listbox."""
+        self.resume_listbox.delete(0, tk.END)
+
+        try:
+            # Get all text resumes
+            resumes = sorted(self.resume_dir.glob("*.txt"))
+
+            if not resumes:
+                self.resume_listbox.insert(tk.END, "No resumes found. Upload one!")
+                return
+
+            active_resume_name = self.current_resume_path.name if self.current_resume_path else ""
+
+            for resume in resumes:
+                display_name = resume.name
+                if resume.name == active_resume_name:
+                    display_name = f"✅ {resume.name} (ACTIVE)"
+                    self.resume_listbox.insert(tk.END, display_name)
+                    self.resume_listbox.itemconfig(tk.END, {'bg':'#e8f5e9', 'fg':'green'})
+                else:
+                    self.resume_listbox.insert(tk.END, display_name)
+
+        except Exception as e:
+            logging.error(f"Error loading resume list: {e}")
+            self.resume_listbox.insert(tk.END, f"Error loading resumes: {e}")
+
+    def _on_resume_select(self, event):
+        """Preview selected resume in the preview pane."""
+        selection = self.resume_listbox.curselection()
+        if not selection:
+            return
+
+        # Extract clean filename
+        resume_name_full = self.resume_listbox.get(selection[0])
+        resume_name = resume_name_full.replace('✅ ', '').replace(' (ACTIVE)', '')
+
+        resume_path = self.resume_dir / resume_name
+
+        try:
+            self.resume_preview.delete("1.0", tk.END)
+            if resume_path.exists():
+                content = resume_path.read_text(encoding='utf-8')
+                preview = content[:2000] + ("\n\n... [TRUNCATED] ..." if len(content) > 2000 else "")
+                self.resume_preview.insert(tk.END, preview)
+            else:
+                self.resume_preview.insert(tk.END, "File not found!")
+        except Exception as e:
+            logging.error(f"Error previewing file: {e}")
+            self.resume_preview.insert(tk.END, f"Error loading file: {e}")
+
     def start_tailoring(self):
-        """Start the tailoring process"""
-        # Get input values
-        job_title = self.job_title_entry.get().strip()
-        company = self.company_entry.get().strip()
-        job_description = self.job_desc_text.get('1.0', tk.END).strip()
-        job_url = self.job_url_entry.get().strip()
-        
-        # Validate inputs
-        if not job_description:
-            messagebox.showwarning("Missing Information", "Please fill in Job Title, Company, and Job Description")
+        """Starts the tailoring process in a new thread."""
+        job_description = self.job_text.get("1.0", tk.END).strip()
+        resume_text = self.resume_text.get("1.0", tk.END).strip() # Read from the active input field
+
+        if not job_description or "paste the complete job description here..." in job_description.lower():
+            messagebox.showwarning("Input Required", "Please paste a complete job description.")
             return
-        
-        # Load resume
-        resume_text = self._load_selected_resume()
-        if not resume_text:
+
+        if not self.current_resume_path or not self.current_resume_path.exists() or len(resume_text) < 100:
+            messagebox.showerror(
+                "Resume Error",
+                "Active resume is missing or too short. Check 'Manage Resumes' tab."
+            )
             return
-        
-        # Disable UI during processing
+
+        self.status_var.set("🤖 AI is tailoring your application. This may take a moment...")
         self.set_ui_enabled(False)
-        self._log_message("Starting resume tailoring process...", "info")
-        
-        # Start tailoring thread
-        thread = threading.Thread(
-            target=self.tailor_application_thread,
-            args=(job_title, company, job_description, job_url, resume_text)
-        )
-        thread.daemon = True
-        thread.start()
-    
-    def tailor_application_thread(self, job_title, company, job_description, job_url, resume_text):
-        """Thread function for tailoring process"""
+
+        # Thread the blocking operation
+        threading.Thread(target=self.tailor_application_thread, daemon=True).start()
+
+    def tailor_application_thread(self):
+        """The actual tailoring process, run in a thread."""
+        job_description = self.job_text.get("1.0", tk.END).strip()
+        # Read resume text directly from the editable widget
+        resume_text = self.resume_text.get("1.0", tk.END).strip()
+
         try:
-            # Process and tailor
-            result = process_and_tailor_from_gui(
-                job_title=job_title,
-                company=company,
-                job_description=job_description,
-                job_url=job_url,
-                resume_text=resume_text,
-                applicant_name="Michelle Nicole"
-            )
-            
-            # Check for required fields
-            if not result or not result.get("resume_text") or not result.get("cover_letter"):
-                raise Exception("AI returned incomplete or empty tailoring results")
-            
-            # Log success
-            self._log_message("Resume tailoring completed successfully", "success")
-            
-            # Add to queue for main thread
-            self.tailoring_queue.put({
-                'status': 'success',
-                'result': result,
-                'job_title': job_title,
-                'company': company
-            })
-            
+            # 1. Simulate job creation (the bot handles the database interaction later)
+            job = {
+                "title": "Ad-Hoc Tailoring Job",
+                "company": "User Input",
+                "url": "",
+                "description": job_description,
+                "location": "N/A",
+            }
+
+            # 2. Call the full pipeline which handles matching and tailoring
+            result = self.bot.process_and_tailor_from_gui(job, user_resume_text=resume_text)
+
+            # Check for specific failure case from the AI/pipeline
+            if not result.get("resume_text") or not result.get("cover_letter"):
+                raise Exception("AI returned incomplete or empty tailoring results.")
+
+            self.root.after(0, self.on_tailoring_complete, result, None)
         except Exception as e:
-            self._log_message(f"Error during tailoring: {e}", "error")
-            self.tailoring_queue.put({
-                'status': 'error',
-                'error': str(e)
-            })
-    
-    def on_tailoring_complete(self, result_data):
-        """Handle completion of tailoring process"""
-        if result_data['status'] == 'error':
-            messagebox.showerror("Error", f"Tailoring failed: {result_data['error']}")
-            self.set_ui_enabled(True)
+            logging.error(f"Tailoring Thread Error: {e}")
+            self.root.after(0, self.on_tailoring_complete, None, e)
+
+    def on_tailoring_complete(self, result, error):
+        """Handles the completion of the tailoring process."""
+        self.set_ui_enabled(True)
+
+        # Clear previous outputs
+        self.tailored_resume_text.config(state=tk.NORMAL)
+        self.cover_letter_text.config(state=tk.NORMAL)
+        self.tailored_resume_text.delete("1.0", tk.END)
+        self.cover_letter_text.delete("1.0", tk.END)
+
+        if error:
+            messagebox.showerror("❌ Tailoring Error", f"Failed to tailor application:\n{error}")
+            self.status_var.set("Tailoring failed. Check console for details.")
+
+            # Re-disable outputs
+            self.tailored_resume_text.config(state=tk.DISABLED)
+            self.cover_letter_text.config(state=tk.DISABLED)
+            self.save_output_button.config(state=tk.DISABLED)
             return
-        
-        try:
-            result = result_data['result']
-            job_title = result_data['job_title']
-            company = result_data['company']
-            
-            # Save outputs
-            self.save_outputs(
-                result['resume_text'],
-                result['cover_letter'],
-                job_title,
-                company
-            )
-            
-            # Clear fields
-            self.clear_fields()
-            
-            messagebox.showinfo("Success", "Resume tailoring completed! Files saved to output folder.")
-            self._log_message("Files saved successfully", "success")
-            
-        except Exception as e:
-            messagebox.showerror("Save Error", f"Error saving files: {e}")
-            self._log_message(f"Save error: {e}", "error")
-        finally:
-            self.set_ui_enabled(True)
-    
-    def save_outputs(self, tailored_resume, cover_letter, job_title, company):
-        """Save tailored documents to output folder"""
-        # Create timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_company = company.replace(" ", "_").replace("/", "_")
-        safe_title = job_title.replace(" ", "_").replace("/", "_")
-        
-        # Create base filename
-        base_name = f"{safe_company}_{safe_title}_{timestamp}"
-        
-        # Save tailored resume
-        resume_path = OUTPUT_PATH / f"{base_name}_resume.txt"
-        with open(resume_path, 'w', encoding='utf-8') as f:
-            f.write(tailored_resume)
-        
-        # Save cover letter
-        cover_letter_path = OUTPUT_PATH / f"{base_name}_cover_letter.txt"
-        with open(cover_letter_path, 'w', encoding='utf-8') as f:
-            f.write(cover_letter)
-        
-        # Add to database
-        self.db_manager.add_application(
-            job_title=job_title,
-            company_name=company,
-            job_url="",
-            resume_path=str(resume_path),
-            cover_letter_path=str(cover_letter_path)
+
+        # Enable save button
+        self.save_output_button.config(state=tk.NORMAL)
+
+        # Display results
+        self.tailored_resume_text.insert(tk.END, result.get("resume_text", "No tailored resume generated."))
+        self.cover_letter_text.insert(tk.END, result.get("cover_letter", "No cover letter generated."))
+
+        # Finalize output states
+        self.tailored_resume_text.config(state=tk.DISABLED)
+        self.cover_letter_text.config(state=tk.DISABLED)
+
+        self.status_var.set("✅ Application tailored successfully! Ready to save.")
+
+        messagebox.showinfo(
+            "Success",
+            "Application tailored successfully!\n\nReview the outputs and save your documents."
         )
-        
-        self._log_message(f"Files saved: {base_name}_*.txt", "info")
-    
+
     def clear_fields(self):
-        """Clear all input fields"""
-        self.job_title_entry.delete(0, tk.END)
-        self.company_entry.delete(0, tk.END)
-        self.job_desc_text.delete('1.0', tk.END)
-        self.job_url_entry.delete(0, tk.END)
-    
-    def set_ui_enabled(self, enabled):
-        """Enable or disable UI elements during processing"""
-        state = 'normal' if enabled else 'disabled'
-        
-        self.job_title_entry.config(state=state)
-        self.company_entry.config(state=state)
-        self.job_desc_text.config(state=state)
-        self.job_url_entry.config(state=state)
-        self.start_button.config(state=state)
+        """Clears all input and output fields in the Tailor tab."""
+        # Clear inputs
+        self.job_text.delete("1.0", tk.END)
+        self.job_text.insert("1.0", "Paste the complete job description here...")
+
+        # Reload the active resume content to reset any temporary user edits
+        self._load_selected_resume()
+
+        # Clear outputs (must enable before clearing and disable after)
+        self.tailored_resume_text.config(state=tk.NORMAL)
+        self.tailored_resume_text.delete("1.0", tk.END)
+        self.tailored_resume_text.config(state=tk.DISABLED)
+
+        self.cover_letter_text.config(state=tk.NORMAL)
+        self.cover_letter_text.delete("1.0", tk.END)
+        self.cover_letter_text.config(state=tk.DISABLED)
+
+        self.save_output_button.config(state=tk.DISABLED)
+        self.status_var.set("Fields cleared. Ready.")
+
+    def set_ui_enabled(self, enabled: bool):
+        """Explicitly enables or disables key UI elements in the Tailor tab."""
+        state = tk.NORMAL if enabled else tk.DISABLED
+
+        # Tailor tab controls
+        self.tailor_button.config(state=state)
         self.clear_button.config(state=state)
-        self.upload_button.config(state=state)
-        self.delete_button.config(state=state)
-        self.set_active_button.config(state=state)
-    
-    def _log_message(self, message, level='info'):
-        """Add message to log window"""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        log_entry = f"[{timestamp}] {level.upper()}: {message}\n"
-        
-        # Insert at end
-        self.log_text.insert(tk.END, log_entry)
-        
-        # Auto-scroll to bottom
-        self.log_text.see(tk.END)
-        
-        # Also log to console
-        logging.log(getattr(logging, level.upper()), message)
-    
-    def _check_queue(self):
-        """Check for messages from worker threads"""
-        try:
-            while True:
-                data = self.tailoring_queue.get_nowait()
-                if data:
-                    self.on_tailoring_complete(data)
-        except queue.Empty:
+        self.job_text.config(state=state)
+        self.resume_text.config(state=state)
+
+        # Output save button depends on successful output generation
+        if enabled:
+            # Only enable save button if there is content
+            has_output = self.tailored_resume_text.get("1.0", tk.END).strip()
+            # If the output text widget is disabled, it will return an empty string, so we must check the state.
+            # We assume if enabled is True, the next step will involve checking content.
+            # For now, just rely on the on_tailoring_complete to set save_output_button state.
             pass
-        
-        # Check again in 100ms
-        self.master.after(100, self._check_queue)
-    
-    def _check_api_key(self):
-        """Check if Gemini API key is configured"""
-        load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
-        api_key = os.getenv("GEMINI_API_KEY")
-        
-        if not api_key or api_key == "your_api_key_here":
-            messagebox.showwarning(
-                "API Key Missing",
-                "Gemini API key not found. Please set GEMINI_API_KEY in your .env file.\n\n"
-                "You can get a free API key from: https://makersuite.google.com/app/apikey"
-            )
-            self._log_message("API key missing - please configure .env file", "warning")
+
+        # Save button state is managed by on_tailoring_complete, not here
+        # self.save_output_button.config(state=tk.DISABLED)
 
 def main():
-    """Main entry point for the application"""
     root = tk.Tk()
     app = JobAppTkinter(root)
     root.mainloop()
