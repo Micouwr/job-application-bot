@@ -1,14 +1,11 @@
+import os
+import logging
+from pathlib import Path
+from typing import Optional, Dict, Any
 import google.generativeai as genai
-import os
-import re
-import json
-from pathlib import Path
-from datetime import datetime
-from dotenv import load_dotenv
-from config.settings import OUTPUT_PATH
-from jinja2 import Environment, FileSystemLoader
-from pathlib import Path
-import os
+from jinja2 import Environment, FileSystemLoader, Template
+
+from config.settings import GEMINI_MODEL, OUTPUT_PATH
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
@@ -37,65 +34,77 @@ def load_user_prompt_template(prompt_name="custom_template.txt.j2"):
     env = Environment(loader=FileSystemLoader(str(user_prompts_dir)))
     return env.get_template(prompt_name)
 
-
-def process_and_tailor_from_gui(job_title, company, job_description, job_url, resume_text, applicant_name="Applicant"):
+def process_and_tailor_from_gui(resume_text, job_description, output_path, role_level="Standard", custom_prompt=None):
     """
-    Process and tailor resume from GUI inputs
-    """
-    # Load API key
-    load_dotenv()
-    api_key = os.getenv("GEMINI_API_KEY")
+    Process and tailor a resume for a job application from GUI.
     
-    if not api_key:
-        raise Exception("Gemini API key not found. Please set GEMINI_API_KEY in .env file")
-    
-    genai.configure(api_key=api_key)
-    
-    # Create prompt
-    prompt = f"""
-    You are an expert resume and cover letter writer. Create a tailored resume and cover letter based on the following information:
-    
-    APPLICANT NAME: {applicant_name}
-    JOB TITLE: {job_title}
-    COMPANY: {company}
-    JOB DESCRIPTION: {job_description}
-    JOB URL: {job_url}
-    
-    EXISTING RESUME:
-    {resume_text}
-    
-    Please provide:
-    1. A tailored resume optimized for this position
-    2. A customized cover letter
-    
-    Format your response as JSON with keys "resume_text" and "cover_letter".
-    """
-    
-    # Call Gemini API
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    response = model.generate_content(prompt)
-    
-    # Parse response
-    try:
-        # Extract JSON from response
-        response_text = response.text
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+    Args:
+        resume_text: Text content of the resume
+        job_description: Job description text
+        output_path: Path where outputs will be saved
+        role_level: Role level for template selection
+        custom_prompt: Optional custom prompt template name
         
-        if json_match:
-            result = json.loads(json_match.group())
-            return {
-                "resume_text": result.get("resume_text", ""),
-                "cover_letter": result.get("cover_letter", "")
-            }
+    Returns:
+        Dict with resume_text and cover_letter keys
+    """
+    # DEBUG: Verify function is being called
+    print(f"DEBUG: process_and_tailor_from_gui called with role_level={role_level}, custom_prompt={custom_prompt}")
+    print(f"DEBUG: Resume length: {len(resume_text)}, Job desc length: {len(job_description)}")
+    
+    try:
+        # Load prompt template
+        if custom_prompt:
+            template = load_user_prompt_template(custom_prompt)
         else:
-            # Fallback if JSON not found
-            return {
-                "resume_text": response_text,
-                "cover_letter": "Cover letter generation failed - see resume text"
-            }
-            
+            template = load_prompt_template(role_level)
+        
+        if not template:
+            raise Exception("Failed to load prompt template")
+        
+        # DEBUG: Verify template loaded
+        print(f"DEBUG: Template loaded: {template.filename if hasattr(template, 'filename') else 'custom'}")
+        
+        # Render prompt with variables
+        prompt = template.render(
+            role_level=role_level,
+            company_name="Target Company",  # Placeholder - should extract from job_description
+            job_title="Target Role",          # Placeholder - should extract from job_description
+            job_description=job_description,
+            resume_text=resume_text
+        )
+        
+        print(f"DEBUG: Rendered prompt length: {len(prompt)}")
+        
+        # Initialize Gemini
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise Exception("GEMINI_API_KEY not found in environment")
+        
+        print("DEBUG: Initializing Gemini API...")
+        genai.configure(api_key=api_key)
+        
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        
+        print("DEBUG: Calling Gemini API...")
+        response = model.generate_content(prompt)
+        
+        print(f"DEBUG: API response received. Text length: {len(response.text)}")
+        
+        # Parse response (split into resume and cover letter)
+        sections = response.text.split("\n\nCOVER LETTER:\n\n")
+        
+        if len(sections) != 2:
+            raise Exception("AI response not in expected format (missing COVER LETTER delimiter)")
+        
+        resume_tailored = sections[0].strip()
+        cover_letter = sections[1].strip()
+        
+        return {
+            "resume_text": resume_tailored,
+            "cover_letter": cover_letter
+        }
+        
     except Exception as e:
-        raise Exception(f"Failed to parse AI response: {e}")
-
-if __name__ == "__main__":
-    print("Tailor module loaded successfully")
+        print(f"DEBUG: ERROR in process_and_tailor_from_gui: {e}")
+        raise

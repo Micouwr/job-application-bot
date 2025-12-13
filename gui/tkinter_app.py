@@ -319,6 +319,13 @@ Available upon request. Technical portfolio and code samples accessible via GitH
                         f.write(text_content)
                     
                     file_path = str(txt_path)
+                    
+                    # ADDED: Warn about formatting loss
+                    self._log_message(
+                        f"PDF processed: {name} - extracted {len(text_content)} chars. "
+                        f"Note: Formatting will be simplified in preview",
+                        "info"
+                    )
                 except Exception as e:
                     self._log_message(f"PDF processing error: {e}", "error")
                     return
@@ -326,7 +333,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
             # Add to database
             self.resume_model.add_resume(file_path, name, is_active=False)
             self._refresh_resume_list()
-            self._log_message(f"Resume uploaded successfully: {name}", "success")
+            self._log_message(f"Resume uploaded successfully: {name}", "info")
             
         except Exception as e:
             self._log_message(f"Error uploading resume: {e}", "error")
@@ -353,7 +360,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
             self._refresh_resume_list()
             self.resume_preview.delete('1.0', tk.END)
             
-            self._log_message("Resume deleted successfully", "success")
+            self._log_message("Resume deleted successfully", "info")
             
         except Exception as e:
             self._log_message(f"Error deleting resume: {e}", "error")
@@ -375,7 +382,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
             # Refresh list
             self._refresh_resume_list()
             
-            self._log_message(f"Active resume set to: {item['values'][0]}", "success")
+            self._log_message(f"Active resume set to: {item['values'][0]}", "info")
             
         except Exception as e:
             self._log_message(f"Error setting active resume: {e}", "error")
@@ -471,8 +478,8 @@ Available upon request. Technical portfolio and code samples accessible via GitH
             if not result or not result.get("resume_text") or not result.get("cover_letter"):
                 raise Exception("AI returned incomplete or empty tailoring results")
             
-            # Log success
-            self._log_message("Resume tailoring completed successfully", "success")
+            # FIXED: Use "info" instead of "success" for logging
+            self._log_message("Resume tailoring completed successfully", "info")
             
             # Add to queue for main thread
             self.tailoring_queue.put({
@@ -513,7 +520,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
             self.clear_fields()
             
             messagebox.showinfo("Success", "Resume tailoring completed! Files saved to output folder.")
-            self._log_message("Files saved successfully", "success")
+            self._log_message("Files saved successfully", "info")
             
         except Exception as e:
             messagebox.showerror("Save Error", f"Error saving files: {e}")
@@ -647,7 +654,7 @@ Write your custom prompt below...
             self.prompt_text.delete('1.0', tk.END)
             self.prompt_text.insert("1.0", content)
             
-            self._log_message(f"Loaded custom prompt: {file_name}", "success")
+            self._log_message(f"Loaded custom prompt: {file_name}", "info")
             
         except Exception as e:
             messagebox.showerror("Load Error", f"Failed to load prompt: {e}")
@@ -658,7 +665,7 @@ Write your custom prompt below...
         self.prompt_text.delete('1.0', tk.END)
     
     def save_outputs(self, tailored_resume, cover_letter, job_title, company):
-        """Save tailored documents to output folder"""
+        """Save tailored documents to output folder and show user where they are"""
         # Create timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_company = company.replace(" ", "_").replace("/", "_")
@@ -684,6 +691,14 @@ Write your custom prompt below...
             job_url="",
             resume_path=str(resume_path),
             cover_letter_path=str(cover_letter_path)
+        )
+        
+        # SHOW USER WHERE FILES ARE SAVED (Fix #2)
+        messagebox.showinfo(
+            "Files Saved Successfully",
+            f"Tailored documents saved to:\n\n{OUTPUT_PATH}\n\n"
+            f"Resume: {base_name}_resume.txt\n"
+            f"Cover Letter: {base_name}_cover_letter.txt"
         )
         
         self._log_message(f"Files saved: {base_name}_*.txt", "info")
@@ -761,7 +776,7 @@ Write your custom prompt below...
             "1. Project root: job-application-bot/.env\n"
             "2. Current directory: ./.env\n"
             "3. Home directory: ~/.job_application_bot.env\n\n"
-            "You can get a free API key from: https://makersuite.google.com/app/apikey "
+            "You can get a free API key from: https://makersuite.google.com/app/apikey"
         )
         self._log_message("API key missing - please configure .env file", "warning")
 
