@@ -157,6 +157,10 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self._create_add_job_tab()
         self._create_resume_mgmt_tab()
         self._create_output_tab()
+        
+        # Status bar for operation feedback
+        self.status_label = ttk.Label(main_frame, text="Ready", font=('Arial', 9, 'italic'), foreground="gray")
+        self.status_label.grid(row=1, column=0, columnspan=4, sticky=tk.W, pady=5)
         self._create_custom_prompt_tab()
         
         # Make notebook expandable
@@ -164,18 +168,37 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         main_frame.rowconfigure(0, weight=1)
     
     def _create_add_job_tab(self):
-        """Create the Add Job Application tab"""
+        """Create the Add Job Application tab with AI match analysis"""
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Add Job Application")
         
-        # Job Details Section
-        ttk.Label(tab, text="Job Title:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.job_title_entry = ttk.Entry(tab, width=50)
-        self.job_title_entry.grid(row=0, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        # Prerequisites checklist at top
+        prereq_text = """PREREQUISITES TO ENABLE "START TAILORING":
+1. Upload resume in Resume Management tab and set as Active
+2. Enter Job Title and Company
+3. Paste detailed Job Description (100+ characters)
+4. Click "Analyze Match" to verify compatibility
+5. Proceed only if match >=80% (or accept lower probability)"""
         
-        ttk.Label(tab, text="Company:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        prereq_label = ttk.Label(tab, text=prereq_text, wraplength=600, foreground="gray", font=('Arial', 9, 'italic'))
+        prereq_label.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
+        # Job Details Section
+        ttk.Label(tab, text="Job Title:*", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.job_title_entry = ttk.Entry(tab, width=50)
+        self.job_title_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Label(tab, text="Company:*", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
         self.company_entry = ttk.Entry(tab, width=50)
-        self.company_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        self.company_entry.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Label(tab, text="Job Description:*", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.job_desc_text = scrolledtext.ScrolledText(tab, width=80, height=15, wrap=tk.WORD)
+        self.job_desc_text.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        
+        ttk.Label(tab, text="Job URL:", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky=tk.W, pady=5)
+        self.job_url_entry = ttk.Entry(tab, width=50)
+        self.job_url_entry.grid(row=4, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
         # Role Level Selection
         ttk.Label(tab, text="Role Level:", font=('Arial', 10, 'bold')).grid(row=5, column=0, sticky=tk.W, pady=5)
@@ -183,31 +206,29 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         role_combo = ttk.Combobox(tab, textvariable=self.role_var, values=["Standard", "Senior", "Lead", "Principal"], state='readonly')
         role_combo.grid(row=5, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
-        ttk.Label(tab, text="Job Description:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.job_desc_text = scrolledtext.ScrolledText(tab, width=80, height=15, wrap=tk.WORD)
-        self.job_desc_text.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        
-        ttk.Label(tab, text="Job URL:", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.job_url_entry = ttk.Entry(tab, width=50)
-        self.job_url_entry.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        
-        # Buttons
+        # Buttons and Match Analysis
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
+        button_frame.grid(row=6, column=0, columnspan=4, pady=10)
         
         self.clear_button = ttk.Button(button_frame, text="Clear Fields", command=self.clear_fields)
         self.clear_button.grid(row=0, column=0, padx=5)
         
-        self.start_button = ttk.Button(button_frame, text="Start Tailoring", command=self.start_tailoring)
-        self.start_button.grid(row=0, column=1, padx=5)
+        self.analyze_button = ttk.Button(button_frame, text="Analyze Match", command=self.analyze_match)
+        self.analyze_button.grid(row=0, column=1, padx=5)
+        
+        self.start_button = ttk.Button(button_frame, text="Start Tailoring", command=self.start_tailoring, state='disabled')
+        self.start_button.grid(row=0, column=2, padx=5)
         
         self.quit_button = ttk.Button(button_frame, text="Quit", command=self.master.quit)
-        self.quit_button.grid(row=0, column=2, padx=5)
+        self.quit_button.grid(row=0, column=3, padx=5)
+
+        # Match Score Display
+        self.match_label = ttk.Label(tab, text="Click 'Analyze Match' to see compatibility score", font=('Arial', 11, 'bold'), foreground="gray")
+        self.match_label.grid(row=7, column=0, columnspan=3, sticky=tk.W, pady=10)
 
         # Configure grid weights
         tab.columnconfigure(1, weight=1)
-        tab.rowconfigure(2, weight=1)
-    
+        tab.rowconfigure(3, weight=1)
     def _create_resume_mgmt_tab(self):
         """Create the Resume Management tab"""
         tab = ttk.Frame(self.notebook)
@@ -433,6 +454,114 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         if active_resume:
             self.active_resume_id = active_resume['id']
     
+    def analyze_match(self):
+        """Analyze resume-job compatibility and display match score"""
+        self._log_message("Starting match analysis...", "info")
+        
+        # Get active resume
+        resume_text = self._load_selected_resume()
+        if not resume_text:
+            messagebox.showerror("Error", "No active resume loaded. Please upload and set a resume as Active first.")
+            self._log_message("Match analysis failed: No active resume", "error")
+            return
+        
+        # Get job description
+        job_description = self.job_desc_text.get('1.0', tk.END).strip()
+        if not job_description or len(job_description) < 100:
+            messagebox.showerror("Error", "Please enter a detailed job description (minimum 100 characters).")
+            self._log_message("Match analysis failed: Job description too short", "error")
+            return
+        
+        # Validate job title and company
+        if not self.job_title_entry.get().strip():
+            messagebox.showerror("Error", "Please enter a job title.")
+            return
+        
+        if not self.company_entry.get().strip():
+            messagebox.showerror("Error", "Please enter a company name.")
+            return
+        
+        try:
+            # Call AI match analyzer
+            self.status_label.config(text="Analyzing match...")
+            self.master.update_idletasks()
+            
+            self.match_data = analyze_match(resume_text, job_description)
+            score = self.match_data.get('overall_score', 0)
+            
+            # Update match display
+            self.match_label.config(text=f"Match Score: {score}%")
+            
+            # Color coding based on score
+            if score >= MIN_MATCH_THRESHOLD:
+                self.match_label.config(foreground="green")
+                self.start_button.config(state='normal')
+                message = f"Strong match ({score}%)! Click 'Start Tailoring' to proceed."
+                self._log_message(f"Match analysis complete: {score}% (threshold met)", "info")
+            else:
+                self.match_label.config(foreground="red")
+                self.start_button.config(state='disabled')
+                message = f"Match score {score}% is below threshold ({MIN_MATCH_THRESHOLD}%). Improve resume or consider different role."
+                self._log_message(f"Match analysis complete: {score}% (below threshold)", "warning")
+            
+            # Show detailed breakdown
+            self._show_match_details()
+            
+            # Show summary message
+            messagebox.showinfo("Match Analysis", message)
+            
+            self.status_label.config(text="Ready")
+            
+        except Exception as e:
+            self._log_message(f"Match analysis error: {e}", "error")
+            messagebox.showerror("Error", f"Match analysis failed: {e}")
+            self.status_label.config(text="Ready")
+            self.match_label.config(text="Error during analysis", foreground="red")
+    def _show_match_details(self):
+        """Display detailed match breakdown in a popup window"""
+        if not self.match_data:
+            return
+        
+        details_window = tk.Toplevel(self.master)
+        details_window.title("Match Analysis Details")
+        details_window.geometry("700x500")
+        
+        # Create scrollable text area
+        details_text = scrolledtext.ScrolledText(details_window, width=80, height=25, wrap=tk.WORD)
+        details_text.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        
+        # Build details content
+        score = self.match_data.get('overall_score', 0)
+        skills = self.match_data.get('skills_match', 'N/A')
+        exp = self.match_data.get('experience_match', 'N/A')
+        keywords = self.match_data.get('keywords_match', 'N/A')
+        
+        details = f"""MATCH SUMMARY
+=============
+Overall Score: {score}%
+Skills Match: {skills}%
+Experience Match: {exp}%
+Keywords Match: {keywords}%
+
+STRENGTHS:
+==========
+{chr(10).join(self.match_data.get('strengths', ['No strengths identified']))}
+
+GAPS:
+=====
+{chr(10).join(self.match_data.get('gaps', ['No gaps identified']))}
+
+RECOMMENDATIONS:
+================
+{chr(10).join(self.match_data.get('recommendations', ['No recommendations']))}
+"""
+        
+        details_text.insert('1.0', details)
+        details_text.config(state='disabled')
+        
+        # Add close button
+        close_button = ttk.Button(details_window, text="Close", command=details_window.destroy)
+        close_button.pack(pady=5)
     def start_tailoring(self):
         """Start the tailoring process"""
         # Get input values
