@@ -14,11 +14,12 @@ import logging
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-
-from config.settings import OUTPUT_PATH, DB_PATH
+from AI.match_analyzer import analyze_match
+from AI.tailor_engine import tailor_resume, generate_cover_letter
+from config.settings import OUTPUT_PATH, DB_PATH, MIN_MATCH_THRESHOLD
 from database import DatabaseManager
-from tailor import process_and_tailor_from_gui
 from models.resume_model import ResumeModel
+
 
 # Configure logging
 logging.basicConfig(
@@ -41,12 +42,19 @@ class JobAppTkinter:
         # Ensure output directory exists
         os.makedirs(OUTPUT_PATH, exist_ok=True)
         
-        # Create default resume if none exists
-        self._ensure_default_resume()
         
         # Queue for thread communication
         self.tailoring_queue = queue.Queue()
         
+        # Match analysis data and UI elements
+        self.match_data = None
+        self.match_label = None
+        self.status_label = None
+        self.start_button = None
+        
+        # Create default resume if none exists
+        
+        self._ensure_default_resume()
         # Initialize UI
         self._init_ui()
         
