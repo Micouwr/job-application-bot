@@ -425,42 +425,157 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         if active_resume:
             self.active_resume_id = active_resume['id']
     
-    def start_tailoring(self):
-        """Start the tailoring process"""
-        # Get input values
-        job_title = self.job_title_entry.get().strip()
-        company = self.company_entry.get().strip()
-        job_description = self.job_desc_text.get('1.0', tk.END).strip()
-        job_url = self.job_url_entry.get().strip()
+    def analyze_match(self):
+        """Analyze resume-job compatibility and display match score"""
+        self._log_message("Starting match analysis...", "info")
         
-        # Validate inputs
-        if not job_description:
-            messagebox.showwarning("Missing Information", "Please fill in Job Title, Company, and Job Description")
+        # Get active resume
+        resume_text = self._load_selected_resume()
+        if not resume_text:
+            messagebox.showerror("Error", "No active resume loaded. Please upload and set a resume as Active first.")
+            self._log_message("Match analysis failed: No active resume", "error")
+            return
+        
+        # Get job description (ONLY requirement for match analysis - Golden Rule #1)
+        job_description = self.job_desc_text.get('1.0', tk.END).strip()
+        if not job_description or len(job_description) < 100:
+            messagebox.showerror("Error", "Please enter a detailed job description (minimum 100 characters).")
+            self._log_message("Match analysis failed: Job description too short", "error")
+            return
+        
+        # Golden Rule #1: Job title and company are NOT required for compatibility checking
+        
+        try:
+            # Call AI match analyzer
+            self.status_label.config(text="Analyzing match...")
+            self.master.update_idletasks()
+            
+            self.match_data = analyze_match(resume_text, job_description)
+            score = self.match_data.get('overall_score', 0)
+            
+            # Update match display
+            self.match_label.config(text=f"Match Score: {score}%")
+            
+            # Color coding based on score
+            if score >= MIN_MATCH_THRESHOLD:
+                self.match_label.config(foreground="green")
+                self.start_button.config(state='normal')
+                message = f"Strong match ({score}%)! Enter job title/company and click 'Start Tailoring' to proceed."
+                self._log_message(f"Match analysis complete: {score}% (threshold met)", "info")
+            else:
+                self.match_label.config(foreground="red")
+                self.start_button.config(state='disabled')
+                message = f"Match score {score}% is below threshold ({MIN_MATCH_THRESHOLD}%). Improve resume or consider different role."
+                self._log_message(f"Match analysis complete: {score}% (below threshold)", "warning")
+            
+            # Show detailed breakdown
+            self._show_match_details()
+            
+            # Show summary message
+            messagebox.showinfo("Match Analysis", message)
+            
+            self.status_label.config(text="Ready")
+            
+        except Exception as e:
+            self._log_message(f"Match analysis error: {e}", "error")
+            messagebox.showerror("Error", f"Match analysis failed: {e}")
+            self.status_label.config(text="Ready")
+            self.match_label.config(text="Error during analysis", foreground="red")
+
+    def _show_match_details(self):
+        """Display detailed match breakdown in a popup window"""
+        if not self.match_data:
+            return
+        
+        details_window = tk.Toplevel(self.master)
+        details_window.title("Match Analysis Details")
+        details_window.geometry("700x500")
+        
+        # Create scrollable text area
+        details_text = scrolledtext.ScrolledText(details_window, width=80, height=25, wrap=tk.WORD)
+        details_text.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        
+        # Build details content
+        score = self.match_data.get('overall_score', 0)
+        skills = self.match_data.get('skills_match', 'N/A')
+        exp = self.match_data.get('experience_match', 'N/A')
+        keywords = self.match_data.get('keywords_match', 'N/A')
+        
+        details = f"""MATCH SUMMARY
+=============
+Overall Score: {score}%
+Skills Match: {skills}%
+Experience Match: {exp}%
+Keywords Match: {keywords}%
+
+STRENGTHS:
+==========
+{chr(10).join(self.match_data.get('strengths', ['No strengths identified']))}
+
+GAPS:
+=====
+{chr(10).join(self.match_data.get('gaps', ['No gaps identified']))}
+
+RECOMMENDATIONS:
+================
+{chr(10).join(self.match_data.get('recommendations', ['No recommendations']))}
+"""
+        
+        details_text.insert('1.0', details)
+        details_text.config(state='disabled')
+        
+        # Add close button
+        close_button = ttk.Button(details_window, text="Close", command=details_window.destroy)
+        close_button.pack(pady=5)
+    
+    def start_tailoring(self):
+        """Validate all prerequisites and start AI-powered tailoring"""
+        self._log_message("Validating tailoring prerequisites...", "info")
+        
+        # Prerequisites: job title, company, description, match score >= threshold
+        job_title = self.job_title_entry.get().strip()
+        if not job_title:
+            messagebox.showerror("Missing Job Title", "Please enter a job title for file naming.")
+            return
+        
+        company = self.company_entry.get().strip()
+        if not company:
+            messagebox.showerror("Missing Company", "Please enter a company name for file naming.")
+            return
+        
+        job_description = self.job_desc_text.get('1.0', tk.END).strip()
+        if not job_description or len(job_description) < 100:
+            messagebox.showerror("Insufficient Job Description", "Please enter a detailed job description (minimum 100 characters).")
             return
         
         # Load resume
         resume_text = self._load_selected_resume()
         if not resume_text:
+            messagebox.showerror("Missing Active Resume", "No active resume found. Please upload and set a resume as Active.")
             return
         
-        # Get role level from dropdown
+        # Check match data exists and meets threshold
+        if not hasattr(self, 'match_data') or not self.match_data:
+            messagebox.showerror("No Match Analysis", "Please click 'Analyze Match' first to check compatibility.")
+            return
+        
+        score = self.match_data.get('overall_score', 0)
+        if score < MIN_MATCH_THRESHOLD:
+            messagebox.showerror("Match Too Low", f"Match score {score}% is below minimum threshold of {MIN_MATCH_THRESHOLD}%. Consider improving your resume or applying to a different role.")
+            self._log_message(f"Tailoring blocked: match {score}% < threshold {MIN_MATCH_THRESHOLD}%", "warning")
+            return
+        
+        # All validations passed - proceed with AI tailoring
+        self.set_ui_enabled(False)
+        self._log_message("Starting AI-powered tailoring...", "info")
+        
+        # Get role level
         role_level = self.role_var.get()
         
-        # Check if user wants to use custom prompt
-        custom_prompt = None
-        if hasattr(self, 'prompt_name_entry') and self.prompt_name_entry.get().strip():
-            custom_prompt = self.prompt_name_entry.get().strip()
-            if not custom_prompt.endswith('.txt.j2'):
-                custom_prompt += '.txt.j2'
-        
-        # Disable UI during processing
-        self.set_ui_enabled(False)
-        self._log_message("Starting resume tailoring process...", "info")
-        
-        # Start tailoring thread
+        # Start tailoring thread with AI engine
         thread = threading.Thread(
             target=self.tailor_application_thread,
-            args=(job_title, company, job_description, job_url, resume_text, role_level, custom_prompt)
+            args=(job_title, company, job_description, resume_text, role_level, self.match_data)
         )
         thread.daemon = True
         thread.start()
@@ -625,44 +740,78 @@ Write your custom prompt below...
             messagebox.showerror("Error", f"Failed to save prompt: {e}")
     
     def load_custom_prompt(self):
-        """Load custom prompt template using file dialog."""
-        # Open file dialog in prompts/user/ directory
+        """Load custom prompt template using curated dropdown (Golden Rule #5 - Security)"""
         prompts_dir = Path("prompts/user")
-        prompts_dir.mkdir(exist_ok=True)  # Ensure directory exists
         
-        file_path = filedialog.askopenfilename(
-            title="Select Custom Prompt Template",
-            initialdir=str(prompts_dir),
-            filetypes=[
-                ("Jinja2 Templates", "*.txt.j2"),
-                ("Text Files", "*.txt")
-            ]
-        )
+        # Verify directory exists
+        if not prompts_dir.exists():
+            prompts_dir.mkdir(parents=True, exist_ok=True)
+            messagebox.showwarning("No Prompts", "No custom prompts found. Created prompts/user/ directory. Please add .txt.j2 files.")
+            self._log_message("Prompts directory created but empty", "warning")
+            return
         
-        if not file_path:
-            return  # User cancelled
-        
+        # Get available prompts (no filesystem navigation - Golden Rule #5)
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Update UI elements
-            file_name = Path(file_path).name
-            self.prompt_name_entry.delete(0, tk.END)
-            self.prompt_name_entry.insert(0, file_name.replace('.txt.j2', ''))
-            
-            self.prompt_text.delete('1.0', tk.END)
-            self.prompt_text.insert("1.0", content)
-            
-            self._log_message(f"Loaded custom prompt: {file_name}", "info")
-            
+            available_prompts = [f.name for f in prompts_dir.glob("*.txt.j2")]
         except Exception as e:
-            messagebox.showerror("Load Error", f"Failed to load prompt: {e}")
-            self._log_message(f"Load prompt error: {e}", "error")
+            self._log_message(f"Error reading prompts directory: {e}", "error")
+            messagebox.showerror("Error", f"Could not read prompts directory: {e}")
+            return
+        
+        if not available_prompts:
+            messagebox.showwarning("No Prompts", "No custom prompts found in prompts/user/. Please add .txt.j2 files.")
+            self._log_message("No prompts available in prompts/user/", "warning")
+            return
+        
+        # Create selection window (curated list - no file dialog)
+        selection_window = tk.Toplevel(self.master)
+        selection_window.title("Select Custom Prompt")
+        selection_window.geometry("400x300")
+        
+        ttk.Label(selection_window, text="Available Prompts:", font=('Arial', 10, 'bold')).pack(pady=10)
+        
+        # Create listbox with available prompts
+        listbox = tk.Listbox(selection_window, selectmode=tk.SINGLE, height=10, width=40)
+        for prompt in sorted(available_prompts):
+            listbox.insert(tk.END, prompt)
+        listbox.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+        
+        # Add selection button
+        def select_prompt():
+            selection = listbox.curselection()
+            if not selection:
+                messagebox.showwarning("No Selection", "Please select a prompt.")
+                return
+            
+            prompt_name = listbox.get(selection[0])
+            selection_window.destroy()
+            
+            # Load the selected prompt
+            try:
+                prompt_path = prompts_dir / prompt_name
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self.prompt_name_entry.delete(0, tk.END)
+                self.prompt_name_entry.insert(0, prompt_name.replace('.txt.j2', ''))
+                
+                self.prompt_text.delete('1.0', tk.END)
+                self.prompt_text.insert("1.0", content)
+                
+                self._log_message(f"Loaded custom prompt: {prompt_name}", "info")
+                messagebox.showinfo("Success", f"Loaded prompt: {prompt_name}")
+                
+            except Exception as e:
+                self._log_message(f"Load prompt error: {e}", "error")
+                messagebox.showerror("Error", f"Failed to load prompt: {e}")
+        
+        ttk.Button(selection_window, text="Load Selected", command=select_prompt).pack(pady=10)
     
     def clear_prompt_editor(self):
-        """Clear the prompt editor."""
+        """Clear the prompt editor fields"""
+        self.prompt_name_entry.delete(0, tk.END)
         self.prompt_text.delete('1.0', tk.END)
+        self._log_message("Cleared prompt editor", "info")
     
     def save_outputs(self, tailored_resume, cover_letter, job_title, company):
         """Save tailored documents to output folder and show user where they are"""
@@ -776,7 +925,7 @@ Write your custom prompt below...
             "1. Project root: job-application-bot/.env\n"
             "2. Current directory: ./.env\n"
             "3. Home directory: ~/.job_application_bot.env\n\n"
-            "You can get a free API key from: https://makersuite.google.com/app/apikey"
+            "You can get a free API key from: https://makersuite.google.com/app/apikey "
         )
         self._log_message("API key missing - please configure .env file", "warning")
 
