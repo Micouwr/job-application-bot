@@ -48,9 +48,7 @@ def process_and_tailor_from_gui(resume_text, job_description, output_path, role_
     Returns:
         Dict with resume_text and cover_letter keys
     """
-    # DEBUG: Verify function is being called
-    print(f"DEBUG: process_and_tailor_from_gui called with role_level={role_level}, custom_prompt={custom_prompt}")
-    print(f"DEBUG: Resume length: {len(resume_text)}, Job desc length: {len(job_description)}")
+    # Function verification removed for production
     
     try:
         # Load prompt template
@@ -62,8 +60,7 @@ def process_and_tailor_from_gui(resume_text, job_description, output_path, role_
         if not template:
             raise Exception("Failed to load prompt template")
         
-        # DEBUG: Verify template loaded
-        print(f"DEBUG: Template loaded: {template.filename if hasattr(template, 'filename') else 'custom'}")
+        # Template verification removed for production
         
         # Render prompt with variables
         prompt = template.render(
@@ -74,29 +71,29 @@ def process_and_tailor_from_gui(resume_text, job_description, output_path, role_
             resume_text=resume_text
         )
         
-        print(f"DEBUG: Rendered prompt length: {len(prompt)}")
+        # Prompt length check removed for production
         
         # Initialize Gemini
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise Exception("GEMINI_API_KEY not found in environment")
         
-        print("DEBUG: Initializing Gemini API...")
+        # API initialization message removed for production
         genai.configure(api_key=api_key)
         
         model = genai.GenerativeModel(GEMINI_MODEL)
         
-        print("DEBUG: Calling Gemini API...")
+        # API call message removed for production
         response = model.generate_content(prompt)
         
-        print(f"DEBUG: API response received. Text length: {len(response.text)}")
+        # Response length check removed for production
         
         # Parse response (split into resume and cover letter)
         sections = response.text.split("\n\nCOVER LETTER:\n\n")
-        
+            
         if len(sections) != 2:
             raise Exception("AI response not in expected format (missing COVER LETTER delimiter)")
-        
+            
         resume_tailored = sections[0].strip()
         cover_letter = sections[1].strip()
         
@@ -106,5 +103,4 @@ def process_and_tailor_from_gui(resume_text, job_description, output_path, role_
         }
         
     except Exception as e:
-        print(f"DEBUG: ERROR in process_and_tailor_from_gui: {e}")
         raise

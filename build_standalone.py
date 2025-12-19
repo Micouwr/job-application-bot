@@ -37,7 +37,6 @@ def build_executable():
         "--add-data", f"{ROOT_DIR / 'prompts'}:prompts",
         "--add-data", f"{ROOT_DIR / 'assets'}:assets",
         "--add-data", f"{ROOT_DIR / 'database'}:database",
-        "--add-data", f"{ROOT_DIR / 'database'}:database",
         "--icon", str(ROOT_DIR / "assets" / "icon.icns"),
     ]
     

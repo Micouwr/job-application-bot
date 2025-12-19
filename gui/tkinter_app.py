@@ -15,10 +15,11 @@ import logging
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from config.settings import OUTPUT_PATH, DB_PATH
+from config.settings import OUTPUT_PATH, DB_PATH, MIN_MATCH_THRESHOLD
 from database import DatabaseManager
 from tailor import process_and_tailor_from_gui
 from models.resume_model import ResumeModel
+from AI.match_analyzer import analyze_match
 
 # Configure logging
 logging.basicConfig(
@@ -575,7 +576,7 @@ RECOMMENDATIONS:
         # Start tailoring thread with AI engine
         thread = threading.Thread(
             target=self.tailor_application_thread,
-            args=(job_title, company, job_description, resume_text, role_level, self.match_data)
+            args=(job_title, company, job_description, self.job_url_entry.get(), resume_text, role_level, self.match_data)
         )
         thread.daemon = True
         thread.start()
