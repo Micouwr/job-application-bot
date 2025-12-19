@@ -155,6 +155,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self._create_resume_mgmt_tab()
         self._create_output_tab()
         self._create_custom_prompt_tab()
+        self._create_tailored_docs_tab()
         
         # Make notebook expandable
         main_frame.columnconfigure(0, weight=1)
@@ -876,6 +877,230 @@ Write your custom prompt below...
         self.prompt_name_entry.delete(0, tk.END)
         self.prompt_text.delete('1.0', tk.END)
         self._log_message("Cleared prompt editor", "info")
+    
+    def _create_tailored_docs_tab(self):
+        """Create the Tailored Documents tab with split view for resume and cover letter"""
+        tab = ttk.Frame(self.notebook)
+        self.notebook.add(tab, text="Tailored Documents")
+        
+        # Title
+        ttk.Label(tab, text="Tailored Resumes & Cover Letters", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=2, pady=10)
+        
+        # Applications list
+        ttk.Label(tab, text="Select Application:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        
+        # Create treeview for applications
+        columns = ('Job Title', 'Company', 'Date')
+        self.applications_tree = ttk.Treeview(tab, columns=columns, show='headings', height=8)
+        self.applications_tree.heading('Job Title', text='Job Title')
+        self.applications_tree.heading('Company', text='Company')
+        self.applications_tree.heading('Date', text='Date')
+        
+        self.applications_tree.column('Job Title', width=200)
+        self.applications_tree.column('Company', width=200)
+        self.applications_tree.column('Date', width=150)
+        
+        self.applications_tree.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(tab, orient=tk.VERTICAL, command=self.applications_tree.yview)
+        self.applications_tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=2, column=1, sticky=(tk.N, tk.S))
+        
+        # Bind selection event
+        self.applications_tree.bind('<<TreeviewSelect>>', self._on_application_select)
+        
+        # Split view for resume and cover letter
+        ttk.Label(tab, text="Tailored Resume", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=(10, 5))
+        ttk.Label(tab, text="Cover Letter", font=('Arial', 10, 'bold')).grid(row=3, column=1, sticky=tk.W, pady=(10, 5))
+        
+        # Text areas for resume and cover letter
+        self.tailored_resume_text = scrolledtext.ScrolledText(tab, width=50, height=20, wrap=tk.WORD)
+        self.tailored_resume_text.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5), pady=5)
+        
+        self.cover_letter_text = scrolledtext.ScrolledText(tab, width=50, height=20, wrap=tk.WORD)
+        self.cover_letter_text.grid(row=4, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0), pady=5)
+        
+        # Buttons
+        button_frame = ttk.Frame(tab)
+        button_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        
+        self.refresh_apps_button = ttk.Button(button_frame, text="Refresh Applications", command=self._refresh_applications_list)
+        self.refresh_apps_button.grid(row=0, column=0, padx=5)
+        
+        self.export_pdf_button = ttk.Button(button_frame, text="Export as PDF", command=self._export_as_pdf, state='disabled')
+        self.export_pdf_button.grid(row=0, column=1, padx=5)
+        
+        # Refresh applications list
+        self._refresh_applications_list()
+        
+        # Configure grid weights
+        tab.columnconfigure(0, weight=1)
+        tab.columnconfigure(1, weight=1)
+        tab.rowconfigure(2, weight=1)
+        tab.rowconfigure(4, weight=2)
+    
+    def _refresh_applications_list(self):
+        """Refresh the applications list in treeview"""
+        # Clear existing items
+        for item in self.applications_tree.get_children():
+            self.applications_tree.delete(item)
+        
+        # Load applications from database
+        applications = self.db_manager.get_all_applications()
+        for app in applications:
+            # Format date
+            created_at = datetime.strptime(app['created_at'], '%Y-%m-%d %H:%M:%S.%f').strftime('%Y-%m-%d %H:%M')
+            self.applications_tree.insert('', tk.END, values=(
+                app['job_title'],
+                app['company_name'],
+                created_at
+            ), iid=app['id'])
+    
+    def _on_application_select(self, event):
+        """Handle application selection in treeview"""
+        selection = self.applications_tree.selection()
+        if selection:
+            app_id = selection[0]
+            # Get application details
+            applications = self.db_manager.get_all_applications()
+            selected_app = None
+            for app in applications:
+                if str(app['id']) == app_id:
+                    selected_app = app
+                    break
+            
+            if selected_app:
+                # Load resume content
+                try:
+                    with open(selected_app['resume_path'], 'r', encoding='utf-8') as f:
+                        resume_content = f.read()
+                    self.tailored_resume_text.delete('1.0', tk.END)
+                    self.tailored_resume_text.insert('1.0', resume_content)
+                except Exception as e:
+                    self.tailored_resume_text.delete('1.0', tk.END)
+                    self.tailored_resume_text.insert('1.0', f"Error loading resume: {e}")
+                
+                # Load cover letter content
+                try:
+                    with open(selected_app['cover_letter_path'], 'r', encoding='utf-8') as f:
+                        cover_letter_content = f.read()
+                    self.cover_letter_text.delete('1.0', tk.END)
+                    self.cover_letter_text.insert('1.0', cover_letter_content)
+                except Exception as e:
+                    self.cover_letter_text.delete('1.0', tk.END)
+                    self.cover_letter_text.insert('1.0', f"Error loading cover letter: {e}")
+                
+                # Enable export button
+                self.export_pdf_button.config(state='normal')
+                self.current_selected_app = selected_app
+            else:
+                self.tailored_resume_text.delete('1.0', tk.END)
+                self.cover_letter_text.delete('1.0', tk.END)
+                self.export_pdf_button.config(state='disabled')
+        else:
+            self.tailored_resume_text.delete('1.0', tk.END)
+            self.cover_letter_text.delete('1.0', tk.END)
+            self.export_pdf_button.config(state='disabled')
+    
+    def _export_as_pdf(self):
+        """Export current tailored documents as PDF"""
+        if not hasattr(self, 'current_selected_app'):
+            messagebox.showwarning("Export Error", "Please select an application first.")
+            return
+        
+        try:
+            # Import reportlab here to avoid issues if not installed
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT
+            
+            # Get job title and company for filename
+            job_title = self.current_selected_app['job_title'].replace(' ', '_').replace('/', '_')
+            company = self.current_selected_app['company_name'].replace(' ', '_').replace('/', '_')
+            
+            # Ask user for save location
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("PDF files", "*.pdf"), ("All files", "*.*")],
+                initialfile=f"{company}_{job_title}_Application.pdf"
+            )
+            
+            if not file_path:
+                return
+            
+            # Create PDF document
+            doc = SimpleDocTemplate(file_path, pagesize=letter)
+            styles = getSampleStyleSheet()
+            
+            # Custom styles
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                alignment=TA_CENTER,
+                fontSize=16,
+                spaceAfter=30
+            )
+            
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontSize=14,
+                spaceBefore=20,
+                spaceAfter=10
+            )
+            
+            normal_style = styles['Normal']
+            
+            # Build document content
+            story = []
+            
+            # Title
+            title = Paragraph(f"Job Application Materials", title_style)
+            story.append(title)
+            
+            # Job details
+            job_info = Paragraph(f"<b>Position:</b> {self.current_selected_app['job_title']}<br/><b>Company:</b> {self.current_selected_app['company_name']}", normal_style)
+            story.append(job_info)
+            story.append(Spacer(1, 0.2*inch))
+            
+            # Tailored Resume
+            story.append(Paragraph("Tailored Resume", heading_style))
+            
+            # Read resume content
+            with open(self.current_selected_app['resume_path'], 'r', encoding='utf-8') as f:
+                resume_content = f.read()
+            
+            # Add resume content
+            resume_para = Paragraph(resume_content.replace('\n', '<br/>'), normal_style)
+            story.append(resume_para)
+            story.append(PageBreak())
+            
+            # Cover Letter
+            story.append(Paragraph("Cover Letter", heading_style))
+            
+            # Read cover letter content
+            with open(self.current_selected_app['cover_letter_path'], 'r', encoding='utf-8') as f:
+                cover_letter_content = f.read()
+            
+            # Add cover letter content
+            cover_letter_para = Paragraph(cover_letter_content.replace('\n', '<br/>'), normal_style)
+            story.append(cover_letter_para)
+            
+            # Build PDF
+            doc.build(story)
+            
+            messagebox.showinfo("PDF Export", f"Documents exported successfully to:\n{file_path}")
+            self._log_message(f"PDF exported to: {file_path}", "info")
+            
+        except ImportError:
+            messagebox.showerror("PDF Export Error", "ReportLab library not found. Please install it with: pip install reportlab")
+            self._log_message("ReportLab not installed for PDF export", "error")
+        except Exception as e:
+            messagebox.showerror("PDF Export Error", f"Failed to export PDF: {str(e)}")
+            self._log_message(f"PDF export error: {e}", "error")
     
     def save_outputs(self, tailored_resume, cover_letter, job_title, company):
         """Save tailored documents to output folder and show user where they are"""
