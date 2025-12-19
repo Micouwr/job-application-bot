@@ -700,8 +700,10 @@ RECOMMENDATIONS:
             self._log_message("Files saved successfully", "info")
             
         except Exception as e:
+            self.status_label.config(text="Save failed", foreground="red")
             messagebox.showerror("Save Error", f"Error saving files: {e}")
             self._log_message(f"Save error: {e}", "error")
+            return
         finally:
             self.set_ui_enabled(True)
     
