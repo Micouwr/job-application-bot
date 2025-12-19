@@ -595,7 +595,7 @@ RECOMMENDATIONS:
         # Start tailoring thread with AI engine
         thread = threading.Thread(
             target=self.tailor_application_thread,
-            args=(job_title, company, job_description, self.job_url_entry.get(), resume_text, role_level, self.match_data)
+            args=(job_title, company, job_description, self.job_url_entry.get(), resume_text, role_level, None)
         )
         thread.daemon = True
         thread.start()
