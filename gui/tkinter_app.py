@@ -29,6 +29,7 @@ logging.basicConfig(
 
 class JobAppTkinter:
     def __init__(self, master=None):
+        print("MAIN FILE EXECUTED - UNIQUE IDENTIFIER")
         self.master = master
         self.master.title("Job Application Bot - AI Resume Tailorer")
         self.master.geometry("1000x700")
@@ -47,6 +48,9 @@ class JobAppTkinter:
         
         # Queue for thread communication
         self.tailoring_queue = queue.Queue()
+        
+        # Initialize match analysis variables
+        self.match_data = None
         
         # Initialize UI
         self._init_ui()
@@ -184,9 +188,17 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self.job_url_entry = ttk.Entry(tab, width=50)
         self.job_url_entry.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
+        # Status label for match analysis feedback
+        self.status_label = ttk.Label(tab, text="Ready", font=('Arial', 9), foreground='red')
+        self.status_label.grid(row=6, column=0, columnspan=3, sticky=tk.W, pady=2)
+        
+        # Match score display
+        self.match_label = ttk.Label(tab, text="Match Score: Not analyzed", font=('Arial', 10, 'bold'), foreground='blue')
+        self.match_label.grid(row=7, column=0, columnspan=3, sticky=tk.W, pady=2)
+        
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
+        button_frame.grid(row=8, column=0, columnspan=4, pady=10)
         
         self.clear_button = ttk.Button(button_frame, text="Clear Fields", command=self.clear_fields)
         self.clear_button.grid(row=0, column=0, padx=5)
@@ -196,6 +208,13 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         self.quit_button = ttk.Button(button_frame, text="Quit", command=self.master.quit)
         self.quit_button.grid(row=0, column=2, padx=5)
+        
+        # Add Analyze Match button
+        self.analyze_button = ttk.Button(button_frame, text="Analyze Match", command=self.analyze_match)
+        self.analyze_button.grid(row=0, column=3, padx=5)
+        
+        # DEBUG: Print to console to verify elements are created
+        print("DEBUG: UI elements created - Status label, Match label, Analyze button")
 
         # Configure grid weights
         tab.columnconfigure(1, weight=1)
@@ -932,9 +951,21 @@ Write your custom prompt below...
 
 def main():
     """Main entry point for the application"""
+    print("DEBUG: Starting application...")
     root = tk.Tk()
+    print("DEBUG: Tk root created")
     app = JobAppTkinter(root)
+    print("DEBUG: JobAppTkinter instantiated")
     root.mainloop()
+    print("DEBUG: Main loop ended")
 
 if __name__ == "__main__":
-    main()
+    try:
+        print("DEBUG: Entering main execution")
+        main()
+        print("DEBUG: Exited main execution normally")
+    except Exception as e:
+        import traceback
+        print(f"DEBUG: Exception in main: {e}")
+        traceback.print_exc()
+        input("Press Enter to continue...")
