@@ -587,6 +587,7 @@ RECOMMENDATIONS:
         
         # All validations passed - proceed with AI tailoring
         self.set_ui_enabled(False)
+        self.status_label.config(text="Processing... Please wait", foreground="orange")
         self._log_message("Starting AI-powered tailoring...", "info")
         
         # Get role level
@@ -634,6 +635,7 @@ RECOMMENDATIONS:
     def on_tailoring_complete(self, result_data):
         """Handle completion of tailoring process"""
         if result_data['status'] == 'error':
+            self.status_label.config(text="Tailoring failed", foreground="red")
             messagebox.showerror("Error", f"Tailoring failed: {result_data['error']}")
             self.set_ui_enabled(True)
             return
@@ -654,6 +656,7 @@ RECOMMENDATIONS:
             # Clear fields
             self.clear_fields()
             
+            self.status_label.config(text="Ready", foreground="green")
             messagebox.showinfo("Success", "Resume tailoring completed! Files saved to output folder.")
             self._log_message("Files saved successfully", "info")
             
