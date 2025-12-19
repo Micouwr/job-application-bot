@@ -88,14 +88,37 @@ def process_and_tailor_from_gui(resume_text, job_description, output_path, role_
         
         # Response length check removed for production
         
-        # Parse response (split into resume and cover letter)
-        sections = response.text.split("\n\nCOVER LETTER:\n\n")
+        # Parse response (extract resume and cover letter)
+        response_text = response.text.strip()
+        
+        # Look for our delimiters
+        if "[COVER LETTER]" in response_text and "[TAILORING_COMPLETE]" in response_text:
+            # Extract content between delimiters
+            start_idx = response_text.find("[TAILORING_COMPLETE]") + len("[TAILORING_COMPLETE]")
+            cover_letter_idx = response_text.find("[COVER LETTER]")
+            end_idx = response_text.find("[END_APPLICATION_MATERIALS]")
             
-        if len(sections) != 2:
-            raise Exception("AI response not in expected format (missing COVER LETTER delimiter)")
-            
-        resume_tailored = sections[0].strip()
-        cover_letter = sections[1].strip()
+            if cover_letter_idx != -1 and end_idx != -1 and start_idx < cover_letter_idx < end_idx:
+                resume_tailored = response_text[start_idx:cover_letter_idx].strip()
+                cover_letter = response_text[cover_letter_idx + len("[COVER LETTER]"):end_idx].strip()
+            else:
+                # Fallback to simple splitting if delimiters are malformed
+                parts = response_text.split("[COVER LETTER]", 1)
+                resume_tailored = parts[0].replace("[TAILORING_COMPLETE]", "").strip()
+                cover_letter = parts[1].replace("[END_APPLICATION_MATERIALS]", "").strip() if len(parts) > 1 else "Cover letter not generated."
+        elif "\n\nCOVER LETTER:\n\n" in response_text:
+            # Handle old format for backward compatibility
+            sections = response_text.split("\n\nCOVER LETTER:\n\n")
+            resume_tailored = sections[0].strip()
+            cover_letter = sections[1].strip() if len(sections) > 1 else "Cover letter not generated."
+        else:
+            # If no clear delimiters, assume entire response is the resume
+            resume_tailored = response_text
+            cover_letter = "Cover letter not generated. Please try again or contact support."
+        
+        # Clean up any remaining delimiters
+        resume_tailored = resume_tailored.replace("[TAILORING_COMPLETE]", "").strip()
+        cover_letter = cover_letter.replace("[END_APPLICATION_MATERIALS]", "").strip()
         
         return {
             "resume_text": resume_tailored,
