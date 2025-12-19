@@ -7,7 +7,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 
 from config.settings import GEMINI_MODEL, OUTPUT_PATH
 
-PROMPTS_DIR = Path(__file__).parent / "prompts"
+PROMPTS_DIR = Path(__file__).parent / "prompts" / "system"
 
 def load_prompt_template(role_level="Standard"):
     """Load Jinja2 prompt template for role level."""
