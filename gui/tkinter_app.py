@@ -517,28 +517,67 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         # Build details content
         score = self.match_data.get('overall_score', 0)
-        skills = self.match_data.get('skills_match', 'N/A')
-        exp = self.match_data.get('experience_match', 'N/A')
-        keywords = self.match_data.get('keywords_match', 'N/A')
+        
+        # Handle complex data structures from AI response
+        skills_data = self.match_data.get('skills_match', {})
+        exp_data = self.match_data.get('experience_match', {})
+        keywords_data = self.match_data.get('keywords_match', {})
+        
+        # Extract scores and analysis
+        skills_score = skills_data.get('score', 'N/A') if isinstance(skills_data, dict) else skills_data
+        exp_score = exp_data.get('score', 'N/A') if isinstance(exp_data, dict) else exp_data
+        keywords_score = keywords_data.get('score', 'N/A') if isinstance(keywords_data, dict) else keywords_data
+        
+        # Extract analysis text
+        skills_analysis = skills_data.get('analysis', []) if isinstance(skills_data, dict) else []
+        exp_analysis = exp_data.get('analysis', []) if isinstance(exp_data, dict) else []
+        keywords_analysis = keywords_data.get('analysis', []) if isinstance(keywords_data, dict) else []
+        
+        # Format analysis as readable text
+        skills_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in skills_analysis]) if skills_analysis else 'No detailed analysis provided.'
+        exp_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in exp_analysis]) if exp_analysis else 'No detailed analysis provided.'
+        keywords_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in keywords_analysis]) if keywords_analysis else 'No detailed analysis provided.'
+        
+        # Get lists
+        strengths = self.match_data.get('strengths', ['No strengths identified'])
+        gaps = self.match_data.get('gaps', ['No gaps identified'])
+        recommendations = self.match_data.get('recommendations', ['No recommendations'])
+        
+        # Format lists
+        strengths_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in strengths])
+        gaps_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in gaps])
+        recommendations_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in recommendations])
         
         details = f"""MATCH SUMMARY
 =============
 Overall Score: {score}%
-Skills Match: {skills}%
-Experience Match: {exp}%
-Keywords Match: {keywords}%
+Skills Match: {skills_score}%
+Experience Match: {exp_score}%
+Keywords Match: {keywords_score}%
+
+SKILLS ANALYSIS:
+===============
+{skills_text}
+
+EXPERIENCE ANALYSIS:
+==================
+{exp_text}
+
+KEYWORDS ANALYSIS:
+=================
+{keywords_text}
 
 STRENGTHS:
 ==========
-{chr(10).join(self.match_data.get('strengths', ['No strengths identified']))}
+{strengths_text}
 
 GAPS:
 =====
-{chr(10).join(self.match_data.get('gaps', ['No gaps identified']))}
+{gaps_text}
 
 RECOMMENDATIONS:
 ================
-{chr(10).join(self.match_data.get('recommendations', ['No recommendations']))}
+{recommendations_text}
 """
         
         details_text.insert('1.0', details)
