@@ -838,42 +838,49 @@ Write your custom prompt below...
     
     def save_outputs(self, tailored_resume, cover_letter, job_title, company):
         """Save tailored documents to output folder and show user where they are"""
-        # Create timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_company = company.replace(" ", "_").replace("/", "_")
-        safe_title = job_title.replace(" ", "_").replace("/", "_")
-        
-        # Create base filename
-        base_name = f"{safe_company}_{safe_title}_{timestamp}"
-        
-        # Save tailored resume
-        resume_path = OUTPUT_PATH / f"{base_name}_resume.txt"
-        with open(resume_path, 'w', encoding='utf-8') as f:
-            f.write(tailored_resume)
-        
-        # Save cover letter
-        cover_letter_path = OUTPUT_PATH / f"{base_name}_cover_letter.txt"
-        with open(cover_letter_path, 'w', encoding='utf-8') as f:
-            f.write(cover_letter)
-        
-        # Add to database
-        self.db_manager.add_application(
-            job_title=job_title,
-            company_name=company,
-            job_url="",
-            resume_path=str(resume_path),
-            cover_letter_path=str(cover_letter_path)
-        )
-        
-        # SHOW USER WHERE FILES ARE SAVED (Fix #2)
-        messagebox.showinfo(
-            "Files Saved Successfully",
-            f"Tailored documents saved to:\n\n{OUTPUT_PATH}\n\n"
-            f"Resume: {base_name}_resume.txt\n"
-            f"Cover Letter: {base_name}_cover_letter.txt"
-        )
-        
-        self._log_message(f"Files saved: {base_name}_*.txt", "info")
+        try:
+            # Create timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_company = company.replace(" ", "_").replace("/", "_")
+            safe_title = job_title.replace(" ", "_").replace("/", "_")
+            
+            # Create base filename
+            base_name = f"{safe_company}_{safe_title}_{timestamp}"
+            
+            # Ensure output directory exists
+            OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
+            
+            # Save tailored resume
+            resume_path = OUTPUT_PATH / f"{base_name}_resume.txt"
+            with open(resume_path, 'w', encoding='utf-8') as f:
+                f.write(tailored_resume)
+            
+            # Save cover letter
+            cover_letter_path = OUTPUT_PATH / f"{base_name}_cover_letter.txt"
+            with open(cover_letter_path, 'w', encoding='utf-8') as f:
+                f.write(cover_letter)
+            
+            # Add to database
+            self.db_manager.add_application(
+                job_title=job_title,
+                company_name=company,
+                job_url="",
+                resume_path=str(resume_path),
+                cover_letter_path=str(cover_letter_path)
+            )
+            
+            # SHOW USER WHERE FILES ARE SAVED (Fix #2)
+            messagebox.showinfo(
+                "Files Saved Successfully",
+                f"Tailored documents saved to:\n\n{OUTPUT_PATH}\n\n"
+                f"Resume: {base_name}_resume.txt\n"
+                f"Cover Letter: {base_name}_cover_letter.txt"
+            )
+            
+            self._log_message(f"Files saved: {base_name}_*.txt", "info")
+        except Exception as e:
+            self._log_message(f"Error saving files: {e}", "error")
+            raise
     
     def clear_fields(self):
         """Clear all input fields"""
