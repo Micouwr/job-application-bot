@@ -1,32 +1,32 @@
 # Job Application Bot
 
 AI-Powered Resume Tailoring for IT/DevOps/AI Governance Roles
-[Golden Rules: 6/6 Compliance] [Version: v2.2.0] [Python: 3.9+] [License: MIT]
+
+[Version: v2.2.0] [Python: 3.9+] [License: MIT]
 
 ---
 
-## What's New in v2.2.0 (SAVE POINT #156)
+## Overview
 
-AI Match Analysis Engine - Stop wasting time on poor-fit jobs!
+The Job Application Bot is an intelligent tool that helps you tailor your resume for specific job applications using Google's Gemini AI. By analyzing the job description and your resume, it creates customized versions that align with the position requirements while preserving all factual information from your original resume.
 
-- Smart Compatibility Scoring - AI analyzes your resume vs job description
-- Detailed Match Breakdown - See strengths, gaps, and recommendations
-- Threshold Enforcement - Only tailor resumes for jobs you are qualified for
-- Secure Prompt Management - Curated dropdown, no filesystem browsing
-- Golden Rules Compliance - 6/6 strict quality standards met
-- Tailored Documents Viewer - Side-by-side resume and cover letter display
-- PDF Export Capability - Professional document formatting and export
+Key Features:
+- AI-powered resume compatibility scoring
+- Intelligent resume and cover letter tailoring
+- Job description storage for future reference
+- Professional PDF export capability
+- Role-based customization for different position levels
 
 ---
 
-## Quick Start (3 Minute Setup)
+## Quick Start
 
 ### Step 1: Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-If you plan to use the PDF export feature, ensure ReportLab is properly installed:
+For PDF export functionality:
 ```bash
 pip install reportlab
 ```
@@ -44,107 +44,42 @@ python gui/tkinter_app.py
 
 ---
 
-## User Guide: The AI-Powered Workflow
+## How It Works
 
-### Step-by-Step Instructions
+### 1. Analyze Job Compatibility
+- Paste the job description (minimum 100 characters)
+- Click "Analyze Match" to get your compatibility score
+- Review detailed feedback on strengths and improvement areas
 
-#### 1. Job Analysis Tab
-- Paste detailed job description (minimum 100 characters)
-- IMPORTANT: Job title and company are NOT required for analysis
-- Click "Analyze Match" button
+### 2. Tailor Your Application Materials
+- For scores ≥70%, the "Start Tailoring" button becomes available
+- AI generates a customized resume and cover letter
+- All materials are automatically saved to the output folder
 
-#### 2. Review Match Score
-- Green (>=70%): Strong match! "Start Tailoring" button enabled
-- Red (<70%): Poor match. Button disabled until score improves
-- Score displays in real-time: "Match Score: 85%"
-
-#### 3. Detailed Match Breakdown
-Click the score to see comprehensive analysis:
-- Overall Score (0-100%)
-- Skills Match (% alignment)
-- Experience Match (% alignment)
-- Keywords Match (% alignment)
-- Strengths (what you have)
-- Gaps (what you're missing)
-- Recommendations (improvement suggestions)
-
-#### 4. Complete Job Details
-If score is acceptable:
-- Fill Job Title (for file naming)
-- Fill Company (for file naming)
-- Fill Job URL (optional, for tracking)
-
-#### 5. Start AI Tailoring
-- Click "Start Tailoring" (only enabled if score >= 70%)
-- AI generates personalized resume and cover letter
-- Files saved automatically to output/ folder
-- Confirmation shows exact file paths
-
-#### 6. View and Export Tailored Documents
-- Navigate to the "Tailored Documents" tab
-- Select any previously tailored application from the list
-- View the tailored resume and cover letter side-by-side
-- Export as PDF for professional presentation
+### 3. Manage and Export Your Documents
+- View previously tailored applications in the "Tailored Documents" tab
+- Export your materials as professionally formatted PDFs
 
 ---
 
-## Configuration
+## Configuration Options
 
-### MIN_MATCH_THRESHOLD
-Edit config/settings.py to adjust minimum match score:
+### Minimum Match Threshold
+Adjust the minimum compatibility score required to enable tailoring:
 ```python
+# In config/settings.py
 MIN_MATCH_THRESHOLD = 70  # Default: 70%
 ```
 
 ### Role Levels
-The application supports four role levels that determine how your resume is tailored. Choose the role level that best matches the position you're applying for to get the most relevant tailored resume.
+Choose the appropriate role level for optimal tailoring:
 
-1. **Standard**: For entry to mid-level positions (0-5 years experience). Focuses on core skills, technical abilities, and direct contributions.
+1. **Standard**: Entry to mid-level positions (0-5 years)
+2. **Senior**: Senior-level positions (5-10 years)
+3. **Lead**: Lead positions (8-15 years)
+4. **Principal**: Principal/architect positions (12+ years)
 
-2. **Senior**: For senior-level positions (5-10 years experience). Emphasizes leadership, strategic thinking, mentoring, and cross-functional collaboration.
-
-3. **Lead**: For lead positions (8-15 years experience). Highlights team management, project leadership, budget oversight, and organizational influence.
-
-4. **Principal**: For principal/architect positions (12+ years experience). Focuses on technical architecture, innovation, organizational transformation, and strategic vision.
-
-**How to Choose:**
-- Match the role level to the job posting requirements
-- If unsure, start with "Standard" and adjust based on match scores
-- Higher role levels require more leadership and strategic experience
-
-### Custom Prompt Templates
-Create tailored prompts in prompts/user/ directory:
-1. Save as .txt.j2 files
-2. Use variables: {role_level}, {company_name}, {job_title}, {job_description}, {resume_text}
-3. Select from curated dropdown in "Custom Prompts" tab
-
----
-
-## Token Management
-
-### GitHub Authentication (Required for Git Operations)
-GitHub disabled password authentication. You need a Personal Access Token (PAT).
-
-Step 1: Create Token
-1. Visit https://github.com/settings/tokens
-2. Click "Generate new token (classic)"
-3. Name: job-application-bot-deploy
-4. Expiration: 90 days
-5. Scopes: Check ONLY repo
-6. Copy token immediately (cannot be retrieved later)
-
-Step 2: Configure Git (One-Time Setup)
-```bash
-git config --global credential.helper osxkeychain
-```
-
-Step 3: Push Code
-```bash
-git push origin main
-# Username: Micouwr
-# Password: <paste your token>
-# Token is now securely stored in macOS Keychain
-```
+Select the level that best matches the position requirements.
 
 ---
 
@@ -162,10 +97,11 @@ python build_standalone.py
 
 ## Troubleshooting
 
-"API key not found": Create .env file with GEMINI_API_KEY=your_key
-"No active resume": Upload resume in "Resume Management" tab  
-"Match analysis failed": Job description must be >= 100 characters  
-"Git asks for password": See Token Management section above
+Common issues and solutions:
+
+- "API key not found": Ensure .env file contains your GEMINI_API_KEY
+- "No active resume": Upload and set a resume as active in the Resume Management tab
+- "Match analysis failed": Job description must be at least 100 characters
 
 ---
 
