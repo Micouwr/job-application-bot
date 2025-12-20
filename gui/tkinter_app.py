@@ -803,13 +803,19 @@ RECOMMENDATIONS:
             company = result_data['company']
             job_description = result_data.get('job_description', '')
             
+            # Get match score if available
+            match_score = 0
+            if hasattr(self, 'match_data') and self.match_data:
+                match_score = self.match_data.get('overall_score', 0)
+            
             # Save outputs
             self.save_outputs(
                 result['resume_text'],
                 result['cover_letter'],
                 job_title,
                 company,
-                job_description
+                job_description,
+                match_score
             )
             
             # Clear fields
@@ -1048,15 +1054,26 @@ Write your custom prompt below...
         self.cover_letter_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD)
         self.cover_letter_text.grid(row=4, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0), pady=5)
         
+        # Export format selection
+        export_frame = ttk.Frame(tab)
+        export_frame.grid(row=5, column=0, columnspan=3, pady=5, sticky=tk.W)
+        
+        ttk.Label(export_frame, text="Export Format:").grid(row=0, column=0, padx=(0, 5))
+        self.export_format_var = tk.StringVar(value="PDF")
+        export_format_combo = ttk.Combobox(export_frame, textvariable=self.export_format_var, 
+                                         values=["PDF", "Word (.docx)", "Plain Text (.txt)", "ATS-Optimized"], 
+                                         state='readonly', width=15)
+        export_format_combo.grid(row=0, column=1, padx=5)
+        
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=5, column=0, columnspan=3, pady=10)
+        button_frame.grid(row=6, column=0, columnspan=3, pady=5)
         
         self.refresh_apps_button = ttk.Button(button_frame, text="Refresh Applications", command=self._refresh_applications_list)
         self.refresh_apps_button.grid(row=0, column=0, padx=5)
         
-        self.export_pdf_button = ttk.Button(button_frame, text="Export as PDF", command=self._export_as_pdf, state='disabled')
-        self.export_pdf_button.grid(row=0, column=1, padx=5)
+        self.export_button = ttk.Button(button_frame, text="Export Documents", command=self._export_documents, state='disabled')
+        self.export_button.grid(row=0, column=1, padx=5)
         
         # Add quit button
         quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
@@ -1110,6 +1127,9 @@ Write your custom prompt below...
                     break
             
             if selected_app:
+                # Store match score for export functionality
+                self.current_selected_app = selected_app
+                
                 # Load job description content
                 try:
                     job_desc_path = selected_app.get("job_description_path")
@@ -1147,24 +1167,49 @@ Write your custom prompt below...
                     self.cover_letter_text.insert("1.0", f"Error loading cover letter: {e}")
                 
                 # Enable export button
-                self.export_pdf_button.config(state="normal")
-                self.current_selected_app = selected_app
+                self.export_button.config(state="normal")
             else:
                 self.job_description_text.delete("1.0", tk.END)
                 self.tailored_resume_text.delete("1.0", tk.END)
                 self.cover_letter_text.delete("1.0", tk.END)
-                self.export_pdf_button.config(state="disabled")
+                self.export_button.config(state="disabled")
         else:
             # Only clear if there's no selection, not during refresh
             pass
 
     
-    def _export_as_pdf(self):
-        """Export current tailored documents as PDF"""
+    def _export_documents(self):
+        """Export current tailored documents in selected format"""
         if not hasattr(self, 'current_selected_app'):
             messagebox.showwarning("Export Error", "Please select an application first.")
             return
         
+        # Get selected export format
+        export_format = self.export_format_var.get()
+        
+        try:
+            # Get job title and company for filename
+            job_title = self.current_selected_app['job_title'].replace(' ', '_').replace('/', '_')
+            company = self.current_selected_app['company_name'].replace(' ', '_').replace('/', '_')
+            
+            # Handle different export formats
+            if export_format == "PDF":
+                self._export_as_pdf(job_title, company)
+            elif export_format == "Word (.docx)":
+                self._export_as_word(job_title, company)
+            elif export_format == "Plain Text (.txt)":
+                self._export_as_text(job_title, company)
+            elif export_format == "ATS-Optimized":
+                self._export_as_ats_optimized(job_title, company)
+            else:
+                messagebox.showerror("Export Error", f"Unsupported export format: {export_format}")
+        
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export documents: {str(e)}")
+            self._log_message(f"Export error: {e}", "error")
+    
+    def _export_as_pdf(self, job_title, company):
+        """Export current tailored documents as PDF"""
         try:
             # Import reportlab here to avoid issues if not installed
             from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -1172,10 +1217,6 @@ Write your custom prompt below...
             from reportlab.lib.units import inch
             from reportlab.lib.pagesizes import letter
             from reportlab.lib.enums import TA_CENTER, TA_LEFT
-            
-            # Get job title and company for filename
-            job_title = self.current_selected_app['job_title'].replace(' ', '_').replace('/', '_')
-            company = self.current_selected_app['company_name'].replace(' ', '_').replace('/', '_')
             
             # Ask user for save location
             file_path = filedialog.asksaveasfilename(
@@ -1253,10 +1294,172 @@ Write your custom prompt below...
             messagebox.showerror("PDF Export Error", "ReportLab library not found. Please install it with: pip install reportlab")
             self._log_message("ReportLab not installed for PDF export", "error")
         except Exception as e:
-            messagebox.showerror("PDF Export Error", f"Failed to export PDF: {str(e)}")
-            self._log_message(f"PDF export error: {e}", "error")
+            raise  # Re-raise to be caught by parent method
     
-    def save_outputs(self, tailored_resume, cover_letter, job_title, company, job_description):
+    def _export_as_word(self, job_title, company):
+        """Export current tailored documents as Word document"""
+        try:
+            from docx import Document
+            from docx.shared import Pt
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
+            
+            # Ask user for save location
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".docx",
+                filetypes=[("Word files", "*.docx"), ("All files", "*.*")],
+                initialfile=f"{company}_{job_title}_Application.docx"
+            )
+            
+            if not file_path:
+                return
+            
+            # Create Word document
+            doc = Document()
+            
+            # Add title
+            title = doc.add_heading('Job Application Documents', 0)
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Add company and job title info
+            info_para = doc.add_paragraph()
+            info_run = info_para.add_run(f'{company} - {job_title}')
+            info_run.bold = True
+            
+            # Add tailored resume
+            doc.add_heading('Tailored Resume', level=1)
+            
+            # Read resume content
+            with open(self.current_selected_app['resume_path'], 'r', encoding='utf-8') as f:
+                resume_content = f.read()
+            
+            # Add resume content as paragraphs
+            for line in resume_content.split('\n'):
+                if line.strip():
+                    doc.add_paragraph(line)
+            
+            # Add page break
+            doc.add_page_break()
+            
+            # Add cover letter
+            doc.add_heading('Cover Letter', level=1)
+            
+            # Read cover letter content
+            with open(self.current_selected_app['cover_letter_path'], 'r', encoding='utf-8') as f:
+                cover_letter_content = f.read()
+            
+            # Add cover letter content as paragraphs
+            for line in cover_letter_content.split('\n'):
+                if line.strip():
+                    doc.add_paragraph(line)
+            
+            # Save document
+            doc.save(file_path)
+            
+            messagebox.showinfo("Word Export", f"Documents exported successfully to:\n{file_path}")
+            self._log_message(f"Word document exported to: {file_path}", "info")
+            
+        except ImportError:
+            messagebox.showerror("Word Export Error", "python-docx library not found. Please install it with: pip install python-docx")
+            self._log_message("python-docx not installed for Word export", "error")
+        except Exception as e:
+            raise  # Re-raise to be caught by parent method
+    
+    def _export_as_text(self, job_title, company):
+        """Export current tailored documents as plain text files"""
+        try:
+            # Ask user for save location for zip file
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".zip",
+                filetypes=[("ZIP files", "*.zip"), ("All files", "*.*")],
+                initialfile=f"{company}_{job_title}_Application.zip"
+            )
+            
+            if not file_path:
+                return
+            
+            import zipfile
+            from io import StringIO
+            
+            # Create zip file with all documents
+            with zipfile.ZipFile(file_path, 'w') as zipf:
+                # Add resume
+                with open(self.current_selected_app['resume_path'], 'r', encoding='utf-8') as f:
+                    zipf.writestr(f"{job_title}_resume.txt", f.read())
+                
+                # Add cover letter
+                with open(self.current_selected_app['cover_letter_path'], 'r', encoding='utf-8') as f:
+                    zipf.writestr(f"{job_title}_cover_letter.txt", f.read())
+                
+                # Add job description if available
+                job_desc_path = self.current_selected_app.get('job_description_path')
+                if job_desc_path and job_desc_path != 'None' and os.path.exists(job_desc_path):
+                    with open(job_desc_path, 'r', encoding='utf-8') as f:
+                        zipf.writestr(f"{job_title}_job_description.txt", f.read())
+            
+            messagebox.showinfo("Text Export", f"Documents exported successfully to:\n{file_path}")
+            self._log_message(f"Text files exported to ZIP: {file_path}", "info")
+            
+        except Exception as e:
+            raise  # Re-raise to be caught by parent method
+    
+    def _export_as_ats_optimized(self, job_title, company):
+        """Export current tailored documents as ATS-optimized plain text"""
+        try:
+            # Ask user for save location
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+                initialfile=f"{company}_{job_title}_ATS_Optimized.txt"
+            )
+            
+            if not file_path:
+                return
+            
+            # Read all content
+            with open(self.current_selected_app['resume_path'], 'r', encoding='utf-8') as f:
+                resume_content = f.read()
+            
+            with open(self.current_selected_app['cover_letter_path'], 'r', encoding='utf-8') as f:
+                cover_letter_content = f.read()
+            
+            # Create ATS-optimized content (remove special formatting, extra spaces, etc.)
+            ats_content = f"""JOB APPLICATION FOR: {company} - {job_title}
+
+TAILORING DATE: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+=====================
+TAILORING SCORE: {self.current_selected_app.get('match_score', 'N/A')}
+=====================
+
+TAILORING NOTES:
+This document has been optimized for Applicant Tracking Systems (ATS).
+All formatting has been simplified for maximum compatibility.
+
+=====================
+RESUME
+=====================
+{resume_content}
+
+=====================
+COVER LETTER
+=====================
+{cover_letter_content}"""
+            
+            # Simplify for ATS (remove extra whitespace, normalize line endings)
+            lines = [line.strip() for line in ats_content.split('\n')]
+            ats_content = '\n'.join(lines)
+            
+            # Save to file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(ats_content)
+            
+            messagebox.showinfo("ATS Export", f"ATS-optimized document exported successfully to:\n{file_path}")
+            self._log_message(f"ATS-optimized text exported to: {file_path}", "info")
+            
+        except Exception as e:
+            raise  # Re-raise to be caught by parent method
+    
+    def save_outputs(self, tailored_resume, cover_letter, job_title, company, job_description, match_score=0):
         """Save tailored documents to output folder and show user where they are"""
         try:
             # Create timestamp
@@ -1292,7 +1495,8 @@ Write your custom prompt below...
                 job_url="",
                 resume_path=str(resume_path),
                 cover_letter_path=str(cover_letter_path),
-                job_description_path=str(job_description_path)
+                job_description_path=str(job_description_path),
+                match_score=match_score
             )
             
             # SHOW USER WHERE FILES ARE SAVED (Fix #2)
