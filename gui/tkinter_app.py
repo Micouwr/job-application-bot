@@ -720,7 +720,8 @@ RECOMMENDATIONS:
                 'status': 'success',
                 'result': result,
                 'job_title': job_title,
-                'company': company
+                'company': company,
+                'job_description': job_description
             })
             
         except Exception as e:
@@ -745,13 +746,15 @@ RECOMMENDATIONS:
             result = result_data['result']
             job_title = result_data['job_title']
             company = result_data['company']
+            job_description = result_data.get('job_description', '')
             
             # Save outputs
             self.save_outputs(
                 result['resume_text'],
                 result['cover_letter'],
                 job_title,
-                company
+                company,
+                job_description
             )
             
             # Clear fields
@@ -944,12 +947,12 @@ Write your custom prompt below...
         self._log_message("Cleared prompt editor", "info")
     
     def _create_tailored_docs_tab(self):
-        """Create the Tailored Documents tab with split view for resume and cover letter"""
+        """Create the Tailored Documents tab with split view for job description, resume and cover letter"""
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Tailored Documents")
         
         # Title
-        ttk.Label(tab, text="Tailored Resumes & Cover Letters", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=2, pady=10)
+        ttk.Label(tab, text="Tailored Job Applications", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=3, pady=10)
         
         # Applications list
         ttk.Label(tab, text="Select Application:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
@@ -965,30 +968,34 @@ Write your custom prompt below...
         self.applications_tree.column('Company', width=200)
         self.applications_tree.column('Date', width=180)  # Increased width for better date visibility
         
-        self.applications_tree.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        self.applications_tree.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Add scrollbar
         scrollbar = ttk.Scrollbar(tab, orient=tk.VERTICAL, command=self.applications_tree.yview)
         self.applications_tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.grid(row=2, column=1, sticky=(tk.N, tk.S))
+        scrollbar.grid(row=2, column=2, sticky=(tk.N, tk.S))
         
         # Bind selection event
         self.applications_tree.bind('<<TreeviewSelect>>', self._on_application_select)
         
-        # Split view for resume and cover letter
-        ttk.Label(tab, text="Tailored Resume", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=(10, 5))
-        ttk.Label(tab, text="Cover Letter", font=('Arial', 10, 'bold')).grid(row=3, column=1, sticky=tk.W, pady=(10, 5))
+        # Split view for job description, resume and cover letter
+        ttk.Label(tab, text="Job Description", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=(10, 5))
+        ttk.Label(tab, text="Tailored Resume", font=('Arial', 10, 'bold')).grid(row=3, column=1, sticky=tk.W, pady=(10, 5))
+        ttk.Label(tab, text="Cover Letter", font=('Arial', 10, 'bold')).grid(row=3, column=2, sticky=tk.W, pady=(10, 5))
         
-        # Text areas for resume and cover letter
-        self.tailored_resume_text = scrolledtext.ScrolledText(tab, width=50, height=20, wrap=tk.WORD)
-        self.tailored_resume_text.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5), pady=5)
+        # Text areas for job description, resume and cover letter
+        self.job_description_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD)
+        self.job_description_text.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5), pady=5)
         
-        self.cover_letter_text = scrolledtext.ScrolledText(tab, width=50, height=20, wrap=tk.WORD)
-        self.cover_letter_text.grid(row=4, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0), pady=5)
+        self.tailored_resume_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD)
+        self.tailored_resume_text.grid(row=4, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 5), pady=5)
+        
+        self.cover_letter_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD)
+        self.cover_letter_text.grid(row=4, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0), pady=5)
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        button_frame.grid(row=5, column=0, columnspan=3, pady=10)
         
         self.refresh_apps_button = ttk.Button(button_frame, text="Refresh Applications", command=self._refresh_applications_list)
         self.refresh_apps_button.grid(row=0, column=0, padx=5)
@@ -1006,6 +1013,7 @@ Write your custom prompt below...
         # Configure grid weights
         tab.columnconfigure(0, weight=1)
         tab.columnconfigure(1, weight=1)
+        tab.columnconfigure(2, weight=1)
         tab.rowconfigure(2, weight=1)
         tab.rowconfigure(4, weight=2)
     
@@ -1047,6 +1055,20 @@ Write your custom prompt below...
                     break
             
             if selected_app:
+                # Load job description content
+                try:
+                    if selected_app.get("job_description_path") and os.path.exists(selected_app["job_description_path"]):
+                        with open(selected_app["job_description_path"], "r", encoding="utf-8") as f:
+                            job_description_content = f.read()
+                        self.job_description_text.delete("1.0", tk.END)
+                        self.job_description_text.insert("1.0", job_description_content)
+                    else:
+                        self.job_description_text.delete("1.0", tk.END)
+                        self.job_description_text.insert("1.0", "Job description not available.")
+                except Exception as e:
+                    self.job_description_text.delete("1.0", tk.END)
+                    self.job_description_text.insert("1.0", f"Error loading job description: {e}")
+                
                 # Load resume content
                 try:
                     with open(selected_app["resume_path"], "r", encoding="utf-8") as f:
@@ -1071,6 +1093,7 @@ Write your custom prompt below...
                 self.export_pdf_button.config(state="normal")
                 self.current_selected_app = selected_app
             else:
+                self.job_description_text.delete("1.0", tk.END)
                 self.tailored_resume_text.delete("1.0", tk.END)
                 self.cover_letter_text.delete("1.0", tk.END)
                 self.export_pdf_button.config(state="disabled")
@@ -1178,7 +1201,7 @@ Write your custom prompt below...
             messagebox.showerror("PDF Export Error", f"Failed to export PDF: {str(e)}")
             self._log_message(f"PDF export error: {e}", "error")
     
-    def save_outputs(self, tailored_resume, cover_letter, job_title, company):
+    def save_outputs(self, tailored_resume, cover_letter, job_title, company, job_description):
         """Save tailored documents to output folder and show user where they are"""
         try:
             # Create timestamp
@@ -1202,13 +1225,19 @@ Write your custom prompt below...
             with open(cover_letter_path, 'w', encoding='utf-8') as f:
                 f.write(cover_letter)
             
+            # Save job description
+            job_description_path = OUTPUT_PATH / f"{base_name}_job_description.txt"
+            with open(job_description_path, 'w', encoding='utf-8') as f:
+                f.write(job_description)
+            
             # Add to database
             self.db_manager.add_application(
                 job_title=job_title,
                 company_name=company,
                 job_url="",
                 resume_path=str(resume_path),
-                cover_letter_path=str(cover_letter_path)
+                cover_letter_path=str(cover_letter_path),
+                job_description_path=str(job_description_path)
             )
             
             # SHOW USER WHERE FILES ARE SAVED (Fix #2)
@@ -1216,7 +1245,8 @@ Write your custom prompt below...
                 "Files Saved Successfully",
                 f"Tailored documents saved to:\n\n{OUTPUT_PATH}\n\n"
                 f"Resume: {base_name}_resume.txt\n"
-                f"Cover Letter: {base_name}_cover_letter.txt"
+                f"Cover Letter: {base_name}_cover_letter.txt\n"
+                f"Job Description: {base_name}_job_description.txt"
             )
             
             self._log_message(f"Files saved: {base_name}_*.txt", "info")

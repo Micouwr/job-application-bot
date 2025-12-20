@@ -38,13 +38,13 @@ class DatabaseManager:
             
             conn.commit()
     
-    def add_application(self, job_title, company_name, job_url, resume_path, cover_letter_path):
+    def add_application(self, job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path=None):
         """Add a new job application"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute('''
-                INSERT INTO applications (job_title, company_name, job_url, resume_path, cover_letter_path)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (job_title, company_name, job_url, resume_path, cover_letter_path))
+                INSERT INTO applications (job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path))
             
             conn.commit()
             return cursor.lastrowid
