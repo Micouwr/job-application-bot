@@ -52,6 +52,9 @@ class JobAppTkinter:
         # Initialize match analysis variables
         self.match_data = None
         
+        # Initialize processing state
+        self._processing = False
+        
         # Initialize tooltip window
         self._tooltip_window = None
         
@@ -237,7 +240,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self.clear_button.grid(row=0, column=2, padx=5)
         
         # Quit button (fourth)
-        self.quit_button = ttk.Button(button_frame, text="Quit", command=self.master.quit)
+        self.quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
         self.quit_button.grid(row=0, column=3, padx=5)
         
         # DEBUG: Print to console to verify elements are created
@@ -297,6 +300,10 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         # Refresh resume list
         self._refresh_resume_list()
         
+        # Add quit button
+        quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
+        quit_button.grid(row=0, column=3, padx=5)
+        
         # Configure grid weights
         tab.columnconfigure(0, weight=1)
         tab.rowconfigure(1, weight=1)
@@ -311,6 +318,10 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         self.log_text = scrolledtext.ScrolledText(tab, width=80, height=25, wrap=tk.WORD)
         self.log_text.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        
+        # Add quit button
+        quit_button = ttk.Button(tab, text="Quit", command=self.quit_application)
+        quit_button.grid(row=2, column=0, pady=10, sticky=tk.W)
         
         # Configure grid weights
         tab.columnconfigure(0, weight=1)
@@ -653,6 +664,7 @@ RECOMMENDATIONS:
         
         # All validations passed - proceed with AI tailoring
         self.set_ui_enabled(False)
+        self._processing = True  # Track processing state
         self.status_label.config(text="Processing... Please wait", foreground="orange")
         self._log_message("Starting AI-powered tailoring...", "info")
         
@@ -700,6 +712,9 @@ RECOMMENDATIONS:
     
     def on_tailoring_complete(self, result_data):
         """Handle completion of tailoring process"""
+        # Reset processing flag
+        self._processing = False
+        
         if result_data['status'] == 'error':
             self.status_label.config(text="Tailoring failed", foreground="red")
             messagebox.showerror("Error", f"Tailoring failed: {result_data['error']}")
@@ -806,6 +821,10 @@ Write your custom prompt below...
         
         clear_button = ttk.Button(button_frame, text="Clear", command=self.clear_prompt_editor)
         clear_button.grid(row=0, column=2, padx=5)
+        
+        # Add quit button
+        quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
+        quit_button.grid(row=0, column=3, padx=5)
         
         # Make text area expandable
         tab.columnconfigure(1, weight=1)
@@ -956,6 +975,10 @@ Write your custom prompt below...
         
         self.export_pdf_button = ttk.Button(button_frame, text="Export as PDF", command=self._export_as_pdf, state='disabled')
         self.export_pdf_button.grid(row=0, column=1, padx=5)
+        
+        # Add quit button
+        quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
+        quit_button.grid(row=0, column=2, padx=5)
         
         # Refresh applications list
         self._refresh_applications_list()
@@ -1180,6 +1203,29 @@ Write your custom prompt below...
         self.company_entry.delete(0, tk.END)
         self.job_desc_text.delete('1.0', tk.END)
         self.job_url_entry.delete(0, tk.END)
+    
+    def quit_application(self):
+        """Quit the application with proper cleanup"""
+        # Check if there are any ongoing operations
+        if hasattr(self, '_processing') and self._processing:
+            # Ask user if they want to force quit
+            result = messagebox.askyesno(
+                "Ongoing Process", 
+                "A process is currently running. Are you sure you want to quit?\n\n"
+                "WARNING: This may cause data loss or incomplete operations."
+            )
+            if not result:
+                return
+        
+        # Close any open tooltip windows
+        if hasattr(self, '_tooltip_window') and self._tooltip_window:
+            try:
+                self._tooltip_window.destroy()
+            except:
+                pass
+        
+        # Quit the application
+        self.master.destroy()
     
     def set_ui_enabled(self, enabled):
         """Enable or disable UI elements during processing"""
