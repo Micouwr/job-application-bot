@@ -56,9 +56,20 @@ python gui/tkinter_app.py
 - AI generates a customized resume and cover letter
 - All materials are automatically saved to the output folder
 
-### 3. Manage and Export Your Documents
+### 3. Import Jobs from External Sources
+- Use the "Import Job" tab to import job descriptions from:
+  - Plain text
+  - LinkedIn job postings (HTML source)
+  - Email content
+- Automatically parses job titles, companies, and descriptions
+
+### 4. Manage and Export Your Documents
 - View previously tailored applications in the "Tailored Documents" tab
-- Export your materials as professionally formatted PDFs
+- Export your materials in multiple formats:
+  - PDF (professional formatting)
+  - Word (.docx)
+  - Plain Text (.txt)
+  - ATS-Optimized (for Applicant Tracking Systems)
 
 ---
 
