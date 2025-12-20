@@ -19,7 +19,7 @@ from config.settings import OUTPUT_PATH, DB_PATH, MIN_MATCH_THRESHOLD
 from database import DatabaseManager
 from tailor import process_and_tailor_from_gui
 from models.resume_model import ResumeModel
-from AI.match_analyzer import analyze_match
+from AI.match_analyzer import analyze_match, extract_job_details
 
 # Configure logging
 logging.basicConfig(
@@ -649,20 +649,42 @@ RECOMMENDATIONS:
         """Validate all prerequisites and start AI-powered tailoring"""
         self._log_message("Validating tailoring prerequisites...", "info")
         
+        # Get job description first
+        job_description = self.job_desc_text.get('1.0', tk.END).strip()
+        if not job_description or len(job_description) < 100:
+            messagebox.showerror("Insufficient Job Description", "Please enter a detailed job description (minimum 100 characters).")
+            return
+        
         # Prerequisites: job title, company, description, match score >= threshold
         job_title = self.job_title_entry.get().strip()
+        company = self.company_entry.get().strip()
+        
+        # If job title or company are missing, try to extract them using AI
+        if not job_title or not company:
+            self._log_message("Attempting to auto-extract job title and company...", "info")
+            try:
+                extracted_details = extract_job_details(job_description)
+                if not job_title and extracted_details.get('job_title') and extracted_details['job_title'] != 'Unknown':
+                    job_title = extracted_details['job_title']
+                    self.job_title_entry.delete(0, tk.END)
+                    self.job_title_entry.insert(0, job_title)
+                    self._log_message(f"Auto-extracted job title: {job_title}", "info")
+                
+                if not company and extracted_details.get('company_name') and extracted_details['company_name'] != 'Unknown':
+                    company = extracted_details['company_name']
+                    self.company_entry.delete(0, tk.END)
+                    self.company_entry.insert(0, company)
+                    self._log_message(f"Auto-extracted company: {company}", "info")
+            except Exception as e:
+                self._log_message(f"Failed to auto-extract job details: {e}", "warning")
+        
+        # Validate that we now have both job title and company
         if not job_title:
             messagebox.showerror("Missing Job Title", "Please enter a job title for file naming.")
             return
         
-        company = self.company_entry.get().strip()
         if not company:
             messagebox.showerror("Missing Company", "Please enter a company name for file naming.")
-            return
-        
-        job_description = self.job_desc_text.get('1.0', tk.END).strip()
-        if not job_description or len(job_description) < 100:
-            messagebox.showerror("Insufficient Job Description", "Please enter a detailed job description (minimum 100 characters).")
             return
         
         # Load resume
@@ -966,7 +988,7 @@ Write your custom prompt below...
         
         self.applications_tree.column('Job Title', width=200)
         self.applications_tree.column('Company', width=200)
-        self.applications_tree.column('Date', width=180)  # Increased width for better date visibility
+        self.applications_tree.column('Date', width=200)  # Further increased width to prevent header cutoff
         
         self.applications_tree.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
@@ -1057,8 +1079,10 @@ Write your custom prompt below...
             if selected_app:
                 # Load job description content
                 try:
-                    if selected_app.get("job_description_path") and os.path.exists(selected_app["job_description_path"]):
-                        with open(selected_app["job_description_path"], "r", encoding="utf-8") as f:
+                    job_desc_path = selected_app.get("job_description_path")
+                    # Handle both None and string 'None' cases
+                    if job_desc_path and job_desc_path != 'None' and os.path.exists(job_desc_path):
+                        with open(job_desc_path, "r", encoding="utf-8") as f:
                             job_description_content = f.read()
                         self.job_description_text.delete("1.0", tk.END)
                         self.job_description_text.insert("1.0", job_description_content)
@@ -1151,19 +1175,17 @@ Write your custom prompt below...
                 spaceAfter=10
             )
             
-            normal_style = styles['Normal']
+            # Custom normal style with smaller bullet points
+            normal_style = ParagraphStyle(
+                'CustomNormal',
+                parent=styles['Normal'],
+                bulletFontSize=8,  # Smaller bullet points
+                bulletIndent=10,
+                leftIndent=20
+            )
             
             # Build document content
             story = []
-            
-            # Title
-            title = Paragraph(f"Job Application Materials", title_style)
-            story.append(title)
-            
-            # Job details
-            job_info = Paragraph(f"<b>Position:</b> {self.current_selected_app['job_title']}<br/><b>Company:</b> {self.current_selected_app['company_name']}", normal_style)
-            story.append(job_info)
-            story.append(Spacer(1, 0.2*inch))
             
             # Tailored Resume
             story.append(Paragraph("Tailored Resume", heading_style))
@@ -1306,22 +1328,50 @@ Write your custom prompt below...
             self._tooltip_window.wm_overrideredirect(True)
             self._tooltip_window.configure(bg='lightyellow', relief='solid', borderwidth=1)
             
-            # Create label for tooltip text
-            tooltip_label = tk.Label(self._tooltip_window, text=text, 
-                                   bg='lightyellow', fg='black', 
-                                   font=('Arial', 9), justify=tk.LEFT, 
-                                   padx=5, pady=3)
-            tooltip_label.pack()
+            # Create scrolled text widget for tooltip content to handle overflow
+            tooltip_text = scrolledtext.ScrolledText(
+                self._tooltip_window, 
+                width=50, 
+                height=15,
+                wrap=tk.WORD,
+                bg='lightyellow', 
+                fg='black', 
+                font=('Arial', 9),
+                padx=5, 
+                pady=3,
+                bd=0,
+                highlightthickness=0
+            )
+            tooltip_text.insert('1.0', text)
+            tooltip_text.config(state='disabled')  # Make read-only
+            tooltip_text.pack()
         
-        # Position tooltip near mouse cursor
+        # Position tooltip near mouse cursor but ensure it stays on screen
         x, y = event.x_root + 10, event.y_root + 10
+        
+        # Get screen dimensions
+        screen_width = self.master.winfo_screenwidth()
+        screen_height = self.master.winfo_screenheight()
+        
+        # Get tooltip dimensions
+        self._tooltip_window.update_idletasks()  # Update to get accurate size
+        tooltip_width = self._tooltip_window.winfo_reqwidth()
+        tooltip_height = self._tooltip_window.winfo_reqheight()
+        
+        # Adjust position if tooltip would go off screen
+        if x + tooltip_width > screen_width:
+            x = screen_width - tooltip_width - 10
+        if y + tooltip_height > screen_height:
+            y = screen_height - tooltip_height - 10
+        
         self._tooltip_window.wm_geometry(f"+{x}+{y}")
         self._tooltip_window.deiconify()
     
     def _hide_tooltip(self):
         """Hide tooltip window"""
         if hasattr(self, '_tooltip_window') and self._tooltip_window:
-            self._tooltip_window.withdraw()
+            self._tooltip_window.destroy()
+            self._tooltip_window = None
     
     def _log_message(self, message, level='info'):
         """Add message to log window"""

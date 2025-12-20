@@ -20,6 +20,7 @@ class DatabaseManager:
                     job_url TEXT,
                     resume_path TEXT,
                     cover_letter_path TEXT,
+                    job_description_path TEXT,
                     status TEXT DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

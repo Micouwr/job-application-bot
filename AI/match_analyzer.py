@@ -104,6 +104,71 @@ def analyze_match(resume_text: str, job_description: str) -> dict:
     except Exception as e:
         raise
 
+def extract_job_details(job_description: str) -> dict:
+    """Extract job title and company name from job description using AI."""
+    # Verify API key
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "your_api_key_here":
+        raise Exception("GEMINI_API_KEY not configured")
+    
+    # Configure Gemini
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash')
+    except Exception as e:
+        raise
+    
+    # Build extraction prompt
+    prompt = f"""
+    Extract the job title and company name from this job description.
+    Return ONLY a valid JSON object with these exact keys: job_title, company_name
+    
+    If you cannot determine either value, use "Unknown" as the value.
+    
+    Example format:
+    {{
+        "job_title": "Software Engineer",
+        "company_name": "Tech Corp"
+    }}
+    
+    JOB DESCRIPTION:
+    {job_description}
+    """
+    
+    # Call Gemini API
+    try:
+        response = model.generate_content(prompt)
+        
+        # Parse JSON response (strip markdown if present)
+        try:
+            response_text = response.text.strip()
+            
+            # Remove markdown code block markers
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]  # Remove ```json
+            if response_text.startswith("```"):
+                response_text = response_text[3:]  # Remove ```
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]  # Remove ```
+            
+            response_text = response_text.strip()
+            
+            result = json.loads(response_text)
+            return result
+        except json.JSONDecodeError as e:
+            # If JSON parsing fails, return defaults
+            return {
+                "job_title": "Unknown",
+                "company_name": "Unknown"
+            }
+    
+    except Exception as e:
+        # If API call fails, return defaults
+        return {
+            "job_title": "Unknown",
+            "company_name": "Unknown"
+        }
+
 # Self-test when module is run directly
 if __name__ == "__main__":
     if DIAGNOSTIC_MODE:
