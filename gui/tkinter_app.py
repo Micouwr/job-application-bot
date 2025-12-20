@@ -14,6 +14,7 @@ import logging
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "utils"))
 
 from config.settings import OUTPUT_PATH, DB_PATH, MIN_MATCH_THRESHOLD
 from database import DatabaseManager
@@ -191,6 +192,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         # Create tabs in desired order
         self._create_add_job_tab()  # Job Management
+        self._create_import_tab()   # Import from LinkedIn/Email
         self._create_resume_mgmt_tab()
         self._create_tailored_docs_tab()
         self._create_custom_prompt_tab()
@@ -832,6 +834,117 @@ RECOMMENDATIONS:
             return
         finally:
             self.set_ui_enabled(True)
+    
+    def _create_import_tab(self):
+        """Create the Job Import tab for importing from LinkedIn, email, etc."""
+        tab = ttk.Frame(self.notebook)
+        self.notebook.add(tab, text="Import Job")
+        
+        # Title
+        ttk.Label(tab, text="Import Job Description", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=3, pady=10)
+        
+        # Import source selection
+        ttk.Label(tab, text="Import Source:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.import_source_var = tk.StringVar(value="Plain Text")
+        source_combo = ttk.Combobox(tab, textvariable=self.import_source_var, 
+                                  values=["Plain Text", "LinkedIn HTML", "Email Content"], 
+                                  state='readonly', width=20)
+        source_combo.grid(row=1, column=1, sticky=tk.W, pady=5)
+        
+        # Source-specific instructions
+        self.import_instructions = ttk.Label(tab, 
+                                          text="Paste job description text below:", 
+                                          wraplength=500, 
+                                          justify=tk.LEFT)
+        self.import_instructions.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
+        # Bind to update instructions when source changes
+        source_combo.bind('<<ComboboxSelected>>', self._update_import_instructions)
+        
+        # Text area for job description
+        ttk.Label(tab, text="Job Content:", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.import_text = scrolledtext.ScrolledText(tab, width=80, height=20, wrap=tk.WORD)
+        self.import_text.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        
+        # Buttons
+        button_frame = ttk.Frame(tab)
+        button_frame.grid(row=5, column=0, columnspan=3, pady=10)
+        
+        self.parse_button = ttk.Button(button_frame, text="Parse & Import", command=self._parse_and_import_job)
+        self.parse_button.grid(row=0, column=0, padx=5)
+        
+        self.clear_import_button = ttk.Button(button_frame, text="Clear", command=self._clear_import_fields)
+        self.clear_import_button.grid(row=0, column=1, padx=5)
+        
+        # Add quit button
+        quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
+        quit_button.grid(row=0, column=2, padx=5)
+        
+        # Configure grid weights
+        tab.columnconfigure(0, weight=1)
+        tab.rowconfigure(4, weight=1)
+    
+    def _update_import_instructions(self, event=None):
+        """Update import instructions based on selected source"""
+        source = self.import_source_var.get()
+        
+        instructions = {
+            "Plain Text": "Paste job description text below:",
+            "LinkedIn HTML": "Paste the HTML source of the LinkedIn job posting below:\n(Use Ctrl+U or View Source in your browser)",
+            "Email Content": "Paste the raw email content below:\n(Include subject line and body)"
+        }
+        
+        self.import_instructions.config(text=instructions.get(source, instructions["Plain Text"]))
+    
+    def _parse_and_import_job(self):
+        """Parse imported job content and populate job fields"""
+        try:
+            # Import the job parser
+            from job_parser import parse_linkedin_job_description, parse_email_job_description, parse_plain_text_job_description
+            
+            # Get content
+            content = self.import_text.get('1.0', tk.END).strip()
+            if not content:
+                messagebox.showwarning("Import Error", "Please paste job content first.")
+                return
+            
+            # Parse based on selected source
+            source = self.import_source_var.get()
+            
+            if source == "LinkedIn HTML":
+                job_data = parse_linkedin_job_description(content)
+            elif source == "Email Content":
+                job_data = parse_email_job_description(content)
+            else:  # Plain Text
+                job_data = parse_plain_text_job_description(content)
+            
+            # Switch to Job Management tab and populate fields
+            self.notebook.select(0)  # First tab is Job Management
+            
+            # Populate fields
+            self.job_title_entry.delete(0, tk.END)
+            self.job_title_entry.insert(0, job_data.get('title', ''))
+            
+            self.company_entry.delete(0, tk.END)
+            self.company_entry.insert(0, job_data.get('company', ''))
+            
+            self.job_desc_text.delete('1.0', tk.END)
+            self.job_desc_text.insert('1.0', job_data.get('description', content))
+            
+            # Show success message
+            messagebox.showinfo("Import Successful", 
+                              f"Job imported successfully!\n\nTitle: {job_data.get('title', 'N/A')}\nCompany: {job_data.get('company', 'N/A')}")
+            
+            self._log_message(f"Job imported from {source}", "info")
+            
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to parse job content: {str(e)}")
+            self._log_message(f"Import error: {e}", "error")
+    
+    def _clear_import_fields(self):
+        """Clear import fields"""
+        self.import_text.delete('1.0', tk.END)
+        self._log_message("Cleared import fields", "info")
     
     def _create_custom_prompt_tab(self):
         """Create the Custom Prompt Management tab."""
