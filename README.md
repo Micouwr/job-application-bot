@@ -56,9 +56,6 @@ python gui/tkinter_app.py
 ### Application Interface
 ![Application Interface](assets/computer.png)
 
-### Workflow Diagram
-![Workflow Diagram](docs/screenshots/workflow_diagram.png)
-
 ---
 
 ## How It Works
