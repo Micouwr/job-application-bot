@@ -505,6 +505,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         try:
             # Call AI match analyzer
+        # Note: AI scores may vary slightly between runs due to the non-deterministic nature of language models
             self.status_label.config(text="Analyzing match...")
             self.master.update_idletasks()
             
@@ -998,8 +999,15 @@ Write your custom prompt below...
         # Load applications from database
         applications = self.db_manager.get_all_applications()
         for app in applications:
-            # Format date
-            created_at = datetime.strptime(app['created_at'], '%Y-%m-%d %H:%M:%S.%f').strftime('%Y-%m-%d %H:%M')
+            # Format date (handle both formats with and without microseconds)
+            try:
+                # Try with microseconds first
+                dt = datetime.strptime(app['created_at'], '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                # Fall back to without microseconds
+                dt = datetime.strptime(app['created_at'], '%Y-%m-%d %H:%M:%S')
+            # Format consistently
+            created_at = dt.strftime('%Y-%m-%d %H:%M')
             self.applications_tree.insert('', tk.END, values=(
                 app['job_title'],
                 app['company_name'],
@@ -1047,6 +1055,9 @@ Write your custom prompt below...
                 self.tailored_resume_text.delete('1.0', tk.END)
                 self.cover_letter_text.delete('1.0', tk.END)
                 self.export_pdf_button.config(state='disabled')
+        else:
+            # Only clear if there's no selection, not during refresh
+            pass
         else:
             self.tailored_resume_text.delete('1.0', tk.END)
             self.cover_letter_text.delete('1.0', tk.END)
