@@ -160,8 +160,8 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self._create_add_job_tab()  # Job Management
         self._create_resume_mgmt_tab()
         self._create_tailored_docs_tab()
-        self._create_output_tab()
         self._create_custom_prompt_tab()
+        self._create_output_tab()  # OUTPUT & LOGS moved to final position
         
         # Make notebook expandable
         main_frame.columnconfigure(0, weight=1)
@@ -187,12 +187,31 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         role_combo = ttk.Combobox(tab, textvariable=self.role_var, values=["Standard", "Senior", "Lead", "Principal"], state='readonly')
         role_combo.grid(row=5, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
-        # Add tooltip with role definitions
-        role_tooltip = "Role Definitions:\n"
-        role_tooltip += "Standard: Entry to mid-level (0-5 years) - Core skills & direct contributions\n"
-        role_tooltip += "Senior: Senior-level (5-10 years) - Leadership, strategic thinking, mentoring\n"
-        role_tooltip += "Lead: Lead positions (8-15 years) - Team management, project leadership\n"
-        role_tooltip += "Principal: Principal/architect (12+ years) - Technical architecture, innovation"
+        # Add tooltip with enhanced role definitions
+        role_tooltip = "ROLE LEVEL DEFINITIONS:\n\n"
+        role_tooltip += "STANDARD (0-5 years experience):\n"
+        role_tooltip += "• Focus on core technical skills and direct contributions\n"
+        role_tooltip += "• Primary responsibilities include hands-on work and task execution\n"
+        role_tooltip += "• Limited supervision with clear direction from managers\n\n"
+        role_tooltip += "SENIOR (5-10 years experience):\n"
+        role_tooltip += "• Demonstrated expertise in core technologies and methodologies\n"
+        role_tooltip += "• Mentors junior team members and provides technical guidance\n"
+        role_tooltip += "• Contributes to architectural decisions and project planning\n"
+        role_tooltip += "• Works independently with minimal supervision\n\n"
+        role_tooltip += "LEAD (8-15 years experience):\n"
+        role_tooltip += "• Manages teams or significant project components\n"
+        role_tooltip += "• Responsible for resource allocation and timeline management\n"
+        role_tooltip += "• Interfaces with stakeholders and translates business needs\n"
+        role_tooltip += "• Drives process improvements and best practices\n\n"
+        role_tooltip += "PRINCIPAL (12+ years experience):\n"
+        role_tooltip += "• Recognized expert and thought leader in the field\n"
+        role_tooltip += "• Sets technical direction for large-scale initiatives\n"
+        role_tooltip += "• Influences organizational strategy and innovation\n"
+        role_tooltip += "• Represents company externally at conferences and industry events\n\n"
+        role_tooltip += "HOW TO CHOOSE:\n"
+        role_tooltip += "• Match the role level to the job posting requirements\n"
+        role_tooltip += "• When in doubt, start with STANDARD and adjust based on match scores\n"
+        role_tooltip += "• Higher role levels require demonstrated leadership experience"
         role_combo.tooltip = role_tooltip
         
         # Bind hover event to show tooltip
@@ -944,7 +963,7 @@ Write your custom prompt below...
         
         self.applications_tree.column('Job Title', width=200)
         self.applications_tree.column('Company', width=200)
-        self.applications_tree.column('Date', width=150)
+        self.applications_tree.column('Date', width=180)  # Increased width for better date visibility
         
         self.applications_tree.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
@@ -1006,8 +1025,8 @@ Write your custom prompt below...
             except ValueError:
                 # Fall back to without microseconds
                 dt = datetime.strptime(app['created_at'], '%Y-%m-%d %H:%M:%S')
-            # Format consistently
-            created_at = dt.strftime('%Y-%m-%d %H:%M')
+            # Format consistently with more readable format
+            created_at = dt.strftime('%m/%d/%Y %H:%M')
             self.applications_tree.insert('', tk.END, values=(
                 app['job_title'],
                 app['company_name'],
