@@ -181,6 +181,11 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         role_combo = ttk.Combobox(tab, textvariable=self.role_var, values=["Standard", "Senior", "Lead", "Principal"], state='readonly')
         role_combo.grid(row=5, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
+        # Role Level Help Text
+        role_help = ttk.Label(tab, text="Select role level that matches the job posting (see README for guidance)", 
+                             font=('Arial', 8), foreground='gray')
+        role_help.grid(row=7, column=1, columnspan=2, sticky=tk.W, pady=(0, 5))
+        
         ttk.Label(tab, text="Job Description:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
         self.job_desc_text = scrolledtext.ScrolledText(tab, width=80, height=15, wrap=tk.WORD)
         self.job_desc_text.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
@@ -191,15 +196,15 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         # Status label for match analysis feedback
         self.status_label = ttk.Label(tab, text="Ready", font=('Arial', 9), foreground='red')
-        self.status_label.grid(row=6, column=0, columnspan=3, sticky=tk.W, pady=2)
+        self.status_label.grid(row=8, column=0, columnspan=3, sticky=tk.W, pady=2)
         
         # Match score display
         self.match_label = ttk.Label(tab, text="Match Score: Not analyzed", font=('Arial', 10, 'bold'), foreground='blue')
-        self.match_label.grid(row=7, column=0, columnspan=3, sticky=tk.W, pady=2)
+        self.match_label.grid(row=9, column=0, columnspan=3, sticky=tk.W, pady=2)
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=8, column=0, columnspan=4, pady=10)
+        button_frame.grid(row=10, column=0, columnspan=4, pady=10)
         
         self.clear_button = ttk.Button(button_frame, text="Clear Fields", command=self.clear_fields)
         self.clear_button.grid(row=0, column=0, padx=5)

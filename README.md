@@ -1,11 +1,11 @@
 # Job Application Bot
 
 AI-Powered Resume Tailoring for IT/DevOps/AI Governance Roles
-[Golden Rules: 6/6 Compliance] [Version: v2.1.0] [Python: 3.9+] [License: MIT]
+[Golden Rules: 6/6 Compliance] [Version: v2.2.0] [Python: 3.9+] [License: MIT]
 
 ---
 
-## What's New in v2.1.0 (SAVE POINT #155)
+## What's New in v2.2.0 (SAVE POINT #156)
 
 AI Match Analysis Engine - Stop wasting time on poor-fit jobs!
 
@@ -14,6 +14,8 @@ AI Match Analysis Engine - Stop wasting time on poor-fit jobs!
 - Threshold Enforcement - Only tailor resumes for jobs you are qualified for
 - Secure Prompt Management - Curated dropdown, no filesystem browsing
 - Golden Rules Compliance - 6/6 strict quality standards met
+- Tailored Documents Viewer - Side-by-side resume and cover letter display
+- PDF Export Capability - Professional document formatting and export
 
 ---
 
@@ -22,6 +24,11 @@ AI Match Analysis Engine - Stop wasting time on poor-fit jobs!
 ### Step 1: Install Dependencies
 ```bash
 pip install -r requirements.txt
+```
+
+If you plan to use the PDF export feature, ensure ReportLab is properly installed:
+```bash
+pip install reportlab
 ```
 
 ### Step 2: Configure API Key
@@ -73,6 +80,12 @@ If score is acceptable:
 - Files saved automatically to output/ folder
 - Confirmation shows exact file paths
 
+#### 6. View and Export Tailored Documents
+- Navigate to the "Tailored Documents" tab
+- Select any previously tailored application from the list
+- View the tailored resume and cover letter side-by-side
+- Export as PDF for professional presentation
+
 ---
 
 ## Configuration
@@ -82,6 +95,22 @@ Edit config/settings.py to adjust minimum match score:
 ```python
 MIN_MATCH_THRESHOLD = 70  # Default: 70%
 ```
+
+### Role Levels
+The application supports four role levels that determine how your resume is tailored. Choose the role level that best matches the position you're applying for to get the most relevant tailored resume.
+
+1. **Standard**: For entry to mid-level positions (0-5 years experience). Focuses on core skills, technical abilities, and direct contributions.
+
+2. **Senior**: For senior-level positions (5-10 years experience). Emphasizes leadership, strategic thinking, mentoring, and cross-functional collaboration.
+
+3. **Lead**: For lead positions (8-15 years experience). Highlights team management, project leadership, budget oversight, and organizational influence.
+
+4. **Principal**: For principal/architect positions (12+ years experience). Focuses on technical architecture, innovation, organizational transformation, and strategic vision.
+
+**How to Choose:**
+- Match the role level to the job posting requirements
+- If unsure, start with "Standard" and adjust based on match scores
+- Higher role levels require more leadership and strategic experience
 
 ### Custom Prompt Templates
 Create tailored prompts in prompts/user/ directory:
