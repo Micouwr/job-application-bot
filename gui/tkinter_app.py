@@ -223,28 +223,28 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         # Add tooltip with enhanced role definitions
         role_tooltip = "ROLE LEVEL DEFINITIONS:\n\n"
         role_tooltip += "STANDARD (0-5 years experience):\n"
-        role_tooltip += "• Focus on core technical skills and direct contributions\n"
-        role_tooltip += "• Primary responsibilities include hands-on work and task execution\n"
-        role_tooltip += "• Limited supervision with clear direction from managers\n\n"
+        role_tooltip += "* Focus on core technical skills and direct contributions\n"
+        role_tooltip += "* Primary responsibilities include hands-on work and task execution\n"
+        role_tooltip += "* Limited supervision with clear direction from managers\n\n"
         role_tooltip += "SENIOR (5-10 years experience):\n"
-        role_tooltip += "• Demonstrated expertise in core technologies and methodologies\n"
-        role_tooltip += "• Mentors junior team members and provides technical guidance\n"
-        role_tooltip += "• Contributes to architectural decisions and project planning\n"
-        role_tooltip += "• Works independently with minimal supervision\n\n"
+        role_tooltip += "* Demonstrated expertise in core technologies and methodologies\n"
+        role_tooltip += "* Mentors junior team members and provides technical guidance\n"
+        role_tooltip += "* Contributes to architectural decisions and project planning\n"
+        role_tooltip += "* Works independently with minimal supervision\n\n"
         role_tooltip += "LEAD (8-15 years experience):\n"
-        role_tooltip += "• Manages teams or significant project components\n"
-        role_tooltip += "• Responsible for resource allocation and timeline management\n"
-        role_tooltip += "• Interfaces with stakeholders and translates business needs\n"
-        role_tooltip += "• Drives process improvements and best practices\n\n"
+        role_tooltip += "* Manages teams or significant project components\n"
+        role_tooltip += "* Responsible for resource allocation and timeline management\n"
+        role_tooltip += "* Interfaces with stakeholders and translates business needs\n"
+        role_tooltip += "* Drives process improvements and best practices\n\n"
         role_tooltip += "PRINCIPAL (12+ years experience):\n"
-        role_tooltip += "• Recognized expert and thought leader in the field\n"
-        role_tooltip += "• Sets technical direction for large-scale initiatives\n"
-        role_tooltip += "• Influences organizational strategy and innovation\n"
-        role_tooltip += "• Represents company externally at conferences and industry events\n\n"
+        role_tooltip += "* Recognized expert and thought leader in the field\n"
+        role_tooltip += "* Sets technical direction for large-scale initiatives\n"
+        role_tooltip += "* Influences organizational strategy and innovation\n"
+        role_tooltip += "* Represents company externally at conferences and industry events\n\n"
         role_tooltip += "HOW TO CHOOSE:\n"
-        role_tooltip += "• Match the role level to the job posting requirements\n"
-        role_tooltip += "• When in doubt, start with STANDARD and adjust based on match scores\n"
-        role_tooltip += "• Higher role levels require demonstrated leadership experience"
+        role_tooltip += "* Match the role level to the job posting requirements\n"
+        role_tooltip += "* When in doubt, start with STANDARD and adjust based on match scores\n"
+        role_tooltip += "* Higher role levels require demonstrated leadership experience"
         role_combo.tooltip = role_tooltip
         
         # Bind hover event to show tooltip
@@ -625,9 +625,9 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         keywords_analysis = keywords_data.get('analysis', []) if isinstance(keywords_data, dict) else []
         
         # Format analysis as readable text
-        skills_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in skills_analysis]) if skills_analysis else 'No detailed analysis provided.'
-        exp_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in exp_analysis]) if exp_analysis else 'No detailed analysis provided.'
-        keywords_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in keywords_analysis]) if keywords_analysis else 'No detailed analysis provided.'
+        skills_text = '\n'.join([f'* {item}' if isinstance(item, str) else str(item) for item in skills_analysis]) if skills_analysis else 'No detailed analysis provided.'
+        exp_text = '\n'.join([f'* {item}' if isinstance(item, str) else str(item) for item in exp_analysis]) if exp_analysis else 'No detailed analysis provided.'
+        keywords_text = '\n'.join([f'* {item}' if isinstance(item, str) else str(item) for item in keywords_analysis]) if keywords_analysis else 'No detailed analysis provided.'
         
         # Get lists
         strengths = self.match_data.get('strengths', ['No strengths identified'])
@@ -635,9 +635,9 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         recommendations = self.match_data.get('recommendations', ['No recommendations'])
         
         # Format lists
-        strengths_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in strengths])
-        gaps_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in gaps])
-        recommendations_text = '\n'.join([f'• {item}' if isinstance(item, str) else str(item) for item in recommendations])
+        strengths_text = '\n'.join([f'* {item}' if isinstance(item, str) else str(item) for item in strengths])
+        gaps_text = '\n'.join([f'* {item}' if isinstance(item, str) else str(item) for item in gaps])
+        recommendations_text = '\n'.join([f'* {item}' if isinstance(item, str) else str(item) for item in recommendations])
         
         details = f"""MATCH SUMMARY
 =============
