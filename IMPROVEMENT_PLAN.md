@@ -38,10 +38,19 @@
 
 ## Implementation Steps
 
-1. Create screenshots directory
+1. Create screenshots directory (DONE - `/docs/screenshots/`)
 2. Capture and optimize screenshots
+   - Run the application and capture each tab
+   - Resize to 800x600 pixels
+   - Save in PNG format
 3. Update README.md with enhanced content
+   - Add detailed descriptions
+   - Include feature highlights
+   - Add system requirements
 4. Add visual elements and formatting
+   - Add Table of Contents
+   - Include badges
+   - Add screenshots with descriptive captions
 5. Review and refine
 
 ## Screenshot Specifications
