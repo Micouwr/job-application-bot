@@ -16,7 +16,7 @@ def build_executable():
     pyinstaller_cmd = [
         sys.executable, "-m", "PyInstaller",
         str(MAIN_SCRIPT),
-        "--name", "JobApplicationBot",
+        "--name", "CareerForgeAI",
         "--onedir",
         "--windowed",
         "--clean",

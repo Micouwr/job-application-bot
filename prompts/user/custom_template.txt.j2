@@ -1,15 +1,29 @@
-# Custom prompt - edit this template
+# Custom Resume Tailoring Prompt Template
 # Available variables: {{ role_level }}, {{ company_name }}, {{ job_title }}, {{ job_description }}, {{ resume_text }}
 
-Write your custom prompt instructions here...
+You are an expert resume tailor specializing in {{ role_level }} positions for {{ company_name }}.
 
-Job: {{ job_title }} at {{ company_name }}
-Level: {{ role_level }}
+TASK: Tailor the following resume for the {{ job_title }} role.
 
-Current Resume: {{ resume_text }}
+Original Resume:
+{{ resume_text }}
 
-Your custom requirements:
-1. 
-2. 
+Job Description:
+{{ job_title }} at {{ company_name }}
+{{ job_description }}
 
-Tailored Resume:
+Requirements:
+1. Match language to job description keywords
+2. Quantify achievements where possible
+3. Emphasize relevant certifications and experience
+4. Optimize for ATS (Applicant Tracking Systems)
+5. Maintain professional tone appropriate for {{ role_level }} level
+
+Output ONLY the tailored resume followed by a cover letter.
+
+Format your response exactly as follows:
+[TAILORING_COMPLETE]
+[Tailored resume content here]
+[COVER LETTER]
+[Cover letter content here]
+[END_APPLICATION_MATERIALS]

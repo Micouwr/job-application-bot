@@ -1,14 +1,14 @@
-# Job Application Bot
+# CareerForge AI
 
-AI-Powered Resume Tailoring for IT/DevOps/AI Governance Roles
+Intelligent Resume Tailoring for IT/DevOps/AI Governance Roles
 
-[Version: v2.2.0] [Python: 3.9+] [License: MIT]
+[Version: v2.3.0] [Python: 3.9+] [License: MIT]
 
 ---
 
 ## Overview
 
-The Job Application Bot is an intelligent tool that helps you tailor your resume for specific job applications using Google's Gemini AI. By analyzing the job description and your resume, it creates customized versions that align with the position requirements while preserving all factual information from your original resume.
+CareerCraft AI is an intelligent tool that helps you tailor your resume for specific job applications using Google's Gemini AI. By analyzing the job description and your resume, it creates customized versions that align with the position requirements while preserving all factual information from your original resume.
 
 Key Features:
 - AI-powered resume compatibility scoring
@@ -16,6 +16,13 @@ Key Features:
 - Job description storage for future reference
 - Professional PDF export capability
 - Role-based customization for different position levels
+- Modern, themed UI with improved visual design
+- Enhanced user experience with better layouts and styling
+- Multiple export formats (PDF, Word, Plain Text, ATS-Optimized)
+- Job import from external sources (LinkedIn, Email, Plain Text)
+- Enhanced custom prompt management with template validation
+- Built-in prompt examples and variable preview functionality
+- Configurable minimum match threshold through GUI settings
 
 ---
 
@@ -44,6 +51,16 @@ python gui/tkinter_app.py
 
 ---
 
+## Screenshots
+
+### Application Interface
+![Application Interface](assets/computer.png)
+
+### Workflow Diagram
+![Workflow Diagram](docs/screenshots/workflow_diagram.png)
+
+---
+
 ## How It Works
 
 ### 1. Analyze Job Compatibility
@@ -52,7 +69,7 @@ python gui/tkinter_app.py
 - Review detailed feedback on strengths and improvement areas
 
 ### 2. Tailor Your Application Materials
-- For scores ≥70%, the "Start Tailoring" button becomes available
+- For scores meeting or exceeding the configured threshold (default 80%), the "Start Tailoring" button becomes available
 - AI generates a customized resume and cover letter
 - All materials are automatically saved to the output folder
 
@@ -63,7 +80,13 @@ python gui/tkinter_app.py
   - Email content
 - Automatically parses job titles, companies, and descriptions
 
-### 4. Manage and Export Your Documents
+### 4. Customize AI Prompts
+- Use the "Custom Prompts" tab to create and manage custom prompt templates
+- Load built-in examples as starting points for your custom prompts
+- Preview how variables will be substituted in your prompts
+- Save custom templates for specific roles or companies
+
+### 5. Manage and Export Your Documents
 - View previously tailored applications in the "Tailored Documents" tab
 - Export your materials in multiple formats:
   - PDF (professional formatting)
@@ -77,10 +100,18 @@ python gui/tkinter_app.py
 
 ### Minimum Match Threshold
 Adjust the minimum compatibility score required to enable tailoring:
+
+1. **Through the GUI (Recommended)**: Use the Settings tab to adjust the threshold with a slider or manual input
+2. **Direct Code Modification**: Edit the value in `config/settings.py`:
 ```python
 # In config/settings.py
 MIN_MATCH_THRESHOLD = 70  # Default: 70%
 ```
+
+**Threshold Guidelines**:
+- 70-75%: Aggressive applications (lower match tolerance)
+- 80%: Balanced approach (recommended default)
+- 85-90%: Conservative applications (higher match requirements)
 
 ### Role Levels
 Choose the appropriate role level for optimal tailoring:

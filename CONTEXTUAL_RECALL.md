@@ -1,8 +1,8 @@
-# Contextual Recall - Job Application Bot Project
+# Contextual Recall - CareerForge AI Project
 
 ## Who I Am and My Role
 
-I am a Gemini API Coding Expert with extremely high standards for clean, error-free code. My role is to ensure there are no errors, bugs, crashes, or any other issues in the codebase. I hold myself to the highest standards of code quality and knowledge, maintaining strict adherence to clean coding practices while working with the Job Application Bot - an AI-powered resume tailoring application that helps users optimize their resumes for specific job applications using Google's Gemini API.
+I am a Gemini API Coding Expert with extremely high standards for clean, error-free code. My role is to ensure there are no errors, bugs, crashes, or any other issues in the codebase. I hold myself to the highest standards of code quality and knowledge, maintaining strict adherence to clean coding practices while working with CareerForge AI - an AI-powered resume tailoring application that helps users optimize their resumes for specific job applications using Google's Gemini API.
 
 My expertise encompasses:
 - Implementing robust, error-free features and enhancements
@@ -66,7 +66,7 @@ These rules are enforced with absolute strictness and must be followed without e
 
 ## Repository Link
 
-GitHub Repository: https://github.com/Micouwr/job-application-bot
+GitHub Repository: https://github.com/Micouwr/careerforge-ai
 
 ## What We've Done
 
@@ -106,14 +106,14 @@ We've successfully implemented and fixed several critical features and issues:
 
 ## What We Are Doing Now
 
-Currently, we're in a waiting period due to Gemini API rate limiting:
-- The API has reached its free tier limit of 20 requests per day for the `gemini-2.5-flash` model
-- This prevents us from testing AI-powered features until the quota resets
-- However, all UI and structural fixes have been completed and pushed to the repository
+Currently, we're continuing to enhance and refine the application with several new features:
+- All UI and structural fixes have been completed and pushed to the repository
+- We're actively implementing new features based on user feedback
+- Continuing to improve the overall user experience and functionality
 
 ## What We Will Be Doing
 
-After the rate limit resets, we'll focus on:
+Moving forward, we'll focus on:
 
 1. **Comprehensive Testing**
    - Verify all implemented features work correctly with live AI integration
@@ -131,7 +131,49 @@ After the rate limit resets, we'll focus on:
    - Document the job description storage workflow
    - Provide clear instructions for the automatic extraction feature
 
-4. **Performance Optimization**
-   - Review and optimize AI prompt engineering
-   - Improve response handling and error recovery
-   - Enhance overall application stability
+4. **UI Improvements**
+   - Integrated ttkthemes for modern, clean UI appearance
+   - Applied the "arc" theme for contemporary look
+   - Enhanced all tabs with consistent styling and better layouts
+   - Improved visual hierarchy with bold titles and clear section headings
+
+5. **Application Renaming**
+   - Changed application name from "Job Application Bot" to "CareerForge AI"
+   - Updated all references in code and documentation
+   - Updated window titles and internal references
+
+6. **Enhanced Custom Prompt Management**
+   - Added variable reference section with available template variables
+   - Added built-in examples section showing system prompt examples
+   - Added "Load Example" button to easily load and modify built-in templates
+   - Added "Preview Variables" button to visualize variable substitution
+   - Added template validation to ensure proper prompt structure
+   - Improved default template with proper structure and formatting
+
+7. **GUI-Based Configuration**
+   - Added Settings/Preferences tab for configuring minimum match threshold
+   - Implemented slider control for adjusting threshold from 50% to 95%
+   - Added manual input field for precise threshold values
+   - Added real-time feedback display for current threshold value
+   - Added Apply and Reset to Default buttons
+   - Added guidelines for recommended threshold values
+
+8. **Data Privacy Fixes**
+   - Removed all hardcoded personal information ("Michelle Nicole") from resume templates
+   - Updated default location from "San Francisco" to "Louisville, KY"
+   - Updated all contact information to generic placeholders
+
+9. **Icon Fix**
+   - Fixed empty computer.png file by copying valid 18KB image
+   - Enhanced icon loading logic to try multiple formats (ICO, ICNS, PNG)
+
+10. **Documentation Updates**
+    - Updated README.md with new features and screenshots
+    - Added screenshots section with application interface image
+    - Updated feature list to include GUI-based configuration
+    - Updated configuration options to show GUI method
+
+11. **Performance Optimization**
+    - Review and optimize AI prompt engineering
+    - Improve response handling and error recovery
+    - Enhance overall application stability

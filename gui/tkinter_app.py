@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
+import ttkthemes
 import json
 import os
 import sys
@@ -17,6 +18,7 @@ sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "utils"))
 
 from config.settings import OUTPUT_PATH, DB_PATH, MIN_MATCH_THRESHOLD
+import config.settings
 from database import DatabaseManager
 from tailor import process_and_tailor_from_gui
 from models.resume_model import ResumeModel
@@ -31,9 +33,14 @@ logging.basicConfig(
 class JobAppTkinter:
     def __init__(self, master=None):
         print("MAIN FILE EXECUTED - UNIQUE IDENTIFIER")
+        
+        # Apply themed style
+        self.style = ttkthemes.ThemedStyle(master)
+        self.style.set_theme("arc")  # Modern, clean theme
+        
         self.master = master
-        self.master.title("Job Application Bot - AI Resume Tailorer")
-        self.master.geometry("1000x700")
+        self.master.title("CareerForge AI - Intelligent Resume Tailoring Tool")
+        self.master.geometry("1050x750")
         
         # Set window icon if available
         self._set_window_icon()
@@ -62,6 +69,9 @@ class JobAppTkinter:
         # Initialize tooltip window
         self._tooltip_window = None
         
+        # Initialize current threshold value
+        self.current_threshold = MIN_MATCH_THRESHOLD
+        
         # Initialize UI
         self._init_ui()
         
@@ -77,18 +87,23 @@ class JobAppTkinter:
             # Try different icon formats based on platform
             icon_path = Path(__file__).parent.parent / "assets"
             
-            # Try ICO format (Windows)
+            # Try ICO format (Windows) first
             ico_path = icon_path / "icon.ico"
             if ico_path.exists():
                 self.master.iconbitmap(str(ico_path))
                 return
             
-            # Try ICNS format (macOS)
+            # Try ICNS format (macOS) - convert to PhotoImage
             icns_path = icon_path / "icon.icns"
             if icns_path.exists():
-                # On macOS, we can't directly set ICNS, but we can set it via wm_iconphoto
-                # However, tkinter doesn't support ICNS directly, so we'll try PNG
-                pass
+                # tkinter can't directly use ICNS, but we can try to load it
+                try:
+                    icon_image = tk.PhotoImage(file=str(icns_path))
+                    self.master.iconphoto(True, icon_image)
+                    return
+                except:
+                    # If ICNS fails, continue to other options
+                    pass
             
             # Try PNG format as fallback
             png_path = icon_path / "computer.png"
@@ -108,7 +123,7 @@ class JobAppTkinter:
         if not resumes:
             default_resume_text = """MICHELLE NICOLE
 AI Developer & Automation Specialist
-San Francisco Bay Area | michellenicole@example.com | (555) 123-4567 | linkedin.com/in/michellenicole | github.com/michellenicole
+Louisville, KY | johndoe@example.com | (555) 123-4567 | linkedin.com/in/johndoe | github.com/johndoe
 
 PROFESSIONAL SUMMARY
 Innovative AI Developer with expertise in building intelligent automation systems and cross-platform desktop applications. Proven track record of implementing machine learning solutions that improve efficiency by up to 85%. Strong background in Python, GPT API integration, and PyInstaller deployment for macOS, Windows, and Linux.
@@ -145,7 +160,7 @@ University of California, Berkeley | 2019
 Relevant Coursework: Machine Learning, AI Systems, Data Structures, Algorithms
 
 PROJECTS
-Job Application Bot - AI Resume Tailorer
+CareerForge AI - AI Resume Tailorer
 - Desktop application using Tkinter and GPT-4 API for automated resume tailoring
 - Features: PDF upload, database management, cross-platform compatibility
 - Technologies: Python, PyInstaller, SQLite, Threading
@@ -180,15 +195,22 @@ Available upon request. Technical portfolio and code samples accessible via GitH
     
     def _init_ui(self):
         """Initialize the main UI components"""
+        # Configure styles
+        self.style.configure('TNotebook.Tab', font=('Arial', 10, 'bold'), padding=[10, 5])
+        self.style.configure('TButton', font=('Arial', 9), padding=[5, 2])
+        self.style.configure('TLabel', font=('Arial', 10))
+        self.style.configure('Bold.TLabel', font=('Arial', 10, 'bold'))
+        self.style.configure('Title.TLabel', font=('Arial', 14, 'bold'))
+        
         # Main container
-        main_frame = ttk.Frame(self.master, padding="10")
+        main_frame = ttk.Frame(self.master, padding="15")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.master.columnconfigure(0, weight=1)
         self.master.rowconfigure(0, weight=1)
         
         # Create notebook for tabs
         self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=0, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.notebook.grid(row=0, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         
         # Create tabs in desired order
         self._create_add_job_tab()  # Job Management
@@ -196,6 +218,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self._create_resume_mgmt_tab()
         self._create_tailored_docs_tab()
         self._create_custom_prompt_tab()
+        self._create_settings_tab()  # Settings/Preferences
         self._create_output_tab()  # OUTPUT & LOGS moved to final position
         
         # Make notebook expandable
@@ -207,20 +230,25 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Job Management")
         
-        # Job Details Section
-        ttk.Label(tab, text="Job Title:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.job_title_entry = ttk.Entry(tab, width=50)
-        self.job_title_entry.grid(row=0, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        # Title
+        title_label = ttk.Label(tab, text="Job Application Details", style='Title.TLabel')
+        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 15), sticky=tk.W)
         
-        ttk.Label(tab, text="Company:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.company_entry = ttk.Entry(tab, width=50)
-        self.company_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        # Job Details Section
+        ttk.Label(tab, text="Job Title:", style='Bold.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.job_title_entry = ttk.Entry(tab, width=50, font=('Arial', 10))
+        self.job_title_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Label(tab, text="Company:", style='Bold.TLabel').grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.company_entry = ttk.Entry(tab, width=50, font=('Arial', 10))
+        self.company_entry.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
         # Role Level Selection
-        ttk.Label(tab, text="Role Level:", font=('Arial', 10, 'bold')).grid(row=5, column=0, sticky=tk.W, pady=5)
+        ttk.Label(tab, text="Role Level:", style='Bold.TLabel').grid(row=3, column=0, sticky=tk.W, pady=5)
         self.role_var = tk.StringVar(value="Standard")
-        role_combo = ttk.Combobox(tab, textvariable=self.role_var, values=["Standard", "Senior", "Lead", "Principal"], state='readonly')
-        role_combo.grid(row=5, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        role_combo = ttk.Combobox(tab, textvariable=self.role_var, values=["Standard", "Senior", "Lead", "Principal"], 
+                                state='readonly', font=('Arial', 10), width=47)
+        role_combo.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
         # Add tooltip with enhanced role definitions
         role_tooltip = "ROLE LEVEL DEFINITIONS:\n\n"
@@ -259,27 +287,32 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         # Role Level Help Text
         role_help = ttk.Label(tab, text="Select role level that matches the job posting (see README for guidance)", 
                              font=('Arial', 9), foreground='blue')
-        role_help.grid(row=7, column=1, columnspan=2, sticky=tk.W, pady=(0, 5))
+        role_help.grid(row=4, column=1, columnspan=2, sticky=tk.W, pady=(0, 10))
         
-        ttk.Label(tab, text="Job Description:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.job_desc_text = scrolledtext.ScrolledText(tab, width=80, height=15, wrap=tk.WORD)
-        self.job_desc_text.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        ttk.Label(tab, text="Job Description:", style='Bold.TLabel').grid(row=5, column=0, sticky=tk.W, pady=5)
+        self.job_desc_text = scrolledtext.ScrolledText(tab, width=80, height=15, wrap=tk.WORD, font=('Arial', 10))
+        self.job_desc_text.grid(row=5, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
-        ttk.Label(tab, text="Job URL:", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.job_url_entry = ttk.Entry(tab, width=50)
-        self.job_url_entry.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(tab, text="Job URL:", style='Bold.TLabel').grid(row=6, column=0, sticky=tk.W, pady=5)
+        self.job_url_entry = ttk.Entry(tab, width=50, font=('Arial', 10))
+        self.job_url_entry.grid(row=6, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        # Status section
+        status_frame = ttk.LabelFrame(tab, text="Status", padding="10")
+        status_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=10)
+        status_frame.columnconfigure(0, weight=1)
         
         # Status label for match analysis feedback
-        self.status_label = ttk.Label(tab, text="Ready", font=('Arial', 9), foreground='red')
-        self.status_label.grid(row=8, column=0, columnspan=3, sticky=tk.W, pady=2)
+        self.status_label = ttk.Label(status_frame, text="Ready", font=('Arial', 9), foreground='green')
+        self.status_label.grid(row=0, column=0, sticky=tk.W, pady=2)
         
         # Match score display
-        self.match_label = ttk.Label(tab, text="Match Score: Not analyzed", font=('Arial', 10, 'bold'), foreground='blue')
-        self.match_label.grid(row=9, column=0, columnspan=3, sticky=tk.W, pady=2)
+        self.match_label = ttk.Label(status_frame, text="Match Score: Not analyzed", style='Bold.TLabel', foreground='blue')
+        self.match_label.grid(row=1, column=0, sticky=tk.W, pady=2)
         
         # Buttons - Reordered as requested
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=10, column=0, columnspan=4, pady=10)
+        button_frame.grid(row=8, column=0, columnspan=4, pady=15)
         
         # Add Analyze Match button (first)
         self.analyze_button = ttk.Button(button_frame, text="Analyze Match", command=self.analyze_match)
@@ -297,20 +330,21 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self.quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
         self.quit_button.grid(row=0, column=3, padx=5)
         
-        # DEBUG: Print to console to verify elements are created
-        print("DEBUG: UI elements created - Status label, Match label, Analyze button")
-
         # Configure grid weights
         tab.columnconfigure(1, weight=1)
-        tab.rowconfigure(2, weight=1)
+        tab.rowconfigure(5, weight=1)
     
     def _create_resume_mgmt_tab(self):
         """Create the Resume Management tab"""
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Resume Management")
         
+        # Title
+        title_label = ttk.Label(tab, text="Manage Your Resumes", style='Title.TLabel')
+        title_label.grid(row=0, column=0, columnspan=4, pady=(0, 15), sticky=tk.W)
+        
         # Resume List Section
-        ttk.Label(tab, text="Available Resumes:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(tab, text="Available Resumes:", style='Bold.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
         
         # Create treeview for resumes
         columns = ('Name', 'Path', 'Active')
@@ -323,24 +357,24 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self.resume_tree.column('Path', width=400)
         self.resume_tree.column('Active', width=50)
         
-        self.resume_tree.grid(row=1, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        self.resume_tree.grid(row=2, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Add scrollbar
         scrollbar = ttk.Scrollbar(tab, orient=tk.VERTICAL, command=self.resume_tree.yview)
         self.resume_tree.configure(yscrollcommand=scrollbar.set)
-        scrollbar.grid(row=1, column=3, sticky=(tk.N, tk.S))
+        scrollbar.grid(row=2, column=3, sticky=(tk.N, tk.S))
         
         # Bind selection event
         self.resume_tree.bind('<<TreeviewSelect>>', self._on_resume_select)
         
         # Resume Preview Section
-        ttk.Label(tab, text="Resume Preview:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD)
-        self.resume_preview.grid(row=3, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        ttk.Label(tab, text="Resume Preview:", style='Bold.TLabel').grid(row=3, column=0, sticky=tk.W, pady=(15, 5))
+        self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD, font=('Arial', 10))
+        self.resume_preview.grid(row=4, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=4, column=0, columnspan=4, pady=10)
+        button_frame.grid(row=5, column=0, columnspan=4, pady=15)
         
         self.upload_button = ttk.Button(button_frame, text="Upload Resume", command=self.upload_resume)
         self.upload_button.grid(row=0, column=0, padx=5)
@@ -360,26 +394,119 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         
         # Configure grid weights
         tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(1, weight=1)
-        tab.rowconfigure(3, weight=1)
+        tab.rowconfigure(2, weight=1)
+        tab.rowconfigure(4, weight=1)
+    
+    def _create_settings_tab(self):
+        """Create the Settings/Preferences tab"""
+        tab = ttk.Frame(self.notebook)
+        self.notebook.add(tab, text="Settings")
+        
+        # Title
+        title_label = ttk.Label(tab, text="Application Settings", style='Title.TLabel')
+        title_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
+        
+        # Minimum Match Threshold Setting
+        threshold_frame = ttk.LabelFrame(tab, text="Minimum Match Threshold", padding="10")
+        threshold_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        threshold_frame.columnconfigure(1, weight=1)
+        
+        ttk.Label(threshold_frame, text="Current Threshold:", style='Bold.TLabel').grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.threshold_value_label = ttk.Label(threshold_frame, text=f"{self.current_threshold}%", font=('Arial', 10, 'bold'), foreground='blue')
+        self.threshold_value_label.grid(row=0, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        
+        ttk.Label(threshold_frame, text="Adjust Threshold:", style='Bold.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
+        
+        # Slider for threshold adjustment
+        self.threshold_slider = ttk.Scale(threshold_frame, from_=50, to=95, orient=tk.HORIZONTAL, length=300, command=self._on_threshold_slider_change)
+        self.threshold_slider.set(self.current_threshold)
+        self.threshold_slider.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        
+        # Entry for manual threshold input
+        ttk.Label(threshold_frame, text="Or enter manually:", font=('Arial', 9)).grid(row=2, column=0, sticky=tk.W, pady=5)
+        self.threshold_entry = ttk.Entry(threshold_frame, width=10, font=('Arial', 10))
+        self.threshold_entry.insert(0, str(self.current_threshold))
+        self.threshold_entry.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        
+        # Apply button
+        apply_button = ttk.Button(threshold_frame, text="Apply Changes", command=self._apply_threshold_change)
+        apply_button.grid(row=3, column=1, sticky=tk.W, pady=10, padx=(10, 0))
+        
+        # Reset to default button
+        reset_button = ttk.Button(threshold_frame, text="Reset to Default (80%)", command=self._reset_threshold_to_default)
+        reset_button.grid(row=3, column=1, sticky=tk.W, pady=10, padx=(120, 0))
+        
+        # Information text
+        info_text = """
+Recommended Threshold Guidelines:
+- 70-75%: Aggressive applications (lower match tolerance)
+- 80%: Balanced approach (recommended default)
+- 85-90%: Conservative applications (higher match requirements)
+        """
+        info_label = ttk.Label(threshold_frame, text=info_text.strip(), font=('Arial', 9), foreground='blue')
+        info_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=10)
+        
+        # Configure grid weights
+        tab.columnconfigure(0, weight=1)
+    
+    def _on_threshold_slider_change(self, value):
+        """Handle slider value changes"""
+        threshold = int(float(value))
+        self.threshold_value_label.config(text=f"{threshold}%")
+        self.threshold_entry.delete(0, tk.END)
+        self.threshold_entry.insert(0, str(threshold))
+    
+    def _apply_threshold_change(self):
+        """Apply the new threshold value"""
+        try:
+            new_threshold = int(self.threshold_entry.get())
+            if new_threshold < 50 or new_threshold > 95:
+                messagebox.showerror("Invalid Threshold", "Threshold must be between 50 and 95 percent.")
+                return
+            
+            self.current_threshold = new_threshold
+            self.threshold_slider.set(new_threshold)
+            self.threshold_value_label.config(text=f"{new_threshold}%")
+            
+            messagebox.showinfo("Success", f"Minimum match threshold updated to {new_threshold}%")
+            self._log_message(f"Minimum match threshold updated to {new_threshold}%", "info")
+            
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Please enter a valid number for the threshold.")
+    
+    def _reset_threshold_to_default(self):
+        """Reset threshold to default value (80%)"""
+        default_threshold = 80
+        self.current_threshold = default_threshold
+        self.threshold_slider.set(default_threshold)
+        self.threshold_entry.delete(0, tk.END)
+        self.threshold_entry.insert(0, str(default_threshold))
+        self.threshold_value_label.config(text=f"{default_threshold}%")
+        
+        messagebox.showinfo("Success", f"Minimum match threshold reset to default ({default_threshold}%)")
+        self._log_message(f"Minimum match threshold reset to default ({default_threshold}%)", "info")
     
     def _create_output_tab(self):
         """Create the Output/Logs tab"""
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Output & Logs")
         
-        ttk.Label(tab, text="Application Logs:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
+        # Title
+        title_label = ttk.Label(tab, text="Application Logs", style='Title.TLabel')
+        title_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
         
-        self.log_text = scrolledtext.ScrolledText(tab, width=80, height=25, wrap=tk.WORD)
-        self.log_text.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        ttk.Label(tab, text="Application Logs:", style='Bold.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
+        
+        self.log_text = scrolledtext.ScrolledText(tab, width=80, height=25, wrap=tk.WORD, font=('Arial', 10))
+        self.log_text.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Add quit button
         quit_button = ttk.Button(tab, text="Quit", command=self.quit_application)
-        quit_button.grid(row=2, column=0, pady=10, sticky=tk.W)
+        quit_button.grid(row=3, column=0, pady=15, sticky=tk.W)
         
         # Configure grid weights
         tab.columnconfigure(0, weight=1)
-        tab.rowconfigure(1, weight=1)
+        tab.rowconfigure(2, weight=1)
     
     def _on_resume_select(self, event):
         """Handle resume selection in treeview"""
@@ -570,7 +697,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
             self.match_label.config(text=f"Match Score: {score}%")
             
             # Color coding based on score
-            if score >= MIN_MATCH_THRESHOLD:
+            if score >= self.current_threshold:
                 self.match_label.config(foreground="green")
                 self.start_button.config(state='normal')
                 message = f"Strong match ({score}%)! Enter job title/company and click 'Start Tailoring' to proceed."
@@ -578,7 +705,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
             else:
                 self.match_label.config(foreground="red")
                 self.start_button.config(state='disabled')
-                message = f"Match score {score}% is below threshold ({MIN_MATCH_THRESHOLD}%). Improve resume or consider different role."
+                message = f"Match score {score}% is below threshold ({self.current_threshold}%). Improve resume or consider different role."
                 self._log_message(f"Match analysis complete: {score}% (below threshold)", "warning")
             
             # Show detailed breakdown
@@ -734,9 +861,9 @@ RECOMMENDATIONS:
             return
         
         score = self.match_data.get('overall_score', 0)
-        if score < MIN_MATCH_THRESHOLD:
-            messagebox.showerror("Match Too Low", f"Match score {score}% is below minimum threshold of {MIN_MATCH_THRESHOLD}%. Consider improving your resume or applying to a different role.")
-            self._log_message(f"Tailoring blocked: match {score}% < threshold {MIN_MATCH_THRESHOLD}%", "warning")
+        if score < self.current_threshold:
+            messagebox.showerror("Match Too Low", f"Match score {score}% is below minimum threshold of {self.current_threshold}%. Consider improving your resume or applying to a different role.")
+            self._log_message(f"Tailoring blocked: match {score}% < threshold {self.current_threshold}%", "warning")
             return
         
         # All validations passed - proceed with AI tailoring
@@ -841,34 +968,36 @@ RECOMMENDATIONS:
         self.notebook.add(tab, text="Import Job")
         
         # Title
-        ttk.Label(tab, text="Import Job Description", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=3, pady=10)
+        title_label = ttk.Label(tab, text="Import Job Description", style='Title.TLabel')
+        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 15), sticky=tk.W)
         
         # Import source selection
-        ttk.Label(tab, text="Import Source:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(tab, text="Import Source:", style='Bold.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
         self.import_source_var = tk.StringVar(value="Plain Text")
         source_combo = ttk.Combobox(tab, textvariable=self.import_source_var, 
                                   values=["Plain Text", "LinkedIn HTML", "Email Content"], 
-                                  state='readonly', width=20)
+                                  state='readonly', width=20, font=('Arial', 10))
         source_combo.grid(row=1, column=1, sticky=tk.W, pady=5)
         
         # Source-specific instructions
         self.import_instructions = ttk.Label(tab, 
                                           text="Paste job description text below:", 
                                           wraplength=500, 
-                                          justify=tk.LEFT)
+                                          justify=tk.LEFT,
+                                          font=('Arial', 10))
         self.import_instructions.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
         
         # Bind to update instructions when source changes
         source_combo.bind('<<ComboboxSelected>>', self._update_import_instructions)
         
         # Text area for job description
-        ttk.Label(tab, text="Job Content:", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.import_text = scrolledtext.ScrolledText(tab, width=80, height=20, wrap=tk.WORD)
+        ttk.Label(tab, text="Job Content:", style='Bold.TLabel').grid(row=3, column=0, sticky=tk.W, pady=5)
+        self.import_text = scrolledtext.ScrolledText(tab, width=80, height=20, wrap=tk.WORD, font=('Arial', 10))
         self.import_text.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=5, column=0, columnspan=3, pady=10)
+        button_frame.grid(row=5, column=0, columnspan=3, pady=15)
         
         self.parse_button = ttk.Button(button_frame, text="Parse & Import", command=self._parse_and_import_job)
         self.parse_button.grid(row=0, column=0, padx=5)
@@ -951,21 +1080,52 @@ RECOMMENDATIONS:
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Custom Prompts")
         
-        # Instructions
-        instruction_text = "Create custom prompt templates for specific roles or companies. Save them in prompts/user/ directory as .txt.j2 files. Available variables: role_level, company_name, job_title, job_description, resume_text"
+        # Title
+        title_label = ttk.Label(tab, text="Custom Prompt Templates", style='Title.TLabel')
+        title_label.grid(row=0, column=0, columnspan=4, pady=(0, 15), sticky=tk.W)
         
-        ttk.Label(tab, text=instruction_text, wraplength=600, justify=tk.LEFT).grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=10)
+        # Instructions
+        instruction_text = "Create custom prompt templates for specific roles or companies. Save them in prompts/user/ directory as .txt.j2 files."
+        
+        instruction_label = ttk.Label(tab, text=instruction_text, wraplength=600, justify=tk.LEFT, font=('Arial', 10))
+        instruction_label.grid(row=1, column=0, columnspan=4, sticky=tk.W, pady=5)
+        
+        # Available variables section
+        variables_frame = ttk.LabelFrame(tab, text="Available Template Variables", padding="10")
+        variables_frame.grid(row=2, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=5)
+        
+        variables_text = (
+            "{{ role_level }} - The selected role level (Standard, Senior, Lead, Principal)\n"
+            "{{ company_name }} - The company name from the job posting\n"
+            "{{ job_title }} - The job title from the job posting\n"
+            "{{ job_description }} - The full job description text\n"
+            "{{ resume_text }} - The original resume text"
+        )
+        variables_label = ttk.Label(variables_frame, text=variables_text, font=('Arial', 9), justify=tk.LEFT)
+        variables_label.grid(row=0, column=0, sticky=tk.W)
+        
+        # Template examples section
+        examples_frame = ttk.LabelFrame(tab, text="Built-in Template Examples", padding="10")
+        examples_frame.grid(row=3, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=5)
+        
+        examples_text = (
+            "Standard Template: prompts/system/system.txt.j2\n"
+            "Senior Template: prompts/system/senior.txt.j2\n\n"
+            "Load these examples to see how to structure your custom prompts."
+        )
+        examples_label = ttk.Label(examples_frame, text=examples_text, font=('Arial', 9), justify=tk.LEFT)
+        examples_label.grid(row=0, column=0, sticky=tk.W)
         
         # Prompt name entry
-        ttk.Label(tab, text="Prompt Name:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.prompt_name_entry = ttk.Entry(tab, width=40)
-        self.prompt_name_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        self.prompt_name_entry.insert(0, "custom_")
+        ttk.Label(tab, text="Prompt Name:", style='Bold.TLabel').grid(row=4, column=0, sticky=tk.W, pady=5)
+        self.prompt_name_entry = ttk.Entry(tab, width=40, font=('Arial', 10))
+        self.prompt_name_entry.grid(row=4, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        self.prompt_name_entry.insert(0, "my_custom_prompt")
         
         # Template editor
-        ttk.Label(tab, text="Prompt Template:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.prompt_text = scrolledtext.ScrolledText(tab, width=80, height=20, wrap=tk.WORD)
-        self.prompt_text.grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        ttk.Label(tab, text="Prompt Template:", style='Bold.TLabel').grid(row=5, column=0, sticky=tk.W, pady=5)
+        self.prompt_text = scrolledtext.ScrolledText(tab, width=80, height=15, wrap=tk.WORD, font=('Arial', 10))
+        self.prompt_text.grid(row=5, column=1, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Load default template
         try:
@@ -974,14 +1134,6 @@ RECOMMENDATIONS:
         except:
             default_template = """# Custom Resume Tailoring Prompt Template
 # Available variables: {{ role_level }}, {{ company_name }}, {{ job_title }}, {{ job_description }}, {{ resume_text }}
-
-# INSTRUCTIONS:
-# 1. Write your custom prompt below
-# 2. Use the variables in {{ double_braces }} where appropriate
-# 3. Save with a descriptive name
-# 4. Use the Role Level dropdown to select this prompt when tailoring
-
-# EXAMPLE CUSTOM PROMPT STRUCTURE:
 
 You are an expert resume tailor specializing in {{ role_level }} positions for {{ company_name }}.
 
@@ -999,16 +1151,22 @@ Requirements:
 2. Quantify achievements where possible
 3. Emphasize relevant certifications and experience
 4. Optimize for ATS (Applicant Tracking Systems)
+5. Maintain professional tone appropriate for {{ role_level }} level
 
-Output ONLY the tailored resume text.
+Output ONLY the tailored resume followed by a cover letter.
 
-Write your custom prompt below...
+Format your response exactly as follows:
+[TAILORING_COMPLETE]
+[Tailored resume content here]
+[COVER LETTER]
+[Cover letter content here]
+[END_APPLICATION_MATERIALS]
 """
             self.prompt_text.insert("1.0", default_template)
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=3, column=0, columnspan=3, pady=10)
+        button_frame.grid(row=6, column=0, columnspan=4, pady=15)
         
         save_button = ttk.Button(button_frame, text="Save Prompt", command=self.save_custom_prompt)
         save_button.grid(row=0, column=0, padx=5)
@@ -1016,16 +1174,22 @@ Write your custom prompt below...
         load_button = ttk.Button(button_frame, text="Load Prompt", command=self.load_custom_prompt)
         load_button.grid(row=0, column=1, padx=5)
         
+        load_example_button = ttk.Button(button_frame, text="Load Example", command=self.load_example_prompt)
+        load_example_button.grid(row=0, column=2, padx=5)
+        
+        preview_button = ttk.Button(button_frame, text="Preview Variables", command=self.preview_variables)
+        preview_button.grid(row=0, column=3, padx=5)
+        
         clear_button = ttk.Button(button_frame, text="Clear", command=self.clear_prompt_editor)
-        clear_button.grid(row=0, column=2, padx=5)
+        clear_button.grid(row=0, column=4, padx=5)
         
         # Add quit button
         quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
-        quit_button.grid(row=0, column=3, padx=5)
+        quit_button.grid(row=0, column=5, padx=5)
         
         # Make text area expandable
         tab.columnconfigure(1, weight=1)
-        tab.rowconfigure(2, weight=1)
+        tab.rowconfigure(5, weight=1)
     
     def save_custom_prompt(self):
         """Save custom prompt template to file."""
@@ -1120,16 +1284,172 @@ Write your custom prompt below...
         self.prompt_text.delete('1.0', tk.END)
         self._log_message("Cleared prompt editor", "info")
     
+    def load_example_prompt(self):
+        """Load example prompt templates from system directory"""
+        examples_dir = Path("prompts/system")
+        
+        # Verify directory exists
+        if not examples_dir.exists():
+            messagebox.showwarning("No Examples", "System prompt examples not found.")
+            return
+        
+        # Get available examples
+        try:
+            available_examples = [f.name for f in examples_dir.glob("*.txt.j2")]
+        except Exception as e:
+            self._log_message(f"Error reading examples directory: {e}", "error")
+            messagebox.showerror("Error", f"Could not read examples directory: {e}")
+            return
+        
+        if not available_examples:
+            messagebox.showwarning("No Examples", "No system prompt examples found.")
+            return
+        
+        # Create selection window
+        selection_window = tk.Toplevel(self.master)
+        selection_window.title("Select Example Prompt")
+        selection_window.geometry("400x300")
+        
+        ttk.Label(selection_window, text="Available Examples:", style='Bold.TLabel').pack(pady=10)
+        
+        # Create listbox with available examples
+        listbox = tk.Listbox(selection_window, selectmode=tk.SINGLE, height=10, width=40)
+        for example in sorted(available_examples):
+            listbox.insert(tk.END, example)
+        listbox.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+        
+        # Add selection button
+        def select_example():
+            selection = listbox.curselection()
+            if not selection:
+                messagebox.showwarning("No Selection", "Please select an example.")
+                return
+            
+            example_name = listbox.get(selection[0])
+            selection_window.destroy()
+            
+            # Load the selected example
+            try:
+                example_path = examples_dir / example_name
+                with open(example_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self.prompt_name_entry.delete(0, tk.END)
+                self.prompt_name_entry.insert(0, example_name.replace('.txt.j2', ''))
+                
+                self.prompt_text.delete('1.0', tk.END)
+                self.prompt_text.insert("1.0", content)
+                
+                self._log_message(f"Loaded example prompt: {example_name}", "info")
+                messagebox.showinfo("Success", f"Loaded example: {example_name}")
+                
+            except Exception as e:
+                self._log_message(f"Load example error: {e}", "error")
+                messagebox.showerror("Error", f"Failed to load example: {e}")
+        
+        ttk.Button(selection_window, text="Load Selected", command=select_example).pack(pady=10)
+    
+    def preview_variables(self):
+        """Preview how variables would be substituted in the current prompt"""
+        # Get current prompt content
+        prompt_content = self.prompt_text.get('1.0', tk.END)
+        
+        # Create preview window
+        preview_window = tk.Toplevel(self.master)
+        preview_window.title("Variable Preview")
+        preview_window.geometry("600x400")
+        
+        # Sample values for demonstration
+        sample_values = {
+            "role_level": "Senior",
+            "company_name": "TechCorp Inc.",
+            "job_title": "Senior Software Engineer",
+            "job_description": "We are looking for an experienced software engineer with 5+ years in Python and cloud technologies...",
+            "resume_text": "John Doe\nSenior Software Engineer\nExperienced in Python, AWS, and distributed systems..."
+        }
+        
+        # Show sample values
+        ttk.Label(preview_window, text="Sample Variable Values:", style='Bold.TLabel').pack(pady=5)
+        
+        values_text = scrolledtext.ScrolledText(preview_window, width=70, height=8, wrap=tk.WORD)
+        values_display = "\n".join([f"{{{{ {key} }}}} = {value}" for key, value in sample_values.items()])
+        values_text.insert("1.0", values_display)
+        values_text.pack(pady=5, padx=10, fill=tk.BOTH, expand=True)
+        values_text.config(state=tk.DISABLED)
+        
+        # Show how prompt would look with substitutions
+        ttk.Label(preview_window, text="Prompt with Sample Substitutions:", style='Bold.TLabel').pack(pady=5)
+        
+        preview_text = scrolledtext.ScrolledText(preview_window, width=70, height=10, wrap=tk.WORD)
+        substituted_content = prompt_content
+        for key, value in sample_values.items():
+            substituted_content = substituted_content.replace(f"{{{{ {key} }}}}", f"[{value}]")
+        preview_text.insert("1.0", substituted_content)
+        preview_text.pack(pady=5, padx=10, fill=tk.BOTH, expand=True)
+        preview_text.config(state=tk.DISABLED)
+        
+        ttk.Label(preview_window, text="Note: Brackets [] indicate where your actual values will be inserted", font=('Arial', 9)).pack(pady=5)
+    
+    def validate_prompt_template(self, template_content):
+        """Validate that prompt template contains required structure and variables"""
+        required_sections = [
+            "[TAILORING_COMPLETE]",
+            "[COVER LETTER]",
+            "[END_APPLICATION_MATERIALS]"
+        ]
+        
+        missing_sections = []
+        for section in required_sections:
+            if section not in template_content:
+                missing_sections.append(section)
+        
+        if missing_sections:
+            return False, f"Missing required sections: {', '.join(missing_sections)}"
+        
+        return True, "Template is valid"
+    
+    def save_custom_prompt(self):
+        """Save custom prompt template to file."""
+        prompt_name = self.prompt_name_entry.get().strip()
+        if not prompt_name.endswith('.txt.j2'):
+            prompt_name += '.txt.j2'
+        
+        if not prompt_name or prompt_name == '.txt.j2':
+            messagebox.showerror("Error", "Please enter a valid prompt name.")
+            return
+        
+        template_content = self.prompt_text.get('1.0', tk.END).strip()
+        
+        # Validate template before saving
+        is_valid, validation_message = self.validate_prompt_template(template_content)
+        if not is_valid:
+            result = messagebox.askyesno(
+                "Template Validation Warning", 
+                f"{validation_message}\n\nDo you want to save anyway?"
+            )
+            if not result:
+                return
+        
+        try:
+            with open(f"prompts/user/{prompt_name}", 'w') as f:
+                f.write(template_content)
+            messagebox.showinfo("Success", f"Prompt saved as {prompt_name}")
+            self._log_message(f"Custom prompt saved: {prompt_name}", "info")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save prompt: {e}")
+            self._log_message(f"Error saving custom prompt: {e}", "error")
+    
     def _create_tailored_docs_tab(self):
         """Create the Tailored Documents tab with split view for job description, resume and cover letter"""
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Tailored Documents")
         
         # Title
-        ttk.Label(tab, text="Tailored Job Applications", font=('Arial', 12, 'bold')).grid(row=0, column=0, columnspan=3, pady=10)
+        title_label = ttk.Label(tab, text="View & Export Tailored Applications", style='Title.TLabel')
+        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 15), sticky=tk.W)
         
         # Applications list
-        ttk.Label(tab, text="Select Application:", font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(tab, text="Select Application:", style='Bold.TLabel').grid(row=1, column=0, sticky=tk.W, pady=5)
         
         # Create treeview for applications
         columns = ('Job Title', 'Company', 'Date')
@@ -1153,34 +1473,35 @@ Write your custom prompt below...
         self.applications_tree.bind('<<TreeviewSelect>>', self._on_application_select)
         
         # Split view for job description, resume and cover letter
-        ttk.Label(tab, text="Job Description", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=(10, 5))
-        ttk.Label(tab, text="Tailored Resume", font=('Arial', 10, 'bold')).grid(row=3, column=1, sticky=tk.W, pady=(10, 5))
-        ttk.Label(tab, text="Cover Letter", font=('Arial', 10, 'bold')).grid(row=3, column=2, sticky=tk.W, pady=(10, 5))
+        ttk.Label(tab, text="Job Description", style='Bold.TLabel').grid(row=3, column=0, sticky=tk.W, pady=(15, 5))
+        ttk.Label(tab, text="Tailored Resume", style='Bold.TLabel').grid(row=3, column=1, sticky=tk.W, pady=(15, 5))
+        ttk.Label(tab, text="Cover Letter", style='Bold.TLabel').grid(row=3, column=2, sticky=tk.W, pady=(15, 5))
         
         # Text areas for job description, resume and cover letter
-        self.job_description_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD)
+        self.job_description_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Arial', 10))
         self.job_description_text.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5), pady=5)
         
-        self.tailored_resume_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD)
+        self.tailored_resume_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Arial', 10))
         self.tailored_resume_text.grid(row=4, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 5), pady=5)
         
-        self.cover_letter_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD)
+        self.cover_letter_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Arial', 10))
         self.cover_letter_text.grid(row=4, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0), pady=5)
         
-        # Export format selection
-        export_frame = ttk.Frame(tab)
-        export_frame.grid(row=5, column=0, columnspan=3, pady=5, sticky=tk.W)
+        # Export section
+        export_frame = ttk.LabelFrame(tab, text="Export Options", padding="10")
+        export_frame.grid(row=5, column=0, columnspan=3, pady=(15, 10), sticky=(tk.W, tk.E))
+        export_frame.columnconfigure(1, weight=1)
         
-        ttk.Label(export_frame, text="Export Format:").grid(row=0, column=0, padx=(0, 5))
+        ttk.Label(export_frame, text="Format:", font=('Arial', 10)).grid(row=0, column=0, padx=(0, 5))
         self.export_format_var = tk.StringVar(value="PDF")
         export_format_combo = ttk.Combobox(export_frame, textvariable=self.export_format_var, 
                                          values=["PDF", "Word (.docx)", "Plain Text (.txt)", "ATS-Optimized"], 
-                                         state='readonly', width=15)
-        export_format_combo.grid(row=0, column=1, padx=5)
+                                         state='readonly', width=15, font=('Arial', 10))
+        export_format_combo.grid(row=0, column=1, padx=5, sticky=tk.W)
         
         # Buttons
         button_frame = ttk.Frame(tab)
-        button_frame.grid(row=6, column=0, columnspan=3, pady=5)
+        button_frame.grid(row=6, column=0, columnspan=3, pady=10)
         
         self.refresh_apps_button = ttk.Button(button_frame, text="Refresh Applications", command=self._refresh_applications_list)
         self.refresh_apps_button.grid(row=0, column=0, padx=5)

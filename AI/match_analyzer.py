@@ -176,9 +176,9 @@ if __name__ == "__main__":
     
     # Built-in test data (no separate files)
     test_resume = """
-    Michelle Nicole
+    John Doe
     AI Developer & Automation Specialist
-    San Francisco, CA
+    Louisville, KY
     
     Professional Summary:
     5 years experience building AI-powered applications using Python, GPT APIs, and PyInstaller.

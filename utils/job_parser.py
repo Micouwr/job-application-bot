@@ -239,7 +239,7 @@ if __name__ == "__main__":
     sample_linkedin = '''
     <h1>Senior Software Engineer</h1>
     <span class="topcard__flavor">TechCorp Inc.</span>
-    <span class="topcard__flavor topcard__flavor--bullet">San Francisco, CA</span>
+    <span class="topcard__flavor topcard__flavor--bullet">Louisville, KY</span>
     <div class="description__text">
         <div class="show-more-less-html__markup">
             <p>We are looking for a Senior Software Engineer to join our team.</p>

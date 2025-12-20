@@ -10,3 +10,6 @@ reportlab>=4.0.0,<5.0.0
 
 # Export functionality dependencies
 python-docx>=0.8.11,<1.0.0
+
+# UI Enhancement dependencies
+ttkthemes>=3.2.0,<4.0.0
