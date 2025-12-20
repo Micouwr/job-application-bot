@@ -73,7 +73,7 @@ def process_and_tailor_from_gui(resume_text, job_description, output_path, role_
         
         # Prompt length check removed for production
         
-        # Initialize Gemini
+        # Initialize Gemini with timeout settings
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise Exception("GEMINI_API_KEY not found in environment")
@@ -84,7 +84,8 @@ def process_and_tailor_from_gui(resume_text, job_description, output_path, role_
         model = genai.GenerativeModel(GEMINI_MODEL)
         
         # API call message removed for production
-        response = model.generate_content(prompt)
+        # Add timeout to prevent hanging
+        response = model.generate_content(prompt, request_options={'timeout': 120})
         
         # Response length check removed for production
         

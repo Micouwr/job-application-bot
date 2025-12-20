@@ -1,7 +1,7 @@
 import os
 import google.generativeai as genai
 
-DIAGNOSTIC_MODE = True
+DIAGNOSTIC_MODE = False
 
 def tailor_resume(resume_text: str, job_description: str, match_data: dict) -> str:
     """
@@ -25,7 +25,7 @@ def tailor_resume(resume_text: str, job_description: str, match_data: dict) -> s
             print("[DIAGNOSTIC] ERROR: GEMINI_API_KEY not configured")
         raise Exception("GEMINI_API_KEY not configured")
     
-    # Configure Gemini
+    # Configure Gemini with timeout
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -57,7 +57,7 @@ def tailor_resume(resume_text: str, job_description: str, match_data: dict) -> s
         print(f"[DIAGNOSTIC] Generated tailoring prompt, length: {len(prompt)} chars")
         print(f"[DIAGNOSTIC] Calling Gemini API for tailoring...")
     
-    response = model.generate_content(prompt)
+    response = model.generate_content(prompt, request_options={'timeout': 120})
     
     if DIAGNOSTIC_MODE:
         print(f"[DIAGNOSTIC] Tailoring response received, length: {len(response.text)} chars")
@@ -85,7 +85,7 @@ def generate_cover_letter(resume_text: str, job_description: str, match_data: di
             print("[DIAGNOSTIC] ERROR: GEMINI_API_KEY not configured")
         raise Exception("GEMINI_API_KEY not configured")
     
-    # Configure Gemini
+    # Configure Gemini with timeout
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.5-flash')
     
@@ -115,7 +115,7 @@ def generate_cover_letter(resume_text: str, job_description: str, match_data: di
         print(f"[DIAGNOSTIC] Generated cover letter prompt, length: {len(prompt)} chars")
         print(f"[DIAGNOSTIC] Calling Gemini API for cover letter...")
     
-    response = model.generate_content(prompt)
+    response = model.generate_content(prompt, request_options={'timeout': 120})
     
     if DIAGNOSTIC_MODE:
         print(f"[DIAGNOSTIC] Cover letter response received, length: {len(response.text)} chars")
