@@ -52,6 +52,9 @@ class JobAppTkinter:
         # Initialize match analysis variables
         self.match_data = None
         
+        # Initialize tooltip window
+        self._tooltip_window = None
+        
         # Initialize UI
         self._init_ui()
         
@@ -150,12 +153,12 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self.notebook = ttk.Notebook(main_frame)
         self.notebook.grid(row=0, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S))
         
-        # Create tabs
-        self._create_add_job_tab()
+        # Create tabs in desired order
+        self._create_add_job_tab()  # Job Management
         self._create_resume_mgmt_tab()
+        self._create_tailored_docs_tab()
         self._create_output_tab()
         self._create_custom_prompt_tab()
-        self._create_tailored_docs_tab()
         
         # Make notebook expandable
         main_frame.columnconfigure(0, weight=1)
@@ -164,7 +167,7 @@ Available upon request. Technical portfolio and code samples accessible via GitH
     def _create_add_job_tab(self):
         """Create the Add Job Application tab"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="Add Job Application")
+        self.notebook.add(tab, text="Job Management")
         
         # Job Details Section
         ttk.Label(tab, text="Job Title:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -181,9 +184,24 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         role_combo = ttk.Combobox(tab, textvariable=self.role_var, values=["Standard", "Senior", "Lead", "Principal"], state='readonly')
         role_combo.grid(row=5, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
+        # Add tooltip with role definitions
+        role_tooltip = "Role Definitions:\n"
+        role_tooltip += "Standard: Entry to mid-level (0-5 years) - Core skills & direct contributions\n"
+        role_tooltip += "Senior: Senior-level (5-10 years) - Leadership, strategic thinking, mentoring\n"
+        role_tooltip += "Lead: Lead positions (8-15 years) - Team management, project leadership\n"
+        role_tooltip += "Principal: Principal/architect (12+ years) - Technical architecture, innovation"
+        role_combo.tooltip = role_tooltip
+        
+        # Bind hover event to show tooltip
+        def show_role_tooltip(event):
+            self.master.after(100, lambda: self._show_tooltip(event, role_tooltip))
+        
+        role_combo.bind('<Enter>', show_role_tooltip)
+        role_combo.bind('<Leave>', lambda e: self._hide_tooltip())
+        
         # Role Level Help Text
         role_help = ttk.Label(tab, text="Select role level that matches the job posting (see README for guidance)", 
-                             font=('Arial', 8), foreground='gray')
+                             font=('Arial', 9), foreground='blue')
         role_help.grid(row=7, column=1, columnspan=2, sticky=tk.W, pady=(0, 5))
         
         ttk.Label(tab, text="Job Description:", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=5)
@@ -202,22 +220,25 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         self.match_label = ttk.Label(tab, text="Match Score: Not analyzed", font=('Arial', 10, 'bold'), foreground='blue')
         self.match_label.grid(row=9, column=0, columnspan=3, sticky=tk.W, pady=2)
         
-        # Buttons
+        # Buttons - Reordered as requested
         button_frame = ttk.Frame(tab)
         button_frame.grid(row=10, column=0, columnspan=4, pady=10)
         
-        self.clear_button = ttk.Button(button_frame, text="Clear Fields", command=self.clear_fields)
-        self.clear_button.grid(row=0, column=0, padx=5)
+        # Add Analyze Match button (first)
+        self.analyze_button = ttk.Button(button_frame, text="Analyze Match", command=self.analyze_match)
+        self.analyze_button.grid(row=0, column=0, padx=5)
         
+        # Start Tailoring button (second)
         self.start_button = ttk.Button(button_frame, text="Start Tailoring", command=self.start_tailoring)
         self.start_button.grid(row=0, column=1, padx=5)
         
-        self.quit_button = ttk.Button(button_frame, text="Quit", command=self.master.quit)
-        self.quit_button.grid(row=0, column=2, padx=5)
+        # Clear Fields button (third)
+        self.clear_button = ttk.Button(button_frame, text="Clear Fields", command=self.clear_fields)
+        self.clear_button.grid(row=0, column=2, padx=5)
         
-        # Add Analyze Match button
-        self.analyze_button = ttk.Button(button_frame, text="Analyze Match", command=self.analyze_match)
-        self.analyze_button.grid(row=0, column=3, padx=5)
+        # Quit button (fourth)
+        self.quit_button = ttk.Button(button_frame, text="Quit", command=self.master.quit)
+        self.quit_button.grid(row=0, column=3, padx=5)
         
         # DEBUG: Print to console to verify elements are created
         print("DEBUG: UI elements created - Status label, Match label, Analyze button")
@@ -1173,6 +1194,31 @@ Write your custom prompt below...
         self.upload_button.config(state=state)
         self.delete_button.config(state=state)
         self.set_active_button.config(state=state)
+    
+    def _show_tooltip(self, event, text):
+        """Show tooltip with role definitions"""
+        # Create tooltip window if it doesn't exist
+        if not hasattr(self, '_tooltip_window') or not self._tooltip_window:
+            self._tooltip_window = tk.Toplevel()
+            self._tooltip_window.wm_overrideredirect(True)
+            self._tooltip_window.configure(bg='lightyellow', relief='solid', borderwidth=1)
+            
+            # Create label for tooltip text
+            tooltip_label = tk.Label(self._tooltip_window, text=text, 
+                                   bg='lightyellow', fg='black', 
+                                   font=('Arial', 9), justify=tk.LEFT, 
+                                   padx=5, pady=3)
+            tooltip_label.pack()
+        
+        # Position tooltip near mouse cursor
+        x, y = event.x_root + 10, event.y_root + 10
+        self._tooltip_window.wm_geometry(f"+{x}+{y}")
+        self._tooltip_window.deiconify()
+    
+    def _hide_tooltip(self):
+        """Hide tooltip window"""
+        if hasattr(self, '_tooltip_window') and self._tooltip_window:
+            self._tooltip_window.withdraw()
     
     def _log_message(self, message, level='info'):
         """Add message to log window"""

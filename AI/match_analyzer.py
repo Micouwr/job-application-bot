@@ -28,9 +28,48 @@ def analyze_match(resume_text: str, job_description: str) -> dict:
     # Build analysis prompt
     prompt = f"""
     Analyze this resume against the job description and provide a detailed match analysis.
-    Return ONLY a JSON object with these exact keys: overall_score, skills_match, experience_match, keywords_match, recommendations, strengths, gaps.
-    Scores should be integers 0-100.
-    All list values should be strings.
+    Return ONLY a valid JSON object with these exact keys: overall_score, skills_match, experience_match, keywords_match, recommendations, strengths, gaps.
+    
+    The skills_match, experience_match, and keywords_match should each be objects with 'score' (integer 0-100) and 'analysis' (array of strings) keys.
+    The recommendations, strengths, and gaps should each be arrays of strings.
+    
+    Example format:
+    {{
+        "overall_score": 85,
+        "skills_match": {{
+            "score": 90,
+            "analysis": [
+                "Strong match in Python and JavaScript",
+                "Good match in SQL proficiency"
+            ]
+        }},
+        "experience_match": {{
+            "score": 80,
+            "analysis": [
+                "5+ years in AI development matches requirement",
+                "Experience with GPT APIs is directly relevant"
+            ]
+        }},
+        "keywords_match": {{
+            "score": 88,
+            "analysis": [
+                "Keywords 'Python', 'JavaScript', 'SQL' found in both",
+                "'GPT APIs' and 'PyInstaller' are highly relevant"
+            ]
+        }},
+        "recommendations": [
+            "Consider highlighting project management experience more prominently",
+            "Add specific metrics to quantify achievements"
+        ],
+        "strengths": [
+            "Strong technical skills alignment with job requirements",
+            "Relevant experience in AI development"
+        ],
+        "gaps": [
+            "Limited explicit project management experience mentioned",
+            "No specific metrics provided for achievements"
+        ]
+    }}
     
     RESUME:
     {resume_text}
