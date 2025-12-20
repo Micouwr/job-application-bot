@@ -34,6 +34,9 @@ class JobAppTkinter:
         self.master.title("Job Application Bot - AI Resume Tailorer")
         self.master.geometry("1000x700")
         
+        # Set window icon if available
+        self._set_window_icon()
+        
         # Initialize models and database
         self.db_manager = DatabaseManager()
         self.resume_model = ResumeModel()
@@ -66,6 +69,36 @@ class JobAppTkinter:
         
         # Start queue checker
         self._check_queue()
+    
+    def _set_window_icon(self):
+        """Set the window icon for the application"""
+        try:
+            # Try different icon formats based on platform
+            icon_path = Path(__file__).parent.parent / "assets"
+            
+            # Try ICO format (Windows)
+            ico_path = icon_path / "icon.ico"
+            if ico_path.exists():
+                self.master.iconbitmap(str(ico_path))
+                return
+            
+            # Try ICNS format (macOS)
+            icns_path = icon_path / "icon.icns"
+            if icns_path.exists():
+                # On macOS, we can't directly set ICNS, but we can set it via wm_iconphoto
+                # However, tkinter doesn't support ICNS directly, so we'll try PNG
+                pass
+            
+            # Try PNG format as fallback
+            png_path = icon_path / "computer.png"
+            if png_path.exists() and png_path.stat().st_size > 0:  # Check if file is not empty
+                icon_image = tk.PhotoImage(file=str(png_path))
+                self.master.iconphoto(True, icon_image)
+                return
+                
+        except Exception as e:
+            # Silently fail if icon can't be set - not critical
+            pass
     
     def _ensure_default_resume(self):
         """Create default resume if no resumes exist in database"""
