@@ -1023,45 +1023,42 @@ Write your custom prompt below...
             applications = self.db_manager.get_all_applications()
             selected_app = None
             for app in applications:
-                if str(app['id']) == app_id:
+                if str(app["id"]) == app_id:
                     selected_app = app
                     break
             
             if selected_app:
                 # Load resume content
                 try:
-                    with open(selected_app['resume_path'], 'r', encoding='utf-8') as f:
+                    with open(selected_app["resume_path"], "r", encoding="utf-8") as f:
                         resume_content = f.read()
-                    self.tailored_resume_text.delete('1.0', tk.END)
-                    self.tailored_resume_text.insert('1.0', resume_content)
+                    self.tailored_resume_text.delete("1.0", tk.END)
+                    self.tailored_resume_text.insert("1.0", resume_content)
                 except Exception as e:
-                    self.tailored_resume_text.delete('1.0', tk.END)
-                    self.tailored_resume_text.insert('1.0', f"Error loading resume: {e}")
+                    self.tailored_resume_text.delete("1.0", tk.END)
+                    self.tailored_resume_text.insert("1.0", f"Error loading resume: {e}")
                 
                 # Load cover letter content
                 try:
-                    with open(selected_app['cover_letter_path'], 'r', encoding='utf-8') as f:
+                    with open(selected_app["cover_letter_path"], "r", encoding="utf-8") as f:
                         cover_letter_content = f.read()
-                    self.cover_letter_text.delete('1.0', tk.END)
-                    self.cover_letter_text.insert('1.0', cover_letter_content)
+                    self.cover_letter_text.delete("1.0", tk.END)
+                    self.cover_letter_text.insert("1.0", cover_letter_content)
                 except Exception as e:
-                    self.cover_letter_text.delete('1.0', tk.END)
-                    self.cover_letter_text.insert('1.0', f"Error loading cover letter: {e}")
+                    self.cover_letter_text.delete("1.0", tk.END)
+                    self.cover_letter_text.insert("1.0", f"Error loading cover letter: {e}")
                 
                 # Enable export button
-                self.export_pdf_button.config(state='normal')
+                self.export_pdf_button.config(state="normal")
                 self.current_selected_app = selected_app
             else:
-                self.tailored_resume_text.delete('1.0', tk.END)
-                self.cover_letter_text.delete('1.0', tk.END)
-                self.export_pdf_button.config(state='disabled')
+                self.tailored_resume_text.delete("1.0", tk.END)
+                self.cover_letter_text.delete("1.0", tk.END)
+                self.export_pdf_button.config(state="disabled")
         else:
             # Only clear if there's no selection, not during refresh
             pass
-        else:
-            self.tailored_resume_text.delete('1.0', tk.END)
-            self.cover_letter_text.delete('1.0', tk.END)
-            self.export_pdf_button.config(state='disabled')
+
     
     def _export_as_pdf(self):
         """Export current tailored documents as PDF"""
