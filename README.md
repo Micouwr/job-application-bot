@@ -57,7 +57,7 @@ python gui/tkinter_app.py
 
 Main user interface of CareerForge AI showing the tabbed layout for job management, resume tailoring, and document export. The application features a modern UI with themed widgets and the new CareerForge AI icon.
 
-![Application Interface](assets/CareerForge_AI.png)
+![Application Interface](assets/computer.png)
 
 ### Workflow Diagram
 
@@ -69,7 +69,7 @@ Visual representation of the CareerForge AI workflow from job analysis to tailor
 
 CareerForge AI features custom icons for different platforms:
 
-![CareerForge AI Icon](assets/CareerForge_AI.png)
+![CareerForge AI Icon](assets/CareerForge_AI_icon.png)
 
 - **macOS**: `assets/CareerForge_AI.icns` - Native ICNS format for macOS
 - **Windows**: `assets/CareerForge_AI.ico` - Native ICO format for Windows
