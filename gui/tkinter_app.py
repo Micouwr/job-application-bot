@@ -139,7 +139,7 @@ class JobAppTkinter:
         resumes = self.resume_model.list_resumes()
         
         if not resumes:
-            default_resume_text = """MICHELLE NICOLE
+            default_resume_text = """JOHN DOE
 AI Developer & Automation Specialist
 Louisville, KY | johndoe@example.com | (555) 123-4567 | linkedin.com/in/johndoe | github.com/johndoe
 
