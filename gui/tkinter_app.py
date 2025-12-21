@@ -87,24 +87,31 @@ class JobAppTkinter:
             # Try different icon formats based on platform
             icon_path = Path(__file__).parent.parent / "assets"
             
-            # Try new CareerForge AI icon first (detected as Windows icon but properly formatted)
-            careerforge_icon = icon_path / "CareerForge_AI.icns"
-            if careerforge_icon.exists():
+            # Try new CareerForge AI ICNS format (macOS) first
+            careerforge_icns = icon_path / "CareerForge_AI.icns"
+            if careerforge_icns.exists():
+                # tkinter can't directly use ICNS, but we can try to load it
                 try:
-                    icon_image = tk.PhotoImage(file=str(careerforge_icon))
+                    icon_image = tk.PhotoImage(file=str(careerforge_icns))
                     self.master.iconphoto(True, icon_image)
                     return
                 except:
-                    # If CareerForge icon fails, continue to other options
+                    # If CareerForge ICNS fails, continue to other options
                     pass
             
-            # Try ICO format (Windows) first
+            # Try new CareerForge AI ICO format (Windows) first
+            careerforge_ico = icon_path / "CareerForge_AI.ico"
+            if careerforge_ico.exists():
+                self.master.iconbitmap(str(careerforge_ico))
+                return
+            
+            # Try legacy ICO format (Windows)
             ico_path = icon_path / "icon.ico"
             if ico_path.exists():
                 self.master.iconbitmap(str(ico_path))
                 return
             
-            # Try ICNS format (macOS) - convert to PhotoImage
+            # Try legacy ICNS format (macOS)
             icns_path = icon_path / "icon.icns"
             if icns_path.exists():
                 # tkinter can't directly use ICNS, but we can try to load it
