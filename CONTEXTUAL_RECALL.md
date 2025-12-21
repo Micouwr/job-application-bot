@@ -104,76 +104,78 @@ We've successfully implemented and fixed several critical features and issues:
    - Removed unwanted header from exported PDFs
    - Fixed bullet point styling to use smaller, more professional dots
 
-## What We Are Doing Now
+8. **Application Renaming**
+   - Changed application name from "Job Application Bot" to "CareerForge AI"
+   - Updated all references in code and documentation
+   - Updated window titles and internal references
 
-Currently, we're continuing to enhance and refine the application with several new features:
-- All UI and structural fixes have been completed and pushed to the repository
-- We're actively implementing new features based on user feedback
-- Continuing to improve the overall user experience and functionality
-
-## What We Will Be Doing
-
-Moving forward, we'll focus on:
-
-1. **Comprehensive Testing**
-   - Verify all implemented features work correctly with live AI integration
-   - Test automatic job title/company extraction functionality
-   - Validate job description storage and retrieval workflows
-   - Ensure PDF exports meet all requirements
-
-2. **Further Enhancements**
-   - Continue refining the user experience based on your feedback
-   - Explore additional AI-powered features for resume optimization
-   - Improve error handling and user guidance
-
-3. **Documentation Updates**
-   - Update README and user guides to reflect new features
-   - Document the job description storage workflow
-   - Provide clear instructions for the automatic extraction feature
-
-4. **UI Improvements**
+9. **UI Modernization**
    - Integrated ttkthemes for modern, clean UI appearance
    - Applied the "arc" theme for contemporary look
    - Enhanced all tabs with consistent styling and better layouts
    - Improved visual hierarchy with bold titles and clear section headings
 
-5. **Application Renaming**
-   - Changed application name from "Job Application Bot" to "CareerForge AI"
-   - Updated all references in code and documentation
-   - Updated window titles and internal references
+10. **Enhanced Custom Prompt Management**
+    - Added variable reference section with available template variables
+    - Added built-in examples section showing system prompt examples
+    - Added "Load Example" button to easily load and modify built-in templates
+    - Added "Preview Variables" button to visualize variable substitution
+    - Added template validation to ensure proper prompt structure
+    - Improved default template with proper structure and formatting
 
-6. **Enhanced Custom Prompt Management**
-   - Added variable reference section with available template variables
-   - Added built-in examples section showing system prompt examples
-   - Added "Load Example" button to easily load and modify built-in templates
-   - Added "Preview Variables" button to visualize variable substitution
-   - Added template validation to ensure proper prompt structure
-   - Improved default template with proper structure and formatting
+11. **GUI-Based Configuration**
+    - Added Settings/Preferences tab for configuring minimum match threshold
+    - Implemented slider control for adjusting threshold from 50% to 95%
+    - Added manual input field for precise threshold values
+    - Added real-time feedback display for current threshold value
+    - Added Apply and Reset to Default buttons
+    - Added guidelines for recommended threshold values
 
-7. **GUI-Based Configuration**
-   - Added Settings/Preferences tab for configuring minimum match threshold
-   - Implemented slider control for adjusting threshold from 50% to 95%
-   - Added manual input field for precise threshold values
-   - Added real-time feedback display for current threshold value
-   - Added Apply and Reset to Default buttons
-   - Added guidelines for recommended threshold values
+12. **Data Privacy Fixes**
+    - Removed all hardcoded personal information ("Michelle Nicole") from resume templates
+    - Updated default location from "San Francisco" to "Louisville, KY"
+    - Updated all contact information to generic placeholders
 
-8. **Data Privacy Fixes**
-   - Removed all hardcoded personal information ("Michelle Nicole") from resume templates
-   - Updated default location from "San Francisco" to "Louisville, KY"
-   - Updated all contact information to generic placeholders
+13. **Icon System Overhaul**
+    - Fixed empty computer.png file by copying valid image
+    - Enhanced icon loading logic to try multiple formats (ICO, ICNS, PNG)
+    - Added support for CareerForge AI branded icons in multiple formats
+    - Implemented proper fallback chain for cross-platform compatibility
 
-9. **Icon Fix**
-   - Fixed empty computer.png file by copying valid 18KB image
-   - Enhanced icon loading logic to try multiple formats (ICO, ICNS, PNG)
+## What We Are Doing Now
 
-10. **Documentation Updates**
-    - Updated README.md with new features and screenshots
-    - Added screenshots section with application interface image
-    - Updated feature list to include GUI-based configuration
-    - Updated configuration options to show GUI method
+Currently, we're focusing on comprehensive documentation updates and visual improvements:
 
-11. **Performance Optimization**
-    - Review and optimize AI prompt engineering
-    - Improve response handling and error recovery
-    - Enhance overall application stability
+1. **README Documentation Enhancement**
+   - Updated Visual Guides section with proper CareerForge AI images
+   - Replaced outdated computer.png with CareerForge_AI.png for application interface
+   - Properly sized images for optimal web display (400x400 pixels)
+   - Organized Application Icons section to showcase all platform-specific icons
+
+2. **Image Asset Management**
+   - Created appropriately sized versions of CareerForge AI icon for different uses
+   - Ensured consistent branding across all visual elements
+   - Optimized image files for web performance while maintaining quality
+
+## What We Will Be Doing
+
+Moving forward, we'll focus on comprehensive testing and quality assurance:
+
+1. **Testing Phase**
+   - Conduct thorough testing of all implemented features with live AI integration
+   - Verify automatic job title/company extraction functionality
+   - Validate job description storage and retrieval workflows
+   - Test PDF export functionality across different platforms
+   - Ensure all GUI elements work correctly
+
+2. **Quality Assurance**
+   - Perform cross-platform compatibility testing
+   - Verify icon display works correctly on macOS and Windows
+   - Test all user workflows from start to finish
+   - Validate data integrity and privacy measures
+
+3. **Performance Optimization**
+   - Review and optimize AI prompt engineering
+   - Improve response handling and error recovery
+   - Enhance overall application stability
+   - Optimize resource usage and startup times
