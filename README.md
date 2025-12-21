@@ -69,9 +69,11 @@ Visual representation of the CareerForge AI workflow from job analysis to tailor
 
 CareerForge AI features custom icons for different platforms:
 
+![CareerForge AI Icon](assets/CareerForge_AI.png)
+
 - **macOS**: `assets/CareerForge_AI.icns` - Native ICNS format for macOS
 - **Windows**: `assets/CareerForge_AI.ico` - Native ICO format for Windows
-- **Cross-platform**: PNG fallback used in the application interface
+- **Cross-platform**: `assets/CareerForge_AI.png` - PNG format for documentation and cross-platform use
 
 These icons provide consistent branding across all supported platforms.
 
