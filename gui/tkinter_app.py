@@ -454,18 +454,138 @@ Available upon request. Technical portfolio and code samples accessible via GitH
         reset_button = ttk.Button(threshold_frame, text="Reset to Default (80%)", command=self._reset_threshold_to_default)
         reset_button.grid(row=3, column=1, sticky=tk.W, pady=10, padx=(120, 0))
         
-        # Information text
+        # Enhanced information text with comprehensive guidance
         info_text = """
-Recommended Threshold Guidelines:
-- 70-75%: Aggressive applications (lower match tolerance)
-- 80%: Balanced approach (recommended default)
-- 85-90%: Conservative applications (higher match requirements)
+How Match Threshold Works:
+• The match threshold determines when the "Start Tailoring" button becomes available
+• Match Score ≥ Threshold: Tailoring is enabled
+• Match Score < Threshold: Tailoring is disabled to prevent poor-quality results
+
+Threshold Strategy Guidelines:
+• 70-75%: Aggressive applications (lower match tolerance, more opportunities)
+• 80%: Balanced approach (recommended default for most users)
+• 85-90%: Conservative applications (higher match requirements, fewer but better-targeted applications)
+
+Best Practices:
+1. Start with the default 80% threshold
+2. Adjust based on your job application results
+3. Lower thresholds for broader opportunities
+4. Higher thresholds for targeted, high-match applications
+5. Monitor detailed match analysis to understand score factors
+
+Using This Interface:
+• Drag the slider to adjust threshold from 50% to 95%
+• Or enter a specific value in the text box
+• Click "Apply Changes" to save your settings
+• Use "Reset to Default (80%)" to restore recommended setting
         """
         info_label = ttk.Label(threshold_frame, text=info_text.strip(), font=('Arial', 9), foreground='blue')
-        info_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=10)
+        info_label.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        
+        # Add tooltip bindings for interactive help
+        self.threshold_slider.bind("<Enter>", lambda e: self._show_tooltip(e, "Drag to adjust match threshold from 50% to 95%"))
+        self.threshold_slider.bind("<Leave>", lambda e: self._hide_tooltip())
+        self.threshold_entry.bind("<Enter>", lambda e: self._show_tooltip(e, "Enter a specific threshold value (50-95%)"))
+        self.threshold_entry.bind("<Leave>", lambda e: self._hide_tooltip())
+        apply_button.bind("<Enter>", lambda e: self._show_tooltip(e, "Save your threshold settings"))
+        apply_button.bind("<Leave>", lambda e: self._hide_tooltip())
+        reset_button.bind("<Enter>", lambda e: self._show_tooltip(e, "Restore default threshold (80%)"))
+        reset_button.bind("<Leave>", lambda e: self._hide_tooltip())
+        
+        # Add help button for additional information
+        help_button = ttk.Button(tab, text="?", width=3, command=self._show_threshold_help)
+        help_button.grid(row=0, column=1, sticky=tk.E, padx=10)
         
         # Configure grid weights
         tab.columnconfigure(0, weight=1)
+    
+    def _show_threshold_help(self):
+        """Show detailed help dialog for threshold configuration"""
+        help_text = """
+COMPREHENSIVE GUIDE: MATCH THRESHOLD CONFIGURATION
+
+WHAT IS THE MATCH THRESHOLD?
+The match threshold is a percentage that determines how closely your resume must match a job description to enable tailoring.
+
+HOW IT WORKS:
+• When you analyze a job description, the system calculates a match score
+• If the score is equal to or greater than your threshold, tailoring is enabled
+• If the score is below your threshold, tailoring is disabled to prevent poor results
+
+STRATEGIC THRESHOLD SETTINGS:
+
+AGGRESSIVE (70-75%)
+• Enables tailoring for more job opportunities
+• May produce less targeted results
+• Best for: High-volume job searching, entry-level positions
+
+BALANCED (80% - DEFAULT)
+• Good balance of opportunity and targeting
+• Recommended for most users
+• Best for: General job searching across experience levels
+
+CONSERVATIVE (85-90%)
+• Only enables tailoring for high-match opportunities
+• Produces more targeted results
+• Best for: Targeted job searching, senior-level positions
+
+INTERFACE CONTROLS:
+
+SLIDER CONTROL:
+• Drag left/right to adjust from 50% to 95%
+• Real-time display of current value
+• Smooth, intuitive adjustment
+
+MANUAL ENTRY:
+• Type exact percentage value
+• Valid range: 50-95%
+• Automatic validation
+
+APPLY CHANGES:
+• Saves your threshold setting
+• Applies immediately to current and future analyses
+• Confirmation message with reminder tips
+
+RESET TO DEFAULT:
+• Restores 80% threshold
+• One-click convenience
+• Helpful if you're unsure of optimal settings
+
+BEST PRACTICES:
+1. START WITH DEFAULT (80%)
+2. ADJUST BASED ON RESULTS
+3. LOWER FOR MORE OPPORTUNITIES
+4. RAISE FOR BETTER TARGETING
+5. REVIEW MATCH ANALYSES
+        """
+        
+        # Create help window
+        help_window = tk.Toplevel(self.master)
+        help_window.title("Match Threshold Help")
+        help_window.geometry("600x700")
+        help_window.resizable(True, True)
+        
+        # Center the window
+        help_window.transient(self.master)
+        help_window.grab_set()
+        
+        # Create scrolled text widget for help content
+        help_text_widget = scrolledtext.ScrolledText(
+            help_window, 
+            width=70, 
+            height=40,
+            wrap=tk.WORD,
+            font=('Arial', 10),
+            padx=10, 
+            pady=10
+        )
+        help_text_widget.insert('1.0', help_text.strip())
+        help_text_widget.config(state='disabled')  # Make read-only
+        help_text_widget.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Add close button
+        close_button = ttk.Button(help_window, text="Close", command=help_window.destroy)
+        close_button.pack(pady=10)
     
     def _on_threshold_slider_change(self, value):
         """Handle slider value changes"""
@@ -488,7 +608,7 @@ Recommended Threshold Guidelines:
             self.threshold_slider.set(new_threshold)
             self.threshold_value_label.config(text=f"{new_threshold}%")
             
-            messagebox.showinfo("Success", f"Minimum match threshold updated to {new_threshold}%")
+            messagebox.showinfo("Success", f"Minimum match threshold updated to {new_threshold}%\n\nRemember: Lower thresholds (70-75%) = More opportunities\nHigher thresholds (85-90%) = Better-targeted applications")
             self._log_message(f"Minimum match threshold updated to {new_threshold}%", "info")
             
         except ValueError:
