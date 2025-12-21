@@ -122,17 +122,38 @@ These icons provide consistent branding across all supported platforms.
 ### Minimum Match Threshold
 Adjust the minimum compatibility score required to enable tailoring:
 
-1. **Through the GUI (Recommended)**: Use the Settings tab to adjust the threshold with a slider or manual input
-2. **Direct Code Modification**: Edit the value in `config/settings.py`:
+#### Using the GUI (Recommended Method)
+Access the **Settings** tab in the application to configure the match threshold:
+
+1. **Slider Control**: Drag the slider to adjust the threshold from 50% to 95%
+2. **Manual Entry**: Enter a specific percentage value in the text field
+3. **Real-time Feedback**: Current threshold value is displayed dynamically
+4. **Apply Changes**: Click "Apply Changes" to save your custom threshold
+5. **Reset to Default**: Use "Reset to Default (80%)" to restore the recommended setting
+
+#### Direct Code Modification (Advanced)
+Edit the value in `config/settings.py`:
 ```python
 # In config/settings.py
 MIN_MATCH_THRESHOLD = 70  # Default: 70%
 ```
 
-**Threshold Guidelines**:
-- 70-75%: Aggressive applications (lower match tolerance)
-- 80%: Balanced approach (recommended default)
-- 85-90%: Conservative applications (higher match requirements)
+#### How Match Threshold Works
+The match threshold determines when the "Start Tailoring" button becomes available:
+- **Match Score ≥ Threshold**: Tailoring is enabled
+- **Match Score < Threshold**: Tailoring is disabled to prevent poor-quality results
+
+#### Threshold Strategy Guidelines
+- **70-75%**: Aggressive job applications (lower match tolerance, more opportunities)
+- **80%**: Balanced approach (recommended default for most users)
+- **85-90%**: Conservative applications (higher match requirements, fewer but better-targeted applications)
+
+#### Best Practices
+1. Start with the default 80% threshold
+2. Adjust based on your job application results
+3. Lower thresholds (70-75%) for broader opportunities
+4. Higher thresholds (85-90%) for targeted, high-match applications
+5. Monitor the detailed match analysis to understand score factors
 
 ### Role Levels
 Choose the appropriate role level for optimal tailoring:
