@@ -182,7 +182,7 @@ Moving forward, we'll focus on comprehensive testing and quality assurance:
 
 ## Current Status: TESTING PHASE
 
-We are now entering a rigorous testing phase before implementing any further changes. A comprehensive [TESTING_PLAN.md](TESTING_PLAN.md) has been created to guide this process. All core functionality will be validated including:
+We are now entering a rigorous testing phase before implementing any further changes. All core functionality will be validated including:
 
 - Application launch and UI rendering
 - Job management and import features
