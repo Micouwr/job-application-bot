@@ -111,6 +111,9 @@ These icons provide consistent branding across all supported platforms.
   - Word (.docx)
   - Plain Text (.txt)
   - ATS-Optimized (for Applicant Tracking Systems)
+- Delete tailored documents selectively:
+  - Delete only resume and cover letter (job description preserved by default)
+  - Option to delete all files including job description
 
 ---
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build script for JobApplicationBot - Creates standalone executable with PyInstaller
+Build script for CareerForge AI - Creates standalone executable with PyInstaller
 """
 
 import platform
@@ -111,7 +111,7 @@ def build_executable():
         print(" The executable is located in the './dist' folder.")
         print("  CRITICAL: Users must place their own '.env' file containing API keys")
         print("            in the same directory as the executable.")
-        print(f" App bundle: ./dist/JobApplicationBot.app")
+        print(f" App bundle: ./dist/CareerForgeAI.app")
         
         return True
         

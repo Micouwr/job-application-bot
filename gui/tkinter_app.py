@@ -471,8 +471,10 @@ Recommended Threshold Guidelines:
         """Handle slider value changes"""
         threshold = int(float(value))
         self.threshold_value_label.config(text=f"{threshold}%")
-        self.threshold_entry.delete(0, tk.END)
-        self.threshold_entry.insert(0, str(threshold))
+        # Only update entry if it exists (prevents error during initialization)
+        if hasattr(self, 'threshold_entry') and self.threshold_entry:
+            self.threshold_entry.delete(0, tk.END)
+            self.threshold_entry.insert(0, str(threshold))
     
     def _apply_threshold_change(self):
         """Apply the new threshold value"""
@@ -1527,9 +1529,12 @@ Format your response exactly as follows:
         self.export_button = ttk.Button(button_frame, text="Export Documents", command=self._export_documents, state='disabled')
         self.export_button.grid(row=0, column=1, padx=5)
         
+        self.delete_button = ttk.Button(button_frame, text="Delete Selected", command=self._delete_selected_application, state='disabled')
+        self.delete_button.grid(row=0, column=2, padx=5)
+        
         # Add quit button
         quit_button = ttk.Button(button_frame, text="Quit", command=self.quit_application)
-        quit_button.grid(row=0, column=2, padx=5)
+        quit_button.grid(row=0, column=3, padx=5)
         
         # Refresh applications list
         self._refresh_applications_list()
@@ -1618,16 +1623,20 @@ Format your response exactly as follows:
                     self.cover_letter_text.delete("1.0", tk.END)
                     self.cover_letter_text.insert("1.0", f"Error loading cover letter: {e}")
                 
-                # Enable export button
+                # Enable export and delete buttons
                 self.export_button.config(state="normal")
+                self.delete_button.config(state="normal")
             else:
                 self.job_description_text.delete("1.0", tk.END)
                 self.tailored_resume_text.delete("1.0", tk.END)
                 self.cover_letter_text.delete("1.0", tk.END)
                 self.export_button.config(state="disabled")
+                self.delete_button.config(state="disabled")
         else:
             # Only clear if there's no selection, not during refresh
-            pass
+            # Disable export and delete buttons when no selection
+            self.export_button.config(state="disabled")
+            self.delete_button.config(state="disabled")
 
     
     def _export_documents(self):
@@ -1910,6 +1919,75 @@ COVER LETTER
             
         except Exception as e:
             raise  # Re-raise to be caught by parent method
+    
+    def _delete_selected_application(self):
+        """Delete the currently selected application and its associated files"""
+        if not hasattr(self, 'current_selected_app'):
+            messagebox.showwarning("Delete Error", "Please select an application first.")
+            return
+        
+        # Confirm deletion type
+        delete_choice = messagebox.askyesno(
+            "Delete Type", 
+            "Do you want to delete ALL files (including job description)?\n\n"
+            "YES = Delete everything (cannot be undone)\n"
+            "NO = Delete only resume and cover letter (job description preserved)"
+            , icon='question', type='yesno')
+        
+        # If user cancels the dialog, return
+        if delete_choice is None:
+            return
+        
+        # delete_choice is True for 'yes' (delete all), False for 'no' (delete tailored docs only)
+        delete_all = delete_choice
+        
+        try:
+            app_id = self.current_selected_app['id']
+            resume_path = self.current_selected_app['resume_path']
+            cover_letter_path = self.current_selected_app['cover_letter_path']
+            job_desc_path = self.current_selected_app.get('job_description_path')
+            
+            # Delete files based on user choice
+            if delete_all:
+                # Delete all files including job description
+                files_to_delete = [resume_path, cover_letter_path]
+                if job_desc_path and job_desc_path != 'None' and os.path.exists(job_desc_path):
+                    files_to_delete.append(job_desc_path)
+                delete_message = "All files including job description have been deleted."
+            else:
+                # Delete only tailored resume and cover letter files (preserve job description)
+                files_to_delete = [resume_path, cover_letter_path]
+                delete_message = "Tailored resume and cover letter have been deleted.\n\nThe job description has been preserved for future reference."
+            
+            for file_path in files_to_delete:
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        self._log_message(f"Deleted file: {file_path}", "info")
+                except Exception as e:
+                    self._log_message(f"Error deleting file {file_path}: {e}", "error")
+            
+            # Delete from database
+            self.db_manager.delete_application(app_id)
+            
+            # Clear the current selection and refresh the list
+            self.current_selected_app = None
+            self.job_description_text.delete("1.0", tk.END)
+            self.tailored_resume_text.delete("1.0", tk.END)
+            self.cover_letter_text.delete("1.0", tk.END)
+            self.export_button.config(state="disabled")
+            self.delete_button.config(state="disabled")
+            self._refresh_applications_list()
+            
+            messagebox.showinfo("Delete Successful", delete_message)
+            if delete_all:
+                self._log_message("All files including job description deleted successfully", "info")
+            else:
+                self._log_message("Tailored resume and cover letter deleted successfully", "info")
+            
+        except Exception as e:
+            messagebox.showerror("Delete Error", f"Failed to delete application: {str(e)}")
+            self._log_message(f"Delete error: {e}", "error")
     
     def save_outputs(self, tailored_resume, cover_letter, job_title, company, job_description, match_score=0):
         """Save tailored documents to output folder and show user where they are"""
