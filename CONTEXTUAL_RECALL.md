@@ -66,7 +66,7 @@ These rules are enforced with absolute strictness and must be followed without e
 
 ## Repository Link
 
-GitHub Repository: https://github.com/Micouwr/careerforge-ai
+GitHub Repository: https://github.com/Micouwr/job-application-bot
 
 ## What We've Done
 
