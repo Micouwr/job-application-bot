@@ -87,6 +87,17 @@ class JobAppTkinter:
             # Try different icon formats based on platform
             icon_path = Path(__file__).parent.parent / "assets"
             
+            # Try new CareerForge AI icon first (detected as Windows icon but properly formatted)
+            careerforge_icon = icon_path / "CareerForge_AI.icns"
+            if careerforge_icon.exists():
+                try:
+                    icon_image = tk.PhotoImage(file=str(careerforge_icon))
+                    self.master.iconphoto(True, icon_image)
+                    return
+                except:
+                    # If CareerForge icon fails, continue to other options
+                    pass
+            
             # Try ICO format (Windows) first
             ico_path = icon_path / "icon.ico"
             if ico_path.exists():

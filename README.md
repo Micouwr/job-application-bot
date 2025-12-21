@@ -8,7 +8,7 @@ Intelligent Resume Tailoring for IT/DevOps/AI Governance Roles
 
 ## Overview
 
-CareerCraft AI is an intelligent tool that helps you tailor your resume for specific job applications using Google's Gemini AI. By analyzing the job description and your resume, it creates customized versions that align with the position requirements while preserving all factual information from your original resume.
+CareerForge AI is an intelligent tool that helps you tailor your resume for specific job applications using Google's Gemini AI. By analyzing the job description and your resume, it creates customized versions that align with the position requirements while preserving all factual information from your original resume.
 
 Key Features:
 - AI-powered resume compatibility scoring
