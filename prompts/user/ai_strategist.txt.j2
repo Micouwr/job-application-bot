@@ -1,0 +1,40 @@
+# AI Strategist/Designer Prompt Template
+# Available variables: {{ role_level }}, {{ company_name }}, {{ job_title }}, {{ job_description }}, {{ resume_text }}
+
+You are an expert resume tailor specializing in AI strategy and design roles for {{ company_name }}.
+
+TASK: Tailor the following resume for the {{ job_title }} role, emphasizing AI strategy, design, and orchestration skills rather than implementation/coding skills.
+
+Original Resume:
+{{ resume_text }}
+
+Job Description:
+{{ job_title }} at {{ company_name }}
+{{ job_description }}
+
+Requirements:
+1. Emphasize AI strategy, design thinking, and solution architecture rather than coding implementation
+2. Highlight experience in designing and orchestrating AI systems using existing tools/platforms
+3. Showcase ability to translate business requirements into AI solutions
+4. Demonstrate leadership in guiding technical teams without necessarily being the primary coder
+5. Focus on conceptual understanding of AI/ML rather than implementation details
+6. Quantify achievements where possible, especially business impact metrics
+7. Match language to job description keywords, focusing on strategic/leadership terms
+8. Optimize for ATS (Applicant Tracking Systems) while preserving strategic focus
+9. Maintain professional tone appropriate for {{ role_level }} level
+
+Special Instructions:
+- De-emphasize programming languages and coding frameworks
+- Highlight experience with AI platforms, tools, and services (e.g., GPT APIs, cloud AI services)
+- Emphasize system design, architecture, and orchestration skills
+- Focus on business outcomes and strategic decision-making
+- Showcase ability to work with technical teams without being the primary implementer
+
+Output ONLY the tailored resume followed by a cover letter.
+
+Format your response exactly as follows:
+[TAILORING_COMPLETE]
+[Tailored resume content here]
+[COVER LETTER]
+[Cover letter content here]
+[END_APPLICATION_MATERIALS]

@@ -144,62 +144,63 @@ AI Developer & Automation Specialist
 Louisville, KY | johndoe@example.com | (555) 123-4567 | linkedin.com/in/johndoe | github.com/johndoe
 
 PROFESSIONAL SUMMARY
-Innovative AI Developer with expertise in building intelligent automation systems and cross-platform desktop applications. Proven track record of implementing machine learning solutions that improve efficiency by up to 85%. Strong background in Python, GPT API integration, and PyInstaller deployment for macOS, Windows, and Linux.
+Strategic AI Designer and Orchestrator with expertise in architecting intelligent automation solutions and cross-platform applications. Proven track record of designing AI systems that improve efficiency by up to 85%. Strong background in AI strategy, solution architecture, and team leadership utilizing GPT APIs and modern AI platforms.
 
-TECHNICAL SKILLS
-Languages: Python, JavaScript, SQL, Bash, HTML/CSS
-AI/ML: GPT-4 API, LangChain, TensorFlow, Scikit-learn, Prompt Engineering
-Tools: PyInstaller, Git, Docker, PostgreSQL, SQLite, REST APIs
-Frameworks: Tkinter, PyQt, Flask, FastAPI, Node.js
-Certifications: Two AI certifications (redacted for privacy)
+CORE COMPETENCIES
+AI Strategy & Design: Solution architecture, system design, strategic planning
+AI Platforms & Tools: GPT-4 API, LangChain, cloud AI services, prompt engineering
+Leadership & Collaboration: Team guidance, stakeholder communication, project orchestration
+Business Alignment: Requirements translation, ROI optimization, outcome-focused design
+Process Optimization: Workflow automation, efficiency improvement, performance metrics
+Cross-Platform Solutions: Application design, deployment strategies, user experience
 
 PROFESSIONAL EXPERIENCE
 
-Senior AI Developer | Tech Innovations Inc. | 2022-Present
+Lead AI Strategist | Tech Innovations Inc. | 2022-Present
 - Developed AI-powered resume tailoring system using GPT-4 API, reducing application time by 80%
 - Implemented cross-platform desktop application with PyInstaller for 500+ users
 - Created automated job application bot that increased interview rate by 3x
 - Led team of 3 developers in building machine learning pipeline
 
 Full Stack Developer | Automation Solutions Corp. | 2020-2022
-- Built web scraping automation tools that processed 10,000+ job postings daily
-- Integrated multiple APIs (LinkedIn, Indeed) for seamless data collection
-- Developed database systems for candidate tracking and analytics
-- Deployed applications across Windows, macOS, and Linux platforms
+- Architected web scraping automation tools that processed 10,000+ job postings daily
+- Designed API integration strategy for LinkedIn, Indeed, and other platforms
+- Developed database architecture for candidate tracking and analytics
+- Directed cross-platform deployment strategy for Windows, macOS, and Linux
 
-AI Developer | Machine Learning Startup | 2019-2020
-- Created predictive models for applicant tracking systems (ATS)
-- Implemented natural language processing for resume optimization
-- Built custom algorithms for job matching and candidate ranking
+AI Design Specialist | Machine Learning Startup | 2019-2020
+- Designed predictive models architecture for applicant tracking systems (ATS)
+- Created NLP solution framework for resume optimization
+- Built custom algorithm architecture for job matching and candidate ranking
 
 EDUCATION
 Bachelor of Science in Computer Science
 University of California, Berkeley | 2019
 Relevant Coursework: Machine Learning, AI Systems, Data Structures, Algorithms
 
-PROJECTS
+KEY PROJECTS
 CareerForge AI - AI Resume Tailorer
-- Desktop application using Tkinter and GPT-4 API for automated resume tailoring
-- Features: PDF upload, database management, cross-platform compatibility
-- Technologies: Python, PyInstaller, SQLite, Threading
+- Designed intelligent resume tailoring system using GPT-4 API
+- Architected cross-platform solution for Windows, macOS, and Linux
+- Orchestrated development process with technical team
 
-Cross-Platform Automation Suite
-- Built with PyInstaller for deployment on Windows, macOS, and Linux
-- Automated job search, application tracking, and follow-up emails
-- Integrated with 15+ job boards via API and web scraping
+Enterprise Automation Suite
+- Designed automation architecture for job search and application tracking
+- Directed integration with 15+ job boards via API and web services
+- Managed cross-platform deployment strategy
 
-AI Resume Analyzer & Optimizer
-- Machine learning model analyzing resume effectiveness
-- Provides suggestions for ATS optimization and keyword targeting
-- Used by 200+ job seekers with 90% satisfaction rate
+AI Performance Optimizer
+- Designed machine learning model architecture for resume analysis
+- Created optimization framework for ATS performance and keyword targeting
+- Guided implementation with measurable 90% user satisfaction
 
 PROFESSIONAL DEVELOPMENT
-- Continuous learning in AI/ML technologies and frameworks
-- Active contributor to open-source automation projects
-- Member: AI Developers Association, Python Software Foundation
+- Continuous learning in AI strategy and emerging technologies
+- Active participant in AI leadership and design communities
+- Member: AI Strategy Association, Technology Leadership Network
 
 REFERENCES
-Available upon request. Technical portfolio and code samples accessible via GitHub repository.
+Available upon request. Portfolio of designed solutions and architectural diagrams accessible via repository.
 """
             
             # Save to file
