@@ -49,6 +49,13 @@ def tailor_resume(resume_text: str, job_description: str, match_data: dict) -> s
     4. Optimize for ATS keywords from job description
     5. Keep factual tone - don't oversell
     6. Preserve original accomplishments and metrics
+    7. Optimize for ATS (Applicant Tracking Systems) by default:
+       - Use standard section headers (Experience, Education, Skills)
+       - Avoid tables, columns, or complex layouts
+       - Use simple bullet points and clear formatting
+       - Place keywords in natural contexts
+       - Maintain chronological structure
+       - Use standard punctuation and spacing
     
     Return ONLY the tailored resume text.
     """
