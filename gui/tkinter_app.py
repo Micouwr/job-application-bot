@@ -715,32 +715,62 @@ BEST PRACTICES:
                     text_content = re.sub(r'(\w+)\s*\n\s*(@)\s*\n\s*(\w+)', r'\1\2\3', text_content)  # Fix email splits
                     text_content = re.sub(r'(\w+@\w+)\s*\n\s*(\w+\.\w+)', r'\1.\2', text_content)  # Fix email domain splits
                     
-                    # Handle common resume sections that should stay together
-                    # Join lines that are likely parts of the same section
+                    # Reconstruct resume text with better paragraph structure
+                    # Split into lines but intelligently join where appropriate
                     lines = text_content.split('\n')
-                    processed_lines = []
+                    reconstructed_lines = []
                     i = 0
+                    
+                    # Define resume section headers that should start on new lines
+                    section_headers = ['summary', 'experience', 'education', 'skills', 'projects', 'certifications', 
+                                     'professional summary', 'work experience', 'professional experience',
+                                     'technical skills', 'core capabilities', 'ai projects']
+                    
                     while i < len(lines):
                         current_line = lines[i].strip()
                         if not current_line:
                             i += 1
                             continue
-                            
-                        # Check if this might be a continuation of previous line
-                        # For short lines that might be continuations
-                        if i + 1 < len(lines) and len(current_line) < 30 and not any(x in current_line.lower() for x in ['summary', 'experience', 'education', 'skills', 'projects', 'certifications']):
-                            # Look ahead to see if next line continues the thought
-                            next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
-                            if next_line and len(next_line) < 50 and not any(x in next_line.lower() for x in ['summary', 'experience', 'education', 'skills', 'projects', 'certifications']):
-                                # Join these lines if they seem like they belong together
-                                processed_lines.append(current_line + ' ' + next_line)
-                                i += 2
-                                continue
                         
-                        processed_lines.append(current_line)
-                        i += 1
+                        # Check if this line is a section header
+                        is_section_header = any(header in current_line.lower() for header in section_headers)
+                        
+                        if is_section_header:
+                            # Section headers should be on their own line
+                            reconstructed_lines.append(current_line)
+                            i += 1
+                        else:
+                            # Build a paragraph by joining lines until we hit a blank line or section header
+                            paragraph = current_line
+                            i += 1
+                            
+                            while i < len(lines):
+                                next_line = lines[i].strip()
+                                
+                                # Stop joining if we hit a blank line
+                                if not next_line:
+                                    i += 1
+                                    break
+                                
+                                # Stop joining if next line is a section header
+                                if any(header in next_line.lower() for header in section_headers):
+                                    break
+                                
+                                # Stop joining if next line looks like a job title (contains years like '2018–2025')
+                                if any(char.isdigit() for char in next_line) and ('–' in next_line or '-' in next_line):
+                                    break
+                                
+                                # Stop joining if next line starts with special characters like ● ○ §
+                                if next_line.startswith(('●', '○', '§', '•', '-', '—', '|')):
+                                    break
+                                
+                                # Join this line to the paragraph
+                                paragraph += ' ' + next_line
+                                i += 1
+                            
+                            reconstructed_lines.append(paragraph)
                     
-                    text_content = '\n'.join(processed_lines)
+                    text_content = '\n'.join(reconstructed_lines)
                     
                     # Fix specific known word splits that are common in PDF extraction
                     text_content = re.sub(r'Oper\s+ations', r'Operations', text_content)  # Fix "Oper ations"
