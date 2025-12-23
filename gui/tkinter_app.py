@@ -715,16 +715,16 @@ BEST PRACTICES:
                     text_content = re.sub(r'(\w+)\s*\n\s*(@)\s*\n\s*(\w+)', r'\1\2\3', text_content)  # Fix email splits
                     text_content = re.sub(r'(\w+@\w+)\s*\n\s*(\w+\.\w+)', r'\1.\2', text_content)  # Fix email domain splits
                     
-                    # Reconstruct resume text with better paragraph structure
-                    # Split into lines but intelligently join where appropriate
+                    # Simpler approach: Join most lines that don't look like headers or special items
                     lines = text_content.split('\n')
-                    reconstructed_lines = []
+                    processed_lines = []
                     i = 0
                     
-                    # Define resume section headers that should start on new lines
+                    # Define resume section headers that should be on separate lines
                     section_headers = ['summary', 'experience', 'education', 'skills', 'projects', 'certifications', 
                                      'professional summary', 'work experience', 'professional experience',
-                                     'technical skills', 'core capabilities', 'ai projects']
+                                     'technical skills', 'core capabilities', 'ai projects',
+                                     'professional experience', 'education & certifications']
                     
                     while i < len(lines):
                         current_line = lines[i].strip()
@@ -733,44 +733,47 @@ BEST PRACTICES:
                             continue
                         
                         # Check if this line is a section header
-                        is_section_header = any(header in current_line.lower() for header in section_headers)
+                        is_section_header = any(header in current_line.lower() for header in section_headers) or \
+                                          current_line.isupper() and len(current_line) <= 50  # Likely a section header if all caps and short
                         
-                        if is_section_header:
-                            # Section headers should be on their own line
-                            reconstructed_lines.append(current_line)
+                        # Check if this line is a job entry (contains years)
+                        is_job_entry = any(char.isdigit() for char in current_line) and ('–' in current_line or '-' in current_line)
+                        
+                        # Check if this line starts with special characters (bullets, etc.)
+                        is_list_item = current_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
+                        
+                        if is_section_header or is_job_entry or is_list_item:
+                            # These should remain on separate lines
+                            processed_lines.append(current_line)
                             i += 1
                         else:
-                            # Build a paragraph by joining lines until we hit a blank line or section header
+                            # Join this line and subsequent lines that don't look like headers
                             paragraph = current_line
                             i += 1
                             
                             while i < len(lines):
                                 next_line = lines[i].strip()
                                 
-                                # Stop joining if we hit a blank line
                                 if not next_line:
                                     i += 1
-                                    break
+                                    continue  # Skip blank lines but keep joining
                                 
-                                # Stop joining if next line is a section header
-                                if any(header in next_line.lower() for header in section_headers):
-                                    break
+                                # Check if next line should start a new paragraph
+                                next_is_header = any(header in next_line.lower() for header in section_headers) or \
+                                              next_line.isupper() and len(next_line) <= 50
+                                next_is_job = any(char.isdigit() for char in next_line) and ('–' in next_line or '-' in next_line)
+                                next_is_list = next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
                                 
-                                # Stop joining if next line looks like a job title (contains years like '2018–2025')
-                                if any(char.isdigit() for char in next_line) and ('–' in next_line or '-' in next_line):
-                                    break
+                                if next_is_header or next_is_job or next_is_list:
+                                    break  # Start a new paragraph
                                 
-                                # Stop joining if next line starts with special characters like ● ○ §
-                                if next_line.startswith(('●', '○', '§', '•', '-', '—', '|')):
-                                    break
-                                
-                                # Join this line to the paragraph
+                                # Join this line to the current paragraph
                                 paragraph += ' ' + next_line
                                 i += 1
                             
-                            reconstructed_lines.append(paragraph)
+                            processed_lines.append(paragraph)
                     
-                    text_content = '\n'.join(reconstructed_lines)
+                    text_content = '\n'.join(processed_lines)
                     
                     # Fix specific known word splits that are common in PDF extraction
                     text_content = re.sub(r'Oper\s+ations', r'Operations', text_content)  # Fix "Oper ations"
