@@ -811,6 +811,16 @@ BEST PRACTICES:
             # Add to database and set as active
             self.resume_model.add_resume(file_path, name, is_active=True)
             self._refresh_resume_list()
+            
+            # Load the preview with the processed content
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    self.resume_preview.delete('1.0', tk.END)
+                    self.resume_preview.insert('1.0', content)
+            except Exception as e:
+                self._log_message(f"Error loading resume preview after upload: {e}", "error")
+            
             self._log_message(f"Resume uploaded successfully: {name} (set as active)", "info")
             
         except Exception as e:
