@@ -380,7 +380,7 @@ Available upon request. Portfolio of designed solutions and architectural diagra
         
         # Resume Preview Section
         ttk.Label(tab, text="Resume Preview:", style='Bold.TLabel').grid(row=3, column=0, sticky=tk.W, pady=(15, 5))
-        self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD, font=('Arial', 10))
+        self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD, font=('Courier New', 10))
         # Configure the text widget to have better visual appearance
         self.resume_preview.config(padx=15, pady=15)
         self.resume_preview.grid(row=4, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
