@@ -253,7 +253,7 @@ Available upon request. Portfolio of designed solutions and architectural diagra
         role_combo.grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
         # Add tooltip with enhanced role definitions
-        role_tooltip = "ROLE LEVEL DEFINITIONS:\n\n"
+        role_tooltip = "ROLE LEVEL DEFINITIONS & USAGE:\n\n"
         role_tooltip += "STANDARD (0-5 years experience):\n"
         role_tooltip += "* Focus on core technical skills and direct contributions\n"
         role_tooltip += "* Primary responsibilities include hands-on work and task execution\n"
@@ -273,10 +273,19 @@ Available upon request. Portfolio of designed solutions and architectural diagra
         role_tooltip += "* Sets technical direction for large-scale initiatives\n"
         role_tooltip += "* Influences organizational strategy and innovation\n"
         role_tooltip += "* Represents company externally at conferences and industry events\n\n"
-        role_tooltip += "HOW TO CHOOSE:\n"
+        role_tooltip += "HOW TO CHOOSE ROLE LEVEL:\n"
         role_tooltip += "* Match the role level to the job posting requirements\n"
         role_tooltip += "* When in doubt, start with STANDARD and adjust based on match scores\n"
-        role_tooltip += "* Higher role levels require demonstrated leadership experience"
+        role_tooltip += "* Higher role levels require demonstrated leadership experience\n\n"
+        role_tooltip += "RELATIONSHIP TO CUSTOM PROMPTS:\n"
+        role_tooltip += "* Role level determines base template used for tailoring\n"
+        role_tooltip += "* Custom prompts are applied IN ADDITION to role level adjustments\n"
+        role_tooltip += "* Custom prompts can override or enhance role-level behavior\n"
+        role_tooltip += "* Both work together: Role level + Custom prompt = Final output\n\n"
+        role_tooltip += "BEST PRACTICES:\n"
+        role_tooltip += "* Use role level for general experience level matching\n"
+        role_tooltip += "* Use custom prompts for specific company/role requirements\n"
+        role_tooltip += "* Test both together to ensure desired results"
         role_combo.tooltip = role_tooltip
         
         # Bind hover event to show tooltip
@@ -679,12 +688,18 @@ BEST PRACTICES:
                     # Normalize text to fix common PDF extraction issues
                     # Remove excessive line breaks and fix word splits
                     import re
+                    # First, fix common word splits across lines
+                    text_content = re.sub(r'([a-zA-Z])-\n([a-zA-Z])', r'\1\2', text_content)  # Join hyphenated words
+                    # Fix names that might be split into individual letters
+                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\4\5\6\n', text_content)  # Fix 6-letter names like WILLIAM
+                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\4\5\n', text_content)  # Fix 5-letter names
+                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\4\n', text_content)  # Fix 4-letter names
+                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\n', text_content)  # Fix 3-letter names
+                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n', r'\1\2\n', text_content)  # Fix 2-letter names
                     # Replace multiple consecutive newlines with a single newline
                     text_content = re.sub(r'\n+', '\n', text_content)
-                    # Fix common word splitting issues by joining hyphenated words at line breaks
-                    text_content = re.sub(r'([a-zA-Z])-\n([a-zA-Z])', r'\1\2', text_content)
-                    # Remove isolated single characters that were split
-                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1 \2\n\3\n', text_content)  # Fix split names like W-I-L-L-I-A-M
+                    # Fix any remaining excessive spacing
+                    text_content = re.sub(r'\n\s+\n', '\n', text_content)
                     
                     # Save as text file
                     txt_path = OUTPUT_PATH / f"{name}.txt"
@@ -703,10 +718,10 @@ BEST PRACTICES:
                     self._log_message(f"PDF processing error: {e}", "error")
                     return
             
-            # Add to database
-            self.resume_model.add_resume(file_path, name, is_active=False)
+            # Add to database and set as active
+            self.resume_model.add_resume(file_path, name, is_active=True)
             self._refresh_resume_list()
-            self._log_message(f"Resume uploaded successfully: {name}", "info")
+            self._log_message(f"Resume uploaded successfully: {name} (set as active)", "info")
             
         except Exception as e:
             self._log_message(f"Error uploading resume: {e}", "error")
