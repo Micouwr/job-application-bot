@@ -691,11 +691,18 @@ BEST PRACTICES:
                     # First, fix common word splits across lines
                     text_content = re.sub(r'([a-zA-Z])-\n([a-zA-Z])', r'\1\2', text_content)  # Join hyphenated words
                     # Fix names that might be split into individual letters
-                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\4\5\6\n', text_content)  # Fix 6-letter names like WILLIAM
+                    text_content = re.sub(r'([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])', r'\1\2\3\4\5\6\7', text_content)  # Fix 7-letter names
+                    text_content = re.sub(r'([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])', r'\1\2\3\4\5\6', text_content)  # Fix 6-letter names like WILLIAM
                     text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\4\5\n', text_content)  # Fix 5-letter names
                     text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\4\n', text_content)  # Fix 4-letter names
                     text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\n', text_content)  # Fix 3-letter names
                     text_content = re.sub(r'\n([A-Z])\n([A-Z])\n', r'\1\2\n', text_content)  # Fix 2-letter names
+                    
+                    # Also fix potential spaces inserted in the middle of names
+                    text_content = re.sub(r'(WILL)\s+(IAM)', r'WILLIAM', text_content)  # Fix WILL I AM
+                    text_content = re.sub(r'(WILLI)\s+(AM)', r'WILLIAM', text_content)  # Fix WILLI AM
+                    text_content = re.sub(r'(RYA)\s+(N)', r'RYAN', text_content)  # Fix RYA N
+                    
                     # Replace multiple consecutive newlines with a single newline
                     text_content = re.sub(r'\n+', '\n', text_content)
                     # Fix any remaining excessive spacing
@@ -1638,11 +1645,11 @@ Format your response exactly as follows:
         
         # Configure treeview style to ensure clean column separation without interfering lines
         style = ttk.Style()
-        style.configure('Treeview.Heading', font=('Arial', 10, 'bold'), relief='raised')
+        style.configure('Treeview.Heading', font=('Arial', 10, 'bold'), relief='flat')
         # Ensure clean appearance without excessive separators
-        style.configure('Treeview', rowheight=25)
+        style.configure('Treeview', rowheight=25, borderwidth=0, relief='flat')
         
-        self.applications_tree.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        self.applications_tree.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
         # Add scrollbar
         scrollbar = ttk.Scrollbar(tab, orient=tk.VERTICAL, command=self.applications_tree.yview)

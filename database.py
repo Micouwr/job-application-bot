@@ -75,7 +75,12 @@ class DatabaseManager:
                         )
                     ''')
             else:
-                # Table already has match_score column, ensure it exists
+                # Table already has match_score column, check if match_summary exists
+                if 'match_summary' not in columns:
+                    # Add match_summary column if it doesn't exist
+                    conn.execute('ALTER TABLE applications ADD COLUMN match_summary TEXT')
+                
+                # Ensure the table exists (no-op if it already exists)
                 conn.execute('''
                     CREATE TABLE IF NOT EXISTS applications (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +91,7 @@ class DatabaseManager:
                         cover_letter_path TEXT,
                         job_description_path TEXT,
                         match_score INTEGER DEFAULT 0,
+                        match_summary TEXT,
                         status TEXT DEFAULT 'pending',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
