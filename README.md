@@ -2,7 +2,7 @@
 
 Intelligent Resume Tailoring for IT/DevOps/AI Governance Roles
 
-[Version: v2.3.0] [Python: 3.9+] [License: MIT]
+[Version: v2.3.0] [Python: 3.9+] [License: Dual MPL-2.0/Commercial]
 
 ---
 
@@ -189,6 +189,21 @@ Common issues and solutions:
 
 ---
 
-## License
+## Licensing
 
-MIT License - See LICENSE file for details
+CareerForge AI is available under two licensing options:
+
+### Open Source (MPL-2.0)
+- Free to use, modify, and distribute
+- Modifications must be open-sourced
+- Perfect for individual users and open-source projects
+
+### Commercial License
+- Paid license required for proprietary use
+- No requirement to open-source modifications
+- Includes priority support and additional features
+- Ideal for businesses and enterprise use
+
+For commercial licensing inquiries, please contact [your contact information].
+
+See LICENSE_MPL.md and LICENSE_COMMERCIAL.md for complete license terms.
