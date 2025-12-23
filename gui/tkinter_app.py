@@ -661,18 +661,25 @@ BEST PRACTICES:
                         # Identify and highlight section headers
                         is_header = line.strip().upper() == line.strip() and len(line.strip()) < 50 and not line.strip().endswith('.') and len(line.strip()) > 0
                         
+                        # Add extra spacing before headers for better visual separation
+                        if is_header and i > 0:  # Don't add before the very first line
+                            self.resume_preview.insert(tk.END, '\n')  # Add blank line before header
+                        
                         self.resume_preview.insert(tk.END, line + '\n')
+                        
                         if is_header:
                             # Tag headers to make them stand out
-                            start_pos = self.resume_preview.index(f"{i+1}.0")
-                            end_pos = self.resume_preview.index(f"{i+1}.end")
+                            # Get the position of the header line (after the blank line we added)
+                            header_line_num = i + 2 if i > 0 else i + 1  # Adjust for any added blank line
+                            start_pos = self.resume_preview.index(f"{header_line_num}.0")
+                            end_pos = self.resume_preview.index(f"{header_line_num}.end")
                             self.resume_preview.tag_add('header', start_pos, end_pos)
                     
                     # Configure header tags to make them stand out
-                    self.resume_preview.tag_config('header', font=('Arial', 11, 'bold'), foreground='blue', spacing1=8, spacing3=8)
+                    self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', spacing1=12, spacing3=12)
                     
                     # Add padding around the content
-                    self.resume_preview.config(padx=20, pady=20)
+                    self.resume_preview.config(padx=30, pady=30)
             except Exception as e:
                 self._log_message(f"Error loading resume preview: {e}", "error")
     
@@ -966,18 +973,25 @@ BEST PRACTICES:
                         # Identify and highlight section headers
                         is_header = line.strip().upper() == line.strip() and len(line.strip()) < 50 and not line.strip().endswith('.') and len(line.strip()) > 0
                         
+                        # Add extra spacing before headers for better visual separation
+                        if is_header and i > 0:  # Don't add before the very first line
+                            self.resume_preview.insert(tk.END, '\n')  # Add blank line before header
+                        
                         self.resume_preview.insert(tk.END, line + '\n')
+                        
                         if is_header:
                             # Tag headers to make them stand out
-                            start_pos = self.resume_preview.index(f"{i+1}.0")
-                            end_pos = self.resume_preview.index(f"{i+1}.end")
+                            # Get the position of the header line (after the blank line we added)
+                            header_line_num = i + 2 if i > 0 else i + 1  # Adjust for any added blank line
+                            start_pos = self.resume_preview.index(f"{header_line_num}.0")
+                            end_pos = self.resume_preview.index(f"{header_line_num}.end")
                             self.resume_preview.tag_add('header', start_pos, end_pos)
                     
                     # Configure header tags to make them stand out
-                    self.resume_preview.tag_config('header', font=('Arial', 11, 'bold'), foreground='blue', spacing1=8, spacing3=8)
+                    self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', spacing1=12, spacing3=12)
                     
                     # Add padding around the content
-                    self.resume_preview.config(padx=20, pady=20)
+                    self.resume_preview.config(padx=30, pady=30)
             except Exception as e:
                 self._log_message(f"Error loading resume preview after upload: {e}", "error")
             
