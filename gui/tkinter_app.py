@@ -698,10 +698,13 @@ BEST PRACTICES:
                     text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1\2\3\n', text_content)  # Fix 3-letter names
                     text_content = re.sub(r'\n([A-Z])\n([A-Z])\n', r'\1\2\n', text_content)  # Fix 2-letter names
                     
-                    # Also fix potential spaces inserted in the middle of names
+                    # Also fix potential spaces inserted in the middle of names and URLs
                     text_content = re.sub(r'(WILL)\s+(IAM)', r'WILLIAM', text_content)  # Fix WILL I AM
                     text_content = re.sub(r'(WILLI)\s+(AM)', r'WILLIAM', text_content)  # Fix WILLI AM
                     text_content = re.sub(r'(RYA)\s+(N)', r'RYAN', text_content)  # Fix RYA N
+                    # Fix LinkedIn URL that might be split
+                    text_content = re.sub(r'linkedin\.com/in/r\s+yanmicou', r'linkedin.com/in/ryanmicou', text_content)  # Fix split LinkedIn URL
+                    text_content = re.sub(r'linkedin\.com/in/(\w)\s+(\w+)', r'linkedin.com/in/\1\2', text_content)  # Fix general LinkedIn URL splits
                     
                     # Replace multiple consecutive newlines with a single newline
                     text_content = re.sub(r'\n+', '\n', text_content)
