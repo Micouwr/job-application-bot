@@ -814,6 +814,20 @@ BEST PRACTICES:
                     text_content = text_content.replace('Code Louisville', 'CodeLouisville')  # Fix "Code Louisville"
                     text_content = text_content.replace('Comp TIA', 'CompTIA')  # Fix "Comp TIA"
                     
+                    # Additional fixes for remaining word splits
+                    text_content = re.sub(r'infrastructur\s+es', r'infrastructure', text_content)
+                    text_content = re.sub(r'high-v\s+olume', r'high-volume', text_content)
+                    text_content = re.sub(r'oper\s+ations', r'operations', text_content)
+                    text_content = re.sub(r'oper\s+ational', r'operational', text_content)
+                    text_content = re.sub(r'high-le\s+verage', r'high-leverage', text_content)
+                    text_content = re.sub(r'oppor\s+tunities', r'opportunities', text_content)
+                    text_content = re.sub(r'deliv\s+ering', r'delivering', text_content)
+                    text_content = re.sub(r'time-t\s+o-mill', r'time-to-mill', text_content)
+                    text_content = re.sub(r'workﬂow', r'workflow', text_content)  # Fix special character
+                    text_content = re.sub(r'Py\s+Installer', r'PyInstaller', text_content)
+                    text_content = re.sub(r'ina\s+regulated', r'in a regulated', text_content)
+                    text_content = re.sub(r'Createda', r'Created a', text_content)
+                    
                     # Replace multiple consecutive newlines with a single newline for remaining cases
                     text_content = re.sub(r'\n+', '\n', text_content)
                     # Fix any remaining excessive spacing
