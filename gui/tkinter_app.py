@@ -706,7 +706,43 @@ BEST PRACTICES:
                     text_content = re.sub(r'linkedin\.com/in/r\s+yanmicou', r'linkedin.com/in/ryanmicou', text_content)  # Fix split LinkedIn URL
                     text_content = re.sub(r'linkedin\.com/in/(\w)\s+(\w+)', r'linkedin.com/in/\1\2', text_content)  # Fix general LinkedIn URL splits
                     
-                    # Replace multiple consecutive newlines with a single newline
+                    # Improve resume formatting by intelligently handling line breaks
+                    # First, handle phone numbers that might be split
+                    text_content = re.sub(r'(\(\d{3}\))\s*\n\s*(\d{3})', r'\1 \2', text_content)  # Fix phone: (502)\n777 -> (502) 777
+                    text_content = re.sub(r'(\d{3})\s*\n\s*(\d{3})\s*\n\s*(\d{4})', r'\1-\2-\3', text_content)  # Fix phone: 502\n777\n7526 -> 502-777-7526
+                    
+                    # Handle email addresses that might be split
+                    text_content = re.sub(r'(\w+)\s*\n\s*(@)\s*\n\s*(\w+)', r'\1\2\3', text_content)  # Fix email splits
+                    text_content = re.sub(r'(\w+@\w+)\s*\n\s*(\w+\.\w+)', r'\1.\2', text_content)  # Fix email domain splits
+                    
+                    # Handle common resume sections that should stay together
+                    # Join lines that are likely parts of the same section
+                    lines = text_content.split('\n')
+                    processed_lines = []
+                    i = 0
+                    while i < len(lines):
+                        current_line = lines[i].strip()
+                        if not current_line:
+                            i += 1
+                            continue
+                            
+                        # Check if this might be a continuation of previous line
+                        # For short lines that might be continuations
+                        if i + 1 < len(lines) and len(current_line) < 30 and not any(x in current_line.lower() for x in ['summary', 'experience', 'education', 'skills', 'projects', 'certifications']):
+                            # Look ahead to see if next line continues the thought
+                            next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+                            if next_line and len(next_line) < 50 and not any(x in next_line.lower() for x in ['summary', 'experience', 'education', 'skills', 'projects', 'certifications']):
+                                # Join these lines if they seem like they belong together
+                                processed_lines.append(current_line + ' ' + next_line)
+                                i += 2
+                                continue
+                        
+                        processed_lines.append(current_line)
+                        i += 1
+                    
+                    text_content = '\n'.join(processed_lines)
+                    
+                    # Replace multiple consecutive newlines with a single newline for remaining cases
                     text_content = re.sub(r'\n+', '\n', text_content)
                     # Fix any remaining excessive spacing
                     text_content = re.sub(r'\n\s+\n', '\n', text_content)
