@@ -87,7 +87,14 @@ class JobAppTkinter:
             # Try different icon formats based on platform
             icon_path = Path(__file__).parent.parent / "assets"
             
-            # Try new CareerForge AI ICO format (Windows) first
+            # Try PNG format first for cross-platform compatibility (macOS prefers this)
+            png_path = icon_path / "CareerForge_AI.png"
+            if png_path.exists() and png_path.stat().st_size > 0:  # Check if file is not empty
+                icon_image = tk.PhotoImage(file=str(png_path))
+                self.master.iconphoto(True, icon_image)
+                return
+            
+            # Try new CareerForge AI ICO format (Windows)
             careerforge_ico = icon_path / "CareerForge_AI.ico"
             if careerforge_ico.exists():
                 self.master.iconbitmap(str(careerforge_ico))
@@ -99,14 +106,7 @@ class JobAppTkinter:
                 self.master.iconbitmap(str(ico_path))
                 return
             
-            # Try PNG format as fallback for cross-platform compatibility
-            png_path = icon_path / "CareerForge_AI.png"
-            if png_path.exists() and png_path.stat().st_size > 0:  # Check if file is not empty
-                icon_image = tk.PhotoImage(file=str(png_path))
-                self.master.iconphoto(True, icon_image)
-                return
-            
-            # Fallback to computer.png if CareerForge_AI.png doesn't exist
+            # Fallback to computer.png
             fallback_png = icon_path / "computer.png"
             if fallback_png.exists() and fallback_png.stat().st_size > 0:  # Check if file is not empty
                 icon_image = tk.PhotoImage(file=str(fallback_png))
@@ -675,6 +675,16 @@ BEST PRACTICES:
                         text_content = ""
                         for page in pdf_reader.pages:
                             text_content += page.extract_text() + "\n"
+                    
+                    # Normalize text to fix common PDF extraction issues
+                    # Remove excessive line breaks and fix word splits
+                    import re
+                    # Replace multiple consecutive newlines with a single newline
+                    text_content = re.sub(r'\n+', '\n', text_content)
+                    # Fix common word splitting issues by joining hyphenated words at line breaks
+                    text_content = re.sub(r'([a-zA-Z])-\n([a-zA-Z])', r'\1\2', text_content)
+                    # Remove isolated single characters that were split
+                    text_content = re.sub(r'\n([A-Z])\n([A-Z])\n([A-Z])\n', r'\1 \2\n\3\n', text_content)  # Fix split names like W-I-L-L-I-A-M
                     
                     # Save as text file
                     txt_path = OUTPUT_PATH / f"{name}.txt"
