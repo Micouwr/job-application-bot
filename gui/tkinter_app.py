@@ -801,8 +801,18 @@ BEST PRACTICES:
                     # Handle general case of single character splits within words
                     text_content = re.sub(r'(\w{3,})\s+(\w)\s+(\w{3,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
                     
-                    # Finally, fix any remaining two-word concatenations that should be separated
+                    # Fix any remaining two-word concatenations that should be separated
                     text_content = re.sub(r'([a-z])([A-Z])', r'\1 \2', text_content)  # Insert space between lowercase and uppercase: 'deliveryProven' -> 'delivery Proven'
+                    
+                    # Final cleanup: fix any remaining obvious word splits that we can identify
+                    text_content = text_content.replace('aregulated', 'a regulated')  # Fix "aregulated"
+                    text_content = text_content.replace('acentralized', 'a centralized')  # Fix "acentralized"
+                    text_content = text_content.replace('deploycust om', 'deploy cust om')  # Fix "deploycust om"
+                    text_content = text_content.replace('Saa S', 'SaaS')  # Fix "Saa S"
+                    text_content = text_content.replace('Compu Com', 'CompuCom')  # Fix "Compu Com"
+                    text_content = text_content.replace('Accu Code', 'AccuCode')  # Fix "Accu Code"
+                    text_content = text_content.replace('Code Louisville', 'CodeLouisville')  # Fix "Code Louisville"
+                    text_content = text_content.replace('Comp TIA', 'CompTIA')  # Fix "Comp TIA"
                     
                     # Replace multiple consecutive newlines with a single newline for remaining cases
                     text_content = re.sub(r'\n+', '\n', text_content)
