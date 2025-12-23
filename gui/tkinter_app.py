@@ -87,18 +87,6 @@ class JobAppTkinter:
             # Try different icon formats based on platform
             icon_path = Path(__file__).parent.parent / "assets"
             
-            # Try new CareerForge AI ICNS format (macOS) first
-            careerforge_icns = icon_path / "CareerForge_AI.icns"
-            if careerforge_icns.exists():
-                # tkinter can't directly use ICNS, but we can try to load it
-                try:
-                    icon_image = tk.PhotoImage(file=str(careerforge_icns))
-                    self.master.iconphoto(True, icon_image)
-                    return
-                except:
-                    # If CareerForge ICNS fails, continue to other options
-                    pass
-            
             # Try new CareerForge AI ICO format (Windows) first
             careerforge_ico = icon_path / "CareerForge_AI.ico"
             if careerforge_ico.exists():
@@ -111,22 +99,17 @@ class JobAppTkinter:
                 self.master.iconbitmap(str(ico_path))
                 return
             
-            # Try legacy ICNS format (macOS)
-            icns_path = icon_path / "icon.icns"
-            if icns_path.exists():
-                # tkinter can't directly use ICNS, but we can try to load it
-                try:
-                    icon_image = tk.PhotoImage(file=str(icns_path))
-                    self.master.iconphoto(True, icon_image)
-                    return
-                except:
-                    # If ICNS fails, continue to other options
-                    pass
-            
-            # Try PNG format as fallback
-            png_path = icon_path / "computer.png"
+            # Try PNG format as fallback for cross-platform compatibility
+            png_path = icon_path / "CareerForge_AI.png"
             if png_path.exists() and png_path.stat().st_size > 0:  # Check if file is not empty
                 icon_image = tk.PhotoImage(file=str(png_path))
+                self.master.iconphoto(True, icon_image)
+                return
+            
+            # Fallback to computer.png if CareerForge_AI.png doesn't exist
+            fallback_png = icon_path / "computer.png"
+            if fallback_png.exists() and fallback_png.stat().st_size > 0:  # Check if file is not empty
+                icon_image = tk.PhotoImage(file=str(fallback_png))
                 self.master.iconphoto(True, icon_image)
                 return
                 
@@ -828,11 +811,18 @@ BEST PRACTICES:
         try:
             # Call AI match analyzer
         # Note: AI scores may vary slightly between runs due to the non-deterministic nature of language models
-            self.status_label.config(text="Analyzing match...")
+            # Show visual feedback that analysis is in progress
+            original_text = self.analyze_button.cget("text")
+            self.analyze_button.config(text="Analyzing...", state='disabled')
+            self.status_label.config(text="Analyzing match with AI... Please wait")
             self.master.update_idletasks()
             
             self.match_data = analyze_match(resume_text, job_description)
             score = self.match_data.get('overall_score', 0)
+            
+            # Restore button and show results
+            self.analyze_button.config(text=original_text, state='normal')
+            self.status_label.config(text="Analysis complete")
             
             # Update match display
             self.match_label.config(text=f"Match Score: {score}%")
@@ -1085,7 +1075,8 @@ RECOMMENDATIONS:
                 job_title,
                 company,
                 job_description,
-                match_score
+                match_score,
+                self.match_data  # Pass the full match summary data
             )
             
             # Clear fields
@@ -1122,10 +1113,26 @@ RECOMMENDATIONS:
         
         # Source-specific instructions
         self.import_instructions = ttk.Label(tab, 
-                                          text="Paste job description text below:", 
-                                          wraplength=500, 
+                                          text="Select import source type and paste the job content below. See instructions for each source type.", 
+                                          wraplength=600, 
                                           justify=tk.LEFT,
                                           font=('Arial', 10))
+        self.import_instructions.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
+        # Detailed instructions label
+        instructions_detail = ttk.Label(tab, 
+                                      text="\nHow to use Import Job:\n" +
+                                            "• Plain Text: Copy and paste job description from any source\n" +
+                                            "• LinkedIn HTML: Copy HTML source of LinkedIn job posting (Ctrl+U in browser)\n" +
+                                            "• Email Content: Copy entire email content including subject line\n\n" +
+                                            "After importing, the job details will automatically populate in the Job Management tab.",
+                                      wraplength=600, 
+                                      justify=tk.LEFT,
+                                      font=('Arial', 9),
+                                      foreground='gray')
+        instructions_detail.grid(row=3, column=0, columnspan=3, sticky=tk.W, pady=5)
+        
+        # Update instructions label row
         self.import_instructions.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=5)
         
         # Bind to update instructions when source changes
@@ -1599,9 +1606,9 @@ Format your response exactly as follows:
         self.applications_tree.heading('Company', text='Company')
         self.applications_tree.heading('Date', text='Date')
         
-        self.applications_tree.column('Job Title', width=200)
+        self.applications_tree.column('Job Title', width=250)
         self.applications_tree.column('Company', width=200)
-        self.applications_tree.column('Date', width=200)  # Further increased width to prevent header cutoff
+        self.applications_tree.column('Date', width=150)  # Set specific width for date to prevent formatting issues
         
         self.applications_tree.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
@@ -1622,10 +1629,10 @@ Format your response exactly as follows:
         self.job_description_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Arial', 10))
         self.job_description_text.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5), pady=5)
         
-        self.tailored_resume_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Arial', 10))
+        self.tailored_resume_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Courier New', 10), padx=5, pady=5)
         self.tailored_resume_text.grid(row=4, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 5), pady=5)
         
-        self.cover_letter_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Arial', 10))
+        self.cover_letter_text = scrolledtext.ScrolledText(tab, width=35, height=20, wrap=tk.WORD, font=('Courier New', 10), padx=5, pady=5)
         self.cover_letter_text.grid(row=4, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0), pady=5)
         
         # Export section
@@ -2110,7 +2117,7 @@ COVER LETTER
             messagebox.showerror("Delete Error", f"Failed to delete application: {str(e)}")
             self._log_message(f"Delete error: {e}", "error")
     
-    def save_outputs(self, tailored_resume, cover_letter, job_title, company, job_description, match_score=0):
+    def save_outputs(self, tailored_resume, cover_letter, job_title, company, job_description, match_score=0, match_summary=None):
         """Save tailored documents to output folder and show user where they are"""
         try:
             # Create timestamp
@@ -2147,7 +2154,8 @@ COVER LETTER
                 resume_path=str(resume_path),
                 cover_letter_path=str(cover_letter_path),
                 job_description_path=str(job_description_path),
-                match_score=match_score
+                match_score=match_score,
+                match_summary=json.dumps(match_summary) if match_summary else None
             )
             
             # SHOW USER WHERE FILES ARE SAVED (Fix #2)

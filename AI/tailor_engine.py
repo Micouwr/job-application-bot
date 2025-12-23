@@ -49,7 +49,8 @@ def tailor_resume(resume_text: str, job_description: str, match_data: dict) -> s
     4. Optimize for ATS keywords from job description
     5. Keep factual tone - don't oversell
     6. Preserve original accomplishments and metrics
-    7. Optimize for ATS (Applicant Tracking Systems) by default:
+    7. CRITICAL: Preserve all personal names exactly as they appear in the original resume - do not truncate, modify, or split names
+    8. Optimize for ATS (Applicant Tracking Systems) by default:
        - Use standard section headers (Experience, Education, Skills)
        - Avoid tables, columns, or complex layouts
        - Use simple bullet points and clear formatting
@@ -114,8 +115,23 @@ def generate_cover_letter(resume_text: str, job_description: str, match_data: di
     3. Connect past experience to job requirements
     4. Professional, concise tone
     5. No generic statements
+    6. CRITICAL: Extract and preserve personal names exactly as they appear in the original resume - do not truncate, modify, or split names
+    7. Include proper cover letter header with personal information extracted from resume:
+       - Name (extract from top of resume)
+       - Phone number (if present in resume)
+       - Email address (if present in resume)
+       - LinkedIn profile URL (if present in resume)
+       - Address (if present in resume)
+    8. Format header as:
+       [Name]
+       [Address]
+       [Phone Number]
+       [Email]
+       [LinkedIn Profile URL]
+       
+       [Date]
     
-    Return ONLY the cover letter text.
+    Return ONLY the cover letter text with proper header.
     """
     
     if DIAGNOSTIC_MODE:

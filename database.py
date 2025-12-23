@@ -30,6 +30,7 @@ class DatabaseManager:
                             cover_letter_path TEXT,
                             job_description_path TEXT,
                             match_score INTEGER DEFAULT 0,
+                            match_summary TEXT,
                             status TEXT DEFAULT 'pending',
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -67,6 +68,7 @@ class DatabaseManager:
                             cover_letter_path TEXT,
                             job_description_path TEXT,
                             match_score INTEGER DEFAULT 0,
+                            match_summary TEXT,
                             status TEXT DEFAULT 'pending',
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -102,13 +104,13 @@ class DatabaseManager:
             
             conn.commit()
     
-    def add_application(self, job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path=None, match_score=0):
+    def add_application(self, job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path=None, match_score=0, match_summary=None):
         """Add a new job application"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute('''
-                INSERT INTO applications (job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path, match_score)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path, match_score))
+                INSERT INTO applications (job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path, match_score, match_summary)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (job_title, company_name, job_url, resume_path, cover_letter_path, job_description_path, match_score, match_summary))
             
             conn.commit()
             return cursor.lastrowid
