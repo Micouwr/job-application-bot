@@ -742,6 +742,20 @@ BEST PRACTICES:
                     
                     text_content = '\n'.join(processed_lines)
                     
+                    # Fix specific known word splits that are common in PDF extraction
+                    text_content = re.sub(r'Oper\s+ations', r'Operations', text_content)  # Fix "Oper ations"
+                    text_content = re.sub(r'compr\s+ehensiv\s+e', r'comprehensive', text_content)  # Fix "compr ehensiv e"
+                    text_content = re.sub(r'envir\s+onments', r'environments', text_content)  # Fix "envir onments"
+                    text_content = re.sub(r'deliv\s+ery', r'delivery', text_content)  # Fix "deliv ery"
+                    text_content = re.sub(r'procedur\s+es', r'procedures', text_content)  # Fix "procedur es"
+                    text_content = re.sub(r'work\s+ﬂow', r'workflow', text_content)  # Fix "workﬂow" with special character
+                    text_content = re.sub(r'conﬁgurations', r'configurations', text_content)  # Fix special character 'ﬁ'
+                    text_content = re.sub(r'certiﬁed', r'certified', text_content)  # Fix special character 'ﬁ'
+                    text_content = re.sub(r'certiﬁcations', r'certifications', text_content)  # Fix special character 'ﬁ'
+                    
+                    # Handle general case of single character splits within words
+                    text_content = re.sub(r'(\w{2,})\s+(\w)\s+(\w{2,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
+                    
                     # Replace multiple consecutive newlines with a single newline for remaining cases
                     text_content = re.sub(r'\n+', '\n', text_content)
                     # Fix any remaining excessive spacing
