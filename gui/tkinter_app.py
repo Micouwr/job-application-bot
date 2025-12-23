@@ -870,70 +870,7 @@ BEST PRACTICES:
                     
                     text_content = '\n'.join(processed_lines)
                     
-                    # Fix specific known word splits that are common in PDF extraction
-                    text_content = re.sub(r'Oper\s+ations', r'Operations', text_content)  # Fix "Oper ations"
-                    text_content = re.sub(r'compr\s+ehensiv\s+e', r'comprehensive', text_content)  # Fix "compr ehensiv e"
-                    text_content = re.sub(r'envir\s+onments', r'environments', text_content)  # Fix "envir onments"
-                    text_content = re.sub(r'deliv\s+ery', r'delivery', text_content)  # Fix "deliv ery"
-                    text_content = re.sub(r'procedur\s+es', r'procedures', text_content)  # Fix "procedur es"
-                    text_content = re.sub(r'work\s+ﬂow', r'workflow', text_content)  # Fix "workﬂow" with special character
-                    text_content = re.sub(r'conﬁgurations', r'configurations', text_content)  # Fix special character 'ﬁ'
-                    text_content = re.sub(r'certiﬁed', r'certified', text_content)  # Fix special character 'ﬁ'
-                    text_content = re.sub(r'certiﬁcations', r'certifications', text_content)  # Fix special character 'ﬁ'
-                    
-                    # Fix common concatenated words that appear in PDF extraction
-                    text_content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', text_content)  # Fix "Managedateam"
-                    text_content = re.sub(r'aregulated', r'a regulated', text_content)  # Fix "aregulated"
-                    text_content = re.sub(r'acentralized', r'a centralized', text_content)  # Fix "acentralized"
-                    
-                    # Fix other common concatenated words
-                    text_content = re.sub(r'deploy([a-z]+)om', r'deploy \1 om', text_content)  # Fix "deploycust om"
-                    
-                    # Fix common patterns where spaces were incorrectly inserted in the middle of words
-                    text_content = re.sub(r'(\w{2,})-\s+(\w{2,})', r'\1-\2', text_content)  # Fix "high-v olume" -> "high-volume"
-                    text_content = re.sub(r'(\w{2,})\s+([a-z])\s+(\w{2,})', r'\1\2\3', text_content)  # Fix "oper ations" -> "operations"
-                    
-                    # Fix specific issues from current output
-                    text_content = re.sub(r'cust\s+om', r'custom', text_content)  # Fix "cust om" -> "custom"
-                    text_content = re.sub(r'Manage\s+da', r'Managed a', text_content)  # Fix "Manage da" -> "Managed a"
-                    
-                    # Handle general case of single character splits within words
-                    text_content = re.sub(r'(\w{3,})\s+(\w)\s+(\w{3,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
-                    
-                    # Fix any remaining two-word concatenations that should be separated
-                    text_content = re.sub(r'([a-z])([A-Z])', r'\1 \2', text_content)  # Insert space between lowercase and uppercase: 'deliveryProven' -> 'delivery Proven'
-                    
-                    # Final cleanup: fix any remaining obvious word splits that we can identify
-                    text_content = text_content.replace('aregulated', 'a regulated')  # Fix "aregulated"
-                    text_content = text_content.replace('acentralized', 'a centralized')  # Fix "acentralized"
-                    text_content = text_content.replace('deploycust om', 'deploy cust om')  # Fix "deploycust om"
-                    text_content = text_content.replace('Saa S', 'SaaS')  # Fix "Saa S"
-                    text_content = text_content.replace('Compu Com', 'CompuCom')  # Fix "Compu Com"
-                    text_content = text_content.replace('Accu Code', 'AccuCode')  # Fix "Accu Code"
-                    text_content = text_content.replace('Code Louisville', 'CodeLouisville')  # Fix "Code Louisville"
-                    text_content = text_content.replace('Comp TIA', 'CompTIA')  # Fix "Comp TIA"
-                    
-                    # Additional fixes for remaining word splits
-                    text_content = re.sub(r'infrastructur\s+es', r'infrastructure', text_content)
-                    text_content = re.sub(r'high-v\s+olume', r'high-volume', text_content)
-                    text_content = re.sub(r'oper\s+ations', r'operations', text_content)
-                    text_content = re.sub(r'oper\s+ational', r'operational', text_content)
-                    text_content = re.sub(r'high-le\s+verage', r'high-leverage', text_content)
-                    text_content = re.sub(r'oppor\s+tunities', r'opportunities', text_content)
-                    text_content = re.sub(r'deliv\s+ering', r'delivering', text_content)
-                    text_content = re.sub(r'time-t\s+o-mill', r'time-to-mill', text_content)
-                    text_content = re.sub(r'workﬂow', r'workflow', text_content)  # Fix special character
-                    text_content = re.sub(r'Py\s+Installer', r'PyInstaller', text_content)
-                    text_content = re.sub(r'ina\s+regulated', r'in a regulated', text_content)
-                    text_content = re.sub(r'Createda', r'Created a', text_content)
-                    
-                    # Fix additional word splits seen in the current output
-                    text_content = re.sub(r'exper\s+tise', r'expertise', text_content)  # Fix "exper tise"
-                    text_content = re.sub(r'CAP\s+ABILI\s+TIES', r'CAPABILITIES', text_content)  # Fix "CAP ABILI TIES"
-                    text_content = re.sub(r'PROJEC\s+TS', r'PROJECTS', text_content)  # Fix "PROJEC TS"
-                    text_content = re.sub(r'certiﬁ\s+cations', r'certifications', text_content)  # Fix "certiﬁ cations" with special character
-                    text_content = re.sub(r'Governance\s+Pro\s+jects', r'Governance Projects', text_content)  # Fix "Governance Projects" splits
-                    text_content = re.sub(r'\s+\s+', ' ', text_content)  # Replace multiple spaces with single space
+
                     
                     # Replace multiple consecutive newlines with a single newline for remaining cases
                     text_content = re.sub(r'\n+', '\n', text_content)
