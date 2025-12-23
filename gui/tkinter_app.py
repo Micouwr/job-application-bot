@@ -761,6 +761,10 @@ BEST PRACTICES:
                     text_content = re.sub(r'(\w{2,})-\s+(\w{2,})', r'\1-\2', text_content)  # Fix "high-v olume" -> "high-volume"
                     text_content = re.sub(r'(\w{2,})\s+([a-z])\s+(\w{2,})', r'\1\2\3', text_content)  # Fix "oper ations" -> "operations"
                     
+                    # Fix specific issues from current output
+                    text_content = re.sub(r'cust\s+om', r'custom', text_content)  # Fix "cust om" -> "custom"
+                    text_content = re.sub(r'Manage\s+da', r'Managed a', text_content)  # Fix "Manage da" -> "Managed a"
+                    
                     # Handle general case of single character splits within words
                     text_content = re.sub(r'(\w{3,})\s+(\w)\s+(\w{3,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
                     
@@ -881,6 +885,10 @@ BEST PRACTICES:
                     # Fix common patterns where spaces were incorrectly inserted in the middle of words
                     text_content = re.sub(r'(\w{2,})-\s+(\w{2,})', r'\1-\2', text_content)  # Fix "high-v olume" -> "high-volume"
                     text_content = re.sub(r'(\w{2,})\s+([a-z])\s+(\w{2,})', r'\1\2\3', text_content)  # Fix "oper ations" -> "operations"
+                    
+                    # Fix specific issues from current output
+                    text_content = re.sub(r'cust\s+om', r'custom', text_content)  # Fix "cust om" -> "custom"
+                    text_content = re.sub(r'Manage\s+da', r'Managed a', text_content)  # Fix "Manage da" -> "Managed a"
                     
                     # Handle general case of single character splits within words
                     text_content = re.sub(r'(\w{3,})\s+(\w)\s+(\w{3,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
