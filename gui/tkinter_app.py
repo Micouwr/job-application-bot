@@ -380,7 +380,7 @@ Available upon request. Portfolio of designed solutions and architectural diagra
         
         # Resume Preview Section
         ttk.Label(tab, text="Resume Preview:", style='Bold.TLabel').grid(row=3, column=0, sticky=tk.W, pady=(15, 5))
-        self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD, font=('Courier New', 10))
+        self.resume_preview = scrolledtext.ScrolledText(tab, width=80, height=10, wrap=tk.WORD, font=('Arial', 10))
         # Configure the text widget to have better visual appearance
         self.resume_preview.config(padx=15, pady=15)
         self.resume_preview.grid(row=4, column=0, columnspan=4, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
@@ -654,7 +654,25 @@ BEST PRACTICES:
                 with open(resume_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     self.resume_preview.delete('1.0', tk.END)
-                    self.resume_preview.insert('1.0', content)
+                    
+                    # Add content with improved visual formatting
+                    lines = content.split('\n')
+                    for i, line in enumerate(lines):
+                        # Identify and highlight section headers
+                        is_header = line.strip().upper() == line.strip() and len(line.strip()) < 50 and not line.strip().endswith('.') and len(line.strip()) > 0
+                        
+                        self.resume_preview.insert(tk.END, line + '\n')
+                        if is_header:
+                            # Tag headers to make them stand out
+                            start_pos = self.resume_preview.index(f"{i+1}.0")
+                            end_pos = self.resume_preview.index(f"{i+1}.end")
+                            self.resume_preview.tag_add('header', start_pos, end_pos)
+                    
+                    # Configure header tags to make them stand out
+                    self.resume_preview.tag_config('header', font=('Arial', 11, 'bold'), foreground='blue', spacing1=8, spacing3=8)
+                    
+                    # Add padding around the content
+                    self.resume_preview.config(padx=20, pady=20)
             except Exception as e:
                 self._log_message(f"Error loading resume preview: {e}", "error")
     
@@ -861,7 +879,25 @@ BEST PRACTICES:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     self.resume_preview.delete('1.0', tk.END)
-                    self.resume_preview.insert('1.0', content)
+                    
+                    # Add content with improved visual formatting
+                    lines = content.split('\n')
+                    for i, line in enumerate(lines):
+                        # Identify and highlight section headers
+                        is_header = line.strip().upper() == line.strip() and len(line.strip()) < 50 and not line.strip().endswith('.') and len(line.strip()) > 0
+                        
+                        self.resume_preview.insert(tk.END, line + '\n')
+                        if is_header:
+                            # Tag headers to make them stand out
+                            start_pos = self.resume_preview.index(f"{i+1}.0")
+                            end_pos = self.resume_preview.index(f"{i+1}.end")
+                            self.resume_preview.tag_add('header', start_pos, end_pos)
+                    
+                    # Configure header tags to make them stand out
+                    self.resume_preview.tag_config('header', font=('Arial', 11, 'bold'), foreground='blue', spacing1=8, spacing3=8)
+                    
+                    # Add padding around the content
+                    self.resume_preview.config(padx=20, pady=20)
             except Exception as e:
                 self._log_message(f"Error loading resume preview after upload: {e}", "error")
             
