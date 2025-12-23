@@ -1631,9 +1631,16 @@ Format your response exactly as follows:
         self.applications_tree.heading('Company', text='Company')
         self.applications_tree.heading('Date', text='Date')
         
-        self.applications_tree.column('Job Title', width=250)
-        self.applications_tree.column('Company', width=200)
-        self.applications_tree.column('Date', width=150)  # Set specific width for date to prevent formatting issues
+        # Set column widths to ensure proper alignment and prevent visual interference
+        self.applications_tree.column('Job Title', width=250, minwidth=150, anchor='w')
+        self.applications_tree.column('Company', width=200, minwidth=100, anchor='w')
+        self.applications_tree.column('Date', width=150, minwidth=100, anchor='w')
+        
+        # Configure treeview style to ensure clean column separation without interfering lines
+        style = ttk.Style()
+        style.configure('Treeview.Heading', font=('Arial', 10, 'bold'), relief='raised')
+        # Ensure clean appearance without excessive separators
+        style.configure('Treeview', rowheight=25)
         
         self.applications_tree.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         
