@@ -783,8 +783,19 @@ BEST PRACTICES:
                     text_content = re.sub(r'certiﬁed', r'certified', text_content)  # Fix special character 'ﬁ'
                     text_content = re.sub(r'certiﬁcations', r'certifications', text_content)  # Fix special character 'ﬁ'
                     
+                    # Fix common concatenated words that appear in PDF extraction
+                    text_content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', text_content)  # Fix "Managedateam"
+                    text_content = re.sub(r'aregulated', r'a regulated', text_content)  # Fix "aregulated"
+                    text_content = re.sub(r'acentralized', r'a centralized', text_content)  # Fix "acentralized"
+                    
+                    # Fix other common concatenated words
+                    text_content = re.sub(r'deploy([a-z]+)om', r'deploy \1 om', text_content)  # Fix "deploycust om"
+                    
                     # Handle general case of single character splits within words
                     text_content = re.sub(r'(\w{2,})\s+(\w)\s+(\w{2,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
+                    
+                    # Finally, fix any remaining two-word concatenations that should be separated
+                    text_content = re.sub(r'([a-z])([A-Z])', r'\1 \2', text_content)  # Insert space between lowercase and uppercase: 'deliveryProven' -> 'delivery Proven'
                     
                     # Replace multiple consecutive newlines with a single newline for remaining cases
                     text_content = re.sub(r'\n+', '\n', text_content)
