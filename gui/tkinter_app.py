@@ -794,8 +794,12 @@ BEST PRACTICES:
                     # Fix other common concatenated words
                     text_content = re.sub(r'deploy([a-z]+)om', r'deploy \1 om', text_content)  # Fix "deploycust om"
                     
+                    # Fix common patterns where spaces were incorrectly inserted in the middle of words
+                    text_content = re.sub(r'(\w{2,})-\s+(\w{2,})', r'\1-\2', text_content)  # Fix "high-v olume" -> "high-volume"
+                    text_content = re.sub(r'(\w{2,})\s+([a-z])\s+(\w{2,})', r'\1\2\3', text_content)  # Fix "oper ations" -> "operations"
+                    
                     # Handle general case of single character splits within words
-                    text_content = re.sub(r'(\w{2,})\s+(\w)\s+(\w{2,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
+                    text_content = re.sub(r'(\w{3,})\s+(\w)\s+(\w{3,})', r'\1\2\3', text_content)  # Fix word-char-word pattern like "compr e hensive"
                     
                     # Finally, fix any remaining two-word concatenations that should be separated
                     text_content = re.sub(r'([a-z])([A-Z])', r'\1 \2', text_content)  # Insert space between lowercase and uppercase: 'deliveryProven' -> 'delivery Proven'
