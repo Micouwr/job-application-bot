@@ -848,6 +848,14 @@ BEST PRACTICES:
                     text_content = re.sub(r'ina\s+regulated', r'in a regulated', text_content)
                     text_content = re.sub(r'Createda', r'Created a', text_content)
                     
+                    # Fix additional word splits seen in the current output
+                    text_content = re.sub(r'exper\s+tise', r'expertise', text_content)  # Fix "exper tise"
+                    text_content = re.sub(r'CAP\s+ABILI\s+TIES', r'CAPABILITIES', text_content)  # Fix "CAP ABILI TIES"
+                    text_content = re.sub(r'PROJEC\s+TS', r'PROJECTS', text_content)  # Fix "PROJEC TS"
+                    text_content = re.sub(r'certiﬁ\s+cations', r'certifications', text_content)  # Fix "certiﬁ cations" with special character
+                    text_content = re.sub(r'Governance\s+Pro\s+jects', r'Governance Projects', text_content)  # Fix "Governance Projects" splits
+                    text_content = re.sub(r'\s+\s+', ' ', text_content)  # Replace multiple spaces with single space
+                    
                     # Replace multiple consecutive newlines with a single newline for remaining cases
                     text_content = re.sub(r'\n+', '\n', text_content)
                     # Fix any remaining excessive spacing
