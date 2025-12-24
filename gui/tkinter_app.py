@@ -890,6 +890,7 @@ BEST PRACTICES:
                     while i < len(lines):
                         current_line = lines[i].strip()
                         if not current_line:
+                            processed_lines.append('')  # Preserve empty lines
                             i += 1
                             continue
                         
@@ -918,16 +919,19 @@ BEST PRACTICES:
                             processed_lines.append(current_line)
                             i += 1
                         else:
-                            # Join this line and subsequent lines that don't look like headers
+                            # Only join this line with the next if the next line is likely a continuation
+                            # (short line that might be a sentence break)
                             paragraph = current_line
                             i += 1
                             
+                            # Check if next line is a continuation of this paragraph
+                            # Only join if it's a short line that looks like a sentence break
                             while i < len(lines):
                                 next_line = lines[i].strip()
                                 
                                 if not next_line:
-                                    i += 1
-                                    continue  # Skip blank lines but keep joining
+                                    # Empty line means end of paragraph
+                                    break
                                 
                                 # Check if next line should start a new paragraph
                                 next_is_header = any(header in next_line.lower() for header in section_headers) or \
@@ -939,8 +943,15 @@ BEST PRACTICES:
                                 if next_is_header or next_is_job or next_is_list or next_is_contact:
                                     break  # Start a new paragraph
                                 
-                                # Join this line to the current paragraph
-                                paragraph += ' ' + next_line
+                                # Only join if the current paragraph is likely incomplete
+                                # (e.g., doesn't end with punctuation that indicates end of sentence)
+                                if paragraph.endswith(('.', '!', '?', ':')) or len(next_line) < 10:
+                                    # If current line ends with sentence punctuation or next line is very short, join them
+                                    paragraph += ' ' + next_line
+                                else:
+                                    # Otherwise, treat as separate lines
+                                    break
+                                
                                 i += 1
                             
                             processed_lines.append(paragraph)
