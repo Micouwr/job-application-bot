@@ -7,6 +7,7 @@ import sys
 import threading
 import queue
 import shutil
+import re
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -654,51 +655,69 @@ BEST PRACTICES:
                 with open(resume_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     
-                    # Apply the same fixes that are applied during upload
+                    # Apply comprehensive fixes to resume content
+                                        
+                    # Comprehensive resume formatting fixes
+                                        
                     # Fix header formatting - separate name and contact info
-                    content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU)\s+(Louisville,\s+KY\s+•)', r'\1\n\2', content)  # Explicitly separate name and contact info
-                    
-                    # More general pattern to separate name from contact info
-                    content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)\s+(OPERATIONS)', r'\1\n\2\n\n\3', content)  # Separate name from contact info with blank line
-                    
-                    # Fix Professional Summary formatting - make it one continuous paragraph
-                    # First capture the summary section and then fix line breaks within it
-                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+)\n([\s\S]*?)\n\s*(CORE\s+CAPABILITIES)', r'\1\n\2\n\n\3', content)  # Capture summary section
-                    
+                    content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU)\s+(Louisville,\s+KY\s+•)', r'\1\n\2', content)  # Separate name from contact info
+                                        
+                    # Fix Professional Summary - join broken sentences
+                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
+                    content = re.sub(r'(delivering sustained results)\s*\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
+                    content = re.sub(r'(high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)  # Another pattern
+                                        
                     # Join any other broken sentences in the summary
-                    content = re.sub(r'([^.!\?\s])\n([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
-                    
-                    # Specific fixes for common broken patterns in Professional Summary
-                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
-                    content = re.sub(r'(delivering sustained results)\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
-                    
-                    # More general fix for any line breaks in the middle of sentences in Professional Summary
-                    content = re.sub(r'(\w)\n(\w)', r'\1 \2', content)  # Join any remaining broken words/sentences
-                    
-                    # Fix AI PROJECTS section formatting - format with proper line breaks
-                    # First, separate the project headers from their details and remove ○ symbols
-                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\\.]+\.)\s*○\s+(Applied[^\\.]+\.)\s*○\s+(Speciﬁed[^\\.]+\.)\s*○\s+(Documented[^\\.]+\.)\s*○\s+(Repository[^\n]+)\s*(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\\.]+\.)\s*○\s+(Integrated[^\\.]+\.)\s*○\s+(Speciﬁed[^\\.]+\.)\s*○\s+(Repository[^\n]+)', r'\1\n\n\2\n\3\n\4\n\5\n\6\n\n\7\n\n\8\n\9\n\10\n\11', content)  # Format AI projects with proper line breaks between elements
-                    
-                    # Additional fix to remove any remaining ○ symbols in AI projects
-                    content = re.sub(r'○\s+', '', content)  # Remove all remaining ○ symbols followed by spaces
-                    
-                    # Fix colon issues after section headers like "Certifications:" and "Education:"
-                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certifications\n: " -> "● Certifications - "
-                    content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education - \1', content)  # Fix "● Education\n: " -> "● Education - "
-                    
-                    # Also handle the case where colon appears on next line with extra spacing
-                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*\n', r'● Certifications\n', content)  # Remove colon on separate line after Certifications
-                    content = re.sub(r'●\s*Education\s*\n\s*:\s*\n', r'● Education\n', content)  # Remove colon on separate line after Education
-                    
-                    # Handle case where colon is on next line but content continues on same line as colon
-                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certifications\n: Content" -> "● Certifications - Content"
-                    
-                    # Handle special character case for Certiﬁcations with colon on next line
-                    content = re.sub(r'●\s*Certiﬁcations\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certiﬁcations\n: Content" -> "● Certifications - Content"
-                    
-                    # Also handle the Education part to add proper separation
-                    content = re.sub(r'(Certifications - [^+]+\+\.)\s*(●\s*Education\s+)', r'\1\n\n\2', content)  # Add newlines between certifications and education sections after the period
-                    content = re.sub(r'●\s*Education\s+([A-Z])', r'● Education - \1', content)  # Fix "● Education Content" -> "● Education - Content"
+                    content = re.sub(r'([^.!\?\s])\s*\n\s*([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
+                                        
+                    # Fix AI Projects formatting - remove ○ symbols and format properly
+                    content = re.sub(r'○\s+', '', content)  # Remove all ○ symbols
+                                        
+                    # Fix Education & Certifications formatting
+                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix certifications header
+                    content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education - \1', content)  # Fix education header
+                                        
+                    # Add proper spacing between sections
+                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY)', r'\n\n\1', content)
+                    content = re.sub(r'(CORE\s+CAPABILITIES)', r'\n\n\1', content)
+                    content = re.sub(r'(AI\s+PROJECTS)', r'\n\n\1', content)
+                    content = re.sub(r'(PROFESSIONAL\s+EXPERIENCE)', r'\n\n\1', content)
+                    content = re.sub(r'(EDUCATION\s+&\s+CERTIFICATIONS)', r'\n\n\1', content)
+                                        
+                    # Fix specific issues with AI Projects section
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+Orchestrated', r'\1\n\nOrchestrated', content)  # Add line break after project header
+                    content = re.sub(r'(Repository:[^\n]+)\s*(●\s+Job\s+Application\s+Bot)', r'\1\n\n\2', content)  # Add line break before next project
+                                        
+                    # More comprehensive fix for AI Projects section
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Documented[^\.]+\.)\s*○\s+(Repository[^\n]+)\s*(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\.]+\.)\s*○\s+(Integrated[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Repository[^\n]+)', r'\1\n\n\2\n\3\n\4\n\5\n\6\n\n\7\n\n\8\n\9\n\10\n\11', content)
+                                        
+                    # Fix Core Capabilities formatting - separate each capability on its own line
+                    content = re.sub(r'(●\s*AI Governance:[^●]+)(●\s*IT Service Management:)', r'\1\n\n\2', content)
+                    content = re.sub(r'(●\s*IT Service Management:[^●]+)(●\s*Technical Skills:)', r'\1\n\n\2', content)
+                                        
+                    # Additional fixes for common word splits
+                    content = re.sub(r'deploy\s+ment', r'deployment', content)  # General fix for "deploy ment" -> "deployment"
+                    content = re.sub(r'hand\s+led', r'Handled', content)  # Fix "hand led" -> "Handled"
+                    content = re.sub(r'Saa\s+S', r'SaaS', content)  # Fix "Saa S" -> "SaaS"
+                    content = re.sub(r'Compu\s+Com', r'CompuCom', content)  # Fix "Compu Com" -> "CompuCom"
+                    content = re.sub(r'Accu\s+Code', r'AccuCode', content)  # Fix "Accu Code" -> "AccuCode"
+                    content = re.sub(r'Code\s+Louisville', r'CodeLouisville', content)  # Fix "Code Louisville" -> "CodeLouisville"
+                    content = re.sub(r'Comp\s+TIA', r'CompTIA', content)  # Fix "Comp TIA" -> "CompTIA"
+                    content = re.sub(r'Stand\s+ardized', r'standardized', content)  # Fix "Stand ardized" -> "standardized"
+                    content = re.sub(r'Manage\s+da', r'Managed a', content)  # Fix "Manage da" -> "Managed a"
+                    content = re.sub(r'Managed([a-z]+)team', r'Managed \1 team', content)  # Fix "Managedateam" -> "Managed a team"
+                    content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', content)  # Also handle other patterns
+                                        
+                    # More comprehensive fixes for Professional Summary
+                    content = re.sub(r'(Strategic IT Operations leader with 20\+ years of comprehensive experience)\s*\n\s*(managing complex infrastructure)', r'\1 \2', content)
+                    content = re.sub(r'(Now specializing in AI governance and service delivery transformation)\s*\n\s*(I am certified in ISO/IEC 42001:2023)', r'\1 \2', content)
+                    content = re.sub(r'(Proven ability to architect and deploy custom AI solutions)\s*\n\s*(\(e\.g\., ISO-aligned triage)', r'\1 \2', content)
+                                        
+                    # Ensure proper line breaks after periods in specific contexts
+                    content = re.sub(r'([.])\s*\n\s*([A-Z])', r'\1 \2', content)
+                                        
+                    # Ensure no empty lines have whitespace
+                    content = re.sub(r'^\s+$', '', content, flags=re.MULTILINE)
                     
                     self.resume_preview.delete('1.0', tk.END)
                             
@@ -1078,15 +1097,50 @@ BEST PRACTICES:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     
-                    # Apply final fixes to the content before display to handle any remaining issues
-                    # Fix any remaining 'deploy ment' issues that might have occurred
-                    content = re.sub(r'deploy\s+ment', r'deployment', content)  # General fix for "deploy ment" -> "deployment"
-                    content = re.sub(r'deploy\s+ment\s+workflow', r'deployment workflow', content)  # Fix "deploy ment workflow" -> "deployment workflow"
-                    content = re.sub(r'deploy\s+ment\s+time', r'deployment time', content)  # Fix "deploy ment time" -> "deployment time"
-                    content = re.sub(r'hand\s+led', r'Handled', content)  # Fix "hand led" -> "Handled"
-                    content = re.sub(r'Hand\s+led', r'Handled', content)  # Also handle capitalized version
+                    # Apply comprehensive fixes to resume content
+                    import re  # Ensure re module is available
                     
-                    # Additional comprehensive fixes
+                    # Comprehensive resume formatting fixes
+                    
+                    # Fix header formatting - separate name and contact info
+                    content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU)\s+(Louisville,\s+KY\s+•)', r'\1\n\2', content)  # Separate name from contact info
+                    
+                    # Fix Professional Summary - join broken sentences
+                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
+                    content = re.sub(r'(delivering sustained results)\s*\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
+                    content = re.sub(r'(high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)  # Another pattern
+                    
+                    # Join any other broken sentences in the summary
+                    content = re.sub(r'([^.!\?\s])\s*\n\s*([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
+                    
+                    # Fix AI Projects formatting - remove ○ symbols and format properly
+                    content = re.sub(r'○\s+', '', content)  # Remove all ○ symbols
+                    
+                    # Fix Education & Certifications formatting
+                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix certifications header
+                    content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education - \1', content)  # Fix education header
+                    
+                    # Add proper spacing between sections
+                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY)', r'\n\n\1', content)
+                    content = re.sub(r'(CORE\s+CAPABILITIES)', r'\n\n\1', content)
+                    content = re.sub(r'(AI\s+PROJECTS)', r'\n\n\1', content)
+                    content = re.sub(r'(PROFESSIONAL\s+EXPERIENCE)', r'\n\n\1', content)
+                    content = re.sub(r'(EDUCATION\s+&\s+CERTIFICATIONS)', r'\n\n\1', content)
+                    
+                    # Fix specific issues with AI Projects section
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+Orchestrated', r'\1\n\nOrchestrated', content)  # Add line break after project header
+                    content = re.sub(r'(Repository:[^\n]+)\s*(●\s+Job\s+Application\s+Bot)', r'\1\n\n\2', content)  # Add line break before next project
+                    
+                    # More comprehensive fix for AI Projects section
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Documented[^\.]+\.)\s*○\s+(Repository[^\n]+)\s*(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\.]+\.)\s*○\s+(Integrated[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Repository[^\n]+)', r'\1\n\n\2\n\3\n\4\n\5\n\6\n\n\7\n\n\8\n\9\n\10\n\11', content)
+                    
+                    # Fix Core Capabilities formatting - separate each capability on its own line
+                    content = re.sub(r'(●\s*AI Governance:[^●]+)(●\s*IT Service Management:)', r'\1\n\n\2', content)
+                    content = re.sub(r'(●\s*IT Service Management:[^●]+)(●\s*Technical Skills:)', r'\1\n\n\2', content)
+                    
+                    # Additional fixes for common word splits
+                    content = re.sub(r'deploy\s+ment', r'deployment', content)  # General fix for "deploy ment" -> "deployment"
+                    content = re.sub(r'hand\s+led', r'Handled', content)  # Fix "hand led" -> "Handled"
                     content = re.sub(r'Saa\s+S', r'SaaS', content)  # Fix "Saa S" -> "SaaS"
                     content = re.sub(r'Compu\s+Com', r'CompuCom', content)  # Fix "Compu Com" -> "CompuCom"
                     content = re.sub(r'Accu\s+Code', r'AccuCode', content)  # Fix "Accu Code" -> "AccuCode"
@@ -1097,73 +1151,16 @@ BEST PRACTICES:
                     content = re.sub(r'Managed([a-z]+)team', r'Managed \1 team', content)  # Fix "Managedateam" -> "Managed a team"
                     content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', content)  # Also handle other patterns
                     
-                    # Additional fix specifically for job entry separation in preview
-                    content = re.sub(r'(\.)\s*(\w+\s+\w+\s+\|\s+\w+\s+—\s+\w+,\s+KY\s+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. JobTitle | Company — Location | Year" pattern
+                    # More comprehensive fixes for Professional Summary
+                    content = re.sub(r'(Strategic IT Operations leader with 20\+ years of comprehensive experience)\s*\n\s*(managing complex infrastructure)', r'\1 \2', content)
+                    content = re.sub(r'(Now specializing in AI governance and service delivery transformation)\s*\n\s*(I am certified in ISO/IEC 42001:2023)', r'\1 \2', content)
+                    content = re.sub(r'(Proven ability to architect and deploy custom AI solutions)\s*\n\s*(\(e\.g\., ISO-aligned triage)', r'\1 \2', content)
                     
-                    # More general pattern to handle job entries after periods with various spacing
-                    content = re.sub(r'(\w+\.)\s*(((\w+\s*){1,3})\s*\|\s*[\w\s]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "word. Job Title | Company — Location | Year" pattern
+                    # Ensure proper line breaks after periods in specific contexts
+                    content = re.sub(r'([.])\s*\n\s*([A-Z])', r'\1 \2', content)
                     
-                    # Even more general pattern to handle any job entry format after a period
-                    content = re.sub(r'(\.)\s*([A-Z][a-zA-Z\s]+&?\s*[A-Z][a-zA-Z\s]+\s*\|\s*[\w\s\(\)\-]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. Job Title | Company — Location | Year" pattern
-                    
-                    # Fix header formatting - separate name and contact info
-                    content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU)\s+(Louisville,\s+KY\s+•)', r'\1\n\2', content)  # Explicitly separate name and contact info
-                    
-                    # More general pattern to separate name from contact info
-                    content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)\s+(OPERATIONS)', r'\1\n\2\n\n\3', content)  # Separate name from contact info with blank line
-                    
-                    # Fix Professional Summary formatting - make it one continuous paragraph
-                    # First capture the summary section and then fix line breaks within it
-                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+)\n([\s\S]*?)\n\s*(CORE\s+CAPABILITIES)', r'\1\n\2\n\n\3', content)  # Capture summary section
-                                        
-                    # Join any other broken sentences in the summary
-                    content = re.sub(r'([^.!\?\s])\n([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
-                                        
-                    # Specific fixes for common broken patterns in Professional Summary
-                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
-                    content = re.sub(r'(delivering sustained results)\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
-                                        
-                    # More general fix for any line breaks in the middle of sentences in Professional Summary
-                    content = re.sub(r'(\w)\n(\w)', r'\1 \2', content)  # Join any remaining broken words/sentences
-                    
-                    # Fix Core Capabilities - separate each capability on its own line
-                    content = re.sub(r'(CORE\s+CAPABILITIES\s+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^\n]+)\s*(\nAI\s+PROJECTS)', r'\1● \2\n● \3\n● \4\5', content)  # Separate core capabilities properly
-                    
-                    # Fix AI PROJECTS section formatting - format with proper line breaks
-                    # First, separate the project headers from their details and remove ○ symbols
-                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\\.]+\.)\s*○\s+(Applied[^\\.]+\.)\s*○\s+(Speciﬁed[^\\.]+\.)\s*○\s+(Documented[^\\.]+\.)\s*○\s+(Repository[^\n]+)\s*(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\\.]+\.)\s*○\s+(Integrated[^\\.]+\.)\s*○\s+(Speciﬁed[^\\.]+\.)\s*○\s+(Repository[^\n]+)', r'\1\n\n\2\n\3\n\4\n\5\n\6\n\n\7\n\n\8\n\9\n\10\n\11', content)  # Format AI projects with proper line breaks between elements
-                                        
-                    # Additional fix to remove any remaining ○ symbols in AI projects
-                    content = re.sub(r'○\s+', '', content)  # Remove all remaining ○ symbols followed by spaces
-                    
-                    # Additional fix to ensure proper line breaks in AI projects
-                    content = re.sub(r'(AI PROJECTS\s+)●\s*(.+?Triage Bot[^\n]+)\s+○', r'\1● \2\n\n', content)  # Add line break after first project title
-                    content = re.sub(r'○\s*(Repository:[^\n]+)\s*●\s*(.+?Bot[^\n]+)\s+○', r'\1\n\n● \2\n\n', content)  # Add line breaks between projects
-                                        
-                    # Fix AI projects to remove ○ from content lines and format properly
-                    content = re.sub(r'○\s+(Orchestrated[^\.]+\.)', r'\1', content)  # Remove ○ from beginning of line
-                    content = re.sub(r'○\s+(Applied[^\.]+\.)', r'\1', content)  # Remove ○ from Applied line
-                    content = re.sub(r'○\s+(Speciﬁed[^\.]+\.)', r'\1', content)  # Remove ○ from Specified line
-                    content = re.sub(r'○\s+(Documented[^\.]+\.)', r'\1', content)  # Remove ○ from Documented line
-                    content = re.sub(r'○\s+(Repository[^\n]+)', r'\1', content)  # Remove ○ from Repository line
-                    
-                    # Fix colon issues after section headers like "Certifications:" and "Education:"
-                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certifications\n: " -> "● Certifications - "
-                    content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education - \1', content)  # Fix "● Education\n: " -> "● Education - "
-                                        
-                    # Also handle the case where colon appears on next line with extra spacing
-                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*\n', r'● Certifications\n', content)  # Remove colon on separate line after Certifications
-                    content = re.sub(r'●\s*Education\s*\n\s*:\s*\n', r'● Education\n', content)  # Remove colon on separate line after Education
-                                        
-                    # Handle case where colon is on next line but content continues on same line as colon
-                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certifications\n: Content" -> "● Certifications - Content"
-                                        
-                    # Handle special character case for Certiﬁcations with colon on next line
-                    content = re.sub(r'●\s*Certiﬁcations\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certiﬁcations\n: Content" -> "● Certifications - Content"
-                                        
-                    # Also handle the Education part to add proper separation
-                    content = re.sub(r'(Certifications - [^+]+\+\.)\s*(●\s*Education\s+)', r'\1\n\n\2', content)  # Add newlines between certifications and education sections after the period
-                    content = re.sub(r'●\s*Education\s+([A-Z])', r'● Education - \1', content)  # Fix "● Education Content" -> "● Education - Content"
+                    # Ensure no empty lines have whitespace
+                    content = re.sub(r'^\s+$', '', content, flags=re.MULTILINE)
                     
                     self.resume_preview.delete('1.0', tk.END)
                                 
