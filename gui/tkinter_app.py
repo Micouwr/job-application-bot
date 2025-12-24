@@ -949,6 +949,15 @@ BEST PRACTICES:
                     
 
                     
+                    # Add clear section breaks after headers and other section markers
+                    # This ensures proper visual separation in the saved text
+                    for header in ['PROFESSIONAL SUMMARY', 'CORE CAPABILITIES', 'AI PROJECTS', 'PROFESSIONAL EXPERIENCE', 'EDUCATION & CERTIFICATIONS']:
+                        text_content = text_content.replace(f'{header}', f'\n\n{header}\n')
+                    
+                    # Ensure proper spacing around job entries (lines with dates)
+                    import re
+                    text_content = re.sub(r'(\d{4})–(\d{4}|Present)', r'\1–\2\n', text_content)  # Add line break after date ranges
+                    
                     # Remove extra newlines that might interfere with paragraph reconstruction
                     # But preserve the newlines that separate actual sections
                     text_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', text_content)  # Reduce multiple blank lines to 2
