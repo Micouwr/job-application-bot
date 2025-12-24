@@ -866,6 +866,8 @@ BEST PRACTICES:
                     text_content = re.sub(r'Comp\s+TIA', r'CompTIA', text_content)  # Fix "Comp TIA" -> "CompTIA"
                     text_content = re.sub(r'deploy\s+ment', r'deployment', text_content)  # Fix "deploy ment" -> "deployment"
                     text_content = re.sub(r'deploy\s+ment\s+workflow', r'deployment workflow', text_content)  # Fix "deploy ment workflow" -> "deployment workflow"
+                    text_content = re.sub(r'deploy\s+ment\s+time', r'deployment time', text_content)  # Fix "deploy ment time" -> "deployment time"
+                    text_content = re.sub(r'deploy\s+ment', r'deployment', text_content)  # General fix for "deploy ment" -> "deployment"
                     text_content = re.sub(r'Py\s+Installer', r'PyInstaller', text_content)  # Already handled but adding here too
                     text_content = re.sub(r'hand\s+led', r'Handled', text_content)  # Fix "hand led" -> "Handled" (capitalized since it starts a sentence)
                     text_content = re.sub(r'Hand\s+led', r'Handled', text_content)  # Also handle capitalized version
