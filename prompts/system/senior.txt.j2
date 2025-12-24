@@ -17,11 +17,10 @@ Senior-Level Requirements:
    - Place keywords in natural contexts
    - Maintain chronological structure
    - Use standard punctuation and spacing
-8. Output ONLY the tailored resume followed by a cover letter
+8. Output ONLY a valid JSON object with two keys: "tailored_resume" and "cover_letter".
 
-Format your response exactly as follows:
-[TAILORING_COMPLETE]
-[Tailored resume content here]
-[COVER LETTER]
-[Cover letter content here]
-[END_APPLICATION_MATERIALS]
+Example format:
+{
+  "tailored_resume": "The full text of the tailored resume...",
+  "cover_letter": "The full text of the generated cover letter..."
+}
