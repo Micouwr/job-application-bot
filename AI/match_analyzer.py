@@ -2,10 +2,7 @@ import os
 import google.generativeai as genai
 import json
 from pathlib import Path
-from dotenv import load_dotenv
-
-# Load environment from project root
-load_dotenv(dotenv_path=Path(__file__).parent.parent / '.env')
+from config.settings import GEMINI_MODEL
 
 DIAGNOSTIC_MODE = False
 
@@ -21,7 +18,7 @@ def analyze_match(resume_text: str, job_description: str) -> dict:
     # Configure Gemini
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel(GEMINI_MODEL)
     except Exception as e:
         raise
     
@@ -114,7 +111,7 @@ def extract_job_details(job_description: str) -> dict:
     # Configure Gemini
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel(GEMINI_MODEL)
     except Exception as e:
         raise
     
