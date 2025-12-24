@@ -1059,6 +1059,10 @@ BEST PRACTICES:
                     # Even more general pattern to handle any job entry format after a period
                     content = re.sub(r'(\.)\s*([A-Z][a-zA-Z\s]+&?\s*[A-Z][a-zA-Z\s]+\s*\|\s*[\w\s\(\)\-]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. Job Title | Company — Location | Year" pattern
                     
+                    # Fix colon issues after section headers like "Certifications:" and "Education:"
+                    content = re.sub(r'●\s*Certifications\s*:([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications :" -> "● Certifications"
+                    content = re.sub(r'●\s*Education\s*:([A-Z])', r'● Education \1', content)  # Fix "● Education :" -> "● Education"
+                    
                     self.resume_preview.delete('1.0', tk.END)
                                 
                     # Add content with improved visual formatting
