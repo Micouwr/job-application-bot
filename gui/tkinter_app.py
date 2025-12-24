@@ -1060,8 +1060,12 @@ BEST PRACTICES:
                     content = re.sub(r'(\.)\s*([A-Z][a-zA-Z\s]+&?\s*[A-Z][a-zA-Z\s]+\s*\|\s*[\w\s\(\)\-]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. Job Title | Company — Location | Year" pattern
                     
                     # Fix colon issues after section headers like "Certifications:" and "Education:"
-                    content = re.sub(r'●\s*Certifications\s*:([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications :" -> "● Certifications"
-                    content = re.sub(r'●\s*Education\s*:([A-Z])', r'● Education \1', content)  # Fix "● Education :" -> "● Education"
+                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: " -> "● Certifications "
+                    content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education \1', content)  # Fix "● Education\n: " -> "● Education "
+                    
+                    # Also handle the case where colon appears on next line with extra spacing
+                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*\n', r'● Certifications\n', content)  # Remove colon on separate line after Certifications
+                    content = re.sub(r'●\s*Education\s*\n\s*:\s*\n', r'● Education\n', content)  # Remove colon on separate line after Education
                     
                     self.resume_preview.delete('1.0', tk.END)
                                 
