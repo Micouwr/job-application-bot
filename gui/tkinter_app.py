@@ -857,6 +857,16 @@ BEST PRACTICES:
                     # Fix more concatenated words
                     text_content = re.sub(r'and\s*([a-z])', r'and \1', text_content)  # Ensure space after 'and'
                     
+                    # Fix specific remaining word splits
+                    text_content = re.sub(r'Saa\s+S', r'SaaS', text_content)  # Fix "Saa S" -> "SaaS"
+                    text_content = re.sub(r'Compu\s+Com', r'CompuCom', text_content)  # Fix "Compu Com" -> "CompuCom"
+                    text_content = re.sub(r'Accu\s+Code', r'AccuCode', text_content)  # Fix "Accu Code" -> "AccuCode"
+                    text_content = re.sub(r'Code\s+Louisville', r'CodeLouisville', text_content)  # Fix "Code Louisville" -> "CodeLouisville"
+                    text_content = re.sub(r'Comp\s+TIA', r'CompTIA', text_content)  # Fix "Comp TIA" -> "CompTIA"
+                    text_content = re.sub(r'deploy\s+ment', r'deployment', text_content)  # Fix "deploy ment" -> "deployment"
+                    text_content = re.sub(r'Py\s+Installer', r'PyInstaller', text_content)  # Already handled but adding here too
+                    text_content = re.sub(r'hand\s+led', r'handled', text_content)  # Fix "hand led" -> "handled"
+                    
                     text_content = re.sub(r'\s+\s+', ' ', text_content)  # Replace multiple spaces with single space
                     
                     # Now do the paragraph reconstruction after all word fixes
