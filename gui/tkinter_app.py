@@ -709,27 +709,16 @@ BEST PRACTICES:
                             self.resume_preview.tag_add('contact', start_pos, end_pos)
                         else:
                             self.resume_preview.tag_add('normal', start_pos, end_pos)
-                    
-                    # Configure header tags to make them stand out
-                    self.resume_preview.tag_config('header', font=('Arial', 11, 'bold'), foreground='darkblue', spacing1=8, spacing3=8)
-                            
-                    # Configure contact info
-                    self.resume_preview.tag_config('contact', font=('Arial', 10, 'bold'), foreground='darkgreen')
-                            
-                    # Configure normal text
-                    self.resume_preview.tag_config('normal', font=('Arial', 10))
-                            
-                    # Add padding around the content
-                    self.resume_preview.config(padx=20, pady=20)
+                                        
                     # Configure header tags to make them stand out more clearly
                     self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', background='#f0f8ff', spacing1=12, spacing3=12, lmargin1=10, lmargin2=10)
-                    
+                                        
                     # Configure contact info to stand out
                     self.resume_preview.tag_config('contact', font=('Arial', 11, 'bold'), foreground='darkgreen', background='#f5fff0')
-                    
+                                        
                     # Configure normal text
                     self.resume_preview.tag_config('normal', font=('Arial', 10), lmargin1=5, lmargin2=5)
-                    
+                                        
                     # Add padding around the content
                     self.resume_preview.config(padx=20, pady=20, wrap=tk.WORD)
             
@@ -1045,27 +1034,16 @@ BEST PRACTICES:
                             self.resume_preview.tag_add('contact', start_pos, end_pos)
                         else:
                             self.resume_preview.tag_add('normal', start_pos, end_pos)
-                        
-                    # Configure header tags to make them stand out
-                    self.resume_preview.tag_config('header', font=('Arial', 11, 'bold'), foreground='darkblue', spacing1=8, spacing3=8)
-                                
-                    # Configure contact info
-                    self.resume_preview.tag_config('contact', font=('Arial', 10, 'bold'), foreground='darkgreen')
-                                
-                    # Configure normal text
-                    self.resume_preview.tag_config('normal', font=('Arial', 10))
-                                
-                    # Add padding around the content
-                    self.resume_preview.config(padx=20, pady=20)
+                                            
                     # Configure header tags to make them stand out more clearly
                     self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', background='#f0f8ff', spacing1=12, spacing3=12, lmargin1=10, lmargin2=10)
-                    
+                                        
                     # Configure contact info to stand out
                     self.resume_preview.tag_config('contact', font=('Arial', 11, 'bold'), foreground='darkgreen', background='#f5fff0')
-                    
+                                        
                     # Configure normal text
                     self.resume_preview.tag_config('normal', font=('Arial', 10), lmargin1=5, lmargin2=5)
-                    
+                                        
                     # Add padding around the content
                     self.resume_preview.config(padx=20, pady=20, wrap=tk.WORD)
             
