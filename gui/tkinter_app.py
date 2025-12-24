@@ -917,7 +917,7 @@ BEST PRACTICES:
                         
                         # Check if this line is a job entry (contains years and company format)
                         is_job_entry = (any(char.isdigit() for char in current_line) and ('–' in current_line or '-' in current_line)) and \
-                                     ('|' in current_line or '—' in current_line) and \
+                                     ('|' in current_line or '—' in current_line or '–' in current_line) and \
                                      not current_line.startswith(('●', '○', '§', '•', '-', '—', '|'))  # Job entries typically have company format like "Company — Location | Years" and don't start with bullets
                         
                         # Check if this line starts with special characters (bullets, etc.)
@@ -996,6 +996,11 @@ BEST PRACTICES:
                     # Remove extra newlines that might interfere with paragraph reconstruction
                     # But preserve the newlines that separate actual sections
                     text_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', text_content)  # Reduce multiple blank lines to 2
+                    
+                    # Additional fix: Ensure job entries are properly separated from previous content
+                    # This handles cases where a line ending with punctuation is followed by a job entry
+                    text_content = re.sub(r'(\.)\s*(\w+\s+\w+\s+\|\s+[^\n]+\s+[—–]\s+[^\n]+\s+\|\s+\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # Separate periods followed by job entries like "Company | Location — Years"
+                    text_content = re.sub(r'(\.)\s*([^\n]*\|[^\n]*[—–][^\n]*\|[^\n]*\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # More general pattern for job entries after periods
                     
                     # Save as text file
                     txt_path = OUTPUT_PATH / f"{name}.txt"
