@@ -1059,6 +1059,9 @@ BEST PRACTICES:
                     # Even more general pattern to handle any job entry format after a period
                     content = re.sub(r'(\.)\s*([A-Z][a-zA-Z\s]+&?\s*[A-Z][a-zA-Z\s]+\s*\|\s*[\w\s\(\)\-]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. Job Title | Company — Location | Year" pattern
                     
+                    # Fix header formatting - separate name, contact info, and professional title
+                    content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)\s+(OPERATIONS\s+LEADER)', r'\1\n\2\n\n\3', content)  # Separate name, contact info, and title
+                    
                     # Fix colon issues after section headers like "Certifications:" and "Education:"
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: " -> "● Certifications "
                     content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education \1', content)  # Fix "● Education\n: " -> "● Education "
