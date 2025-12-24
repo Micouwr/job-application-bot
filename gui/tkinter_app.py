@@ -721,6 +721,18 @@ BEST PRACTICES:
                             
                     # Add padding around the content
                     self.resume_preview.config(padx=20, pady=20)
+                    # Configure header tags to make them stand out more clearly
+                    self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', background='#f0f8ff', spacing1=12, spacing3=12, lmargin1=10, lmargin2=10)
+                    
+                    # Configure contact info to stand out
+                    self.resume_preview.tag_config('contact', font=('Arial', 11, 'bold'), foreground='darkgreen', background='#f5fff0')
+                    
+                    # Configure normal text
+                    self.resume_preview.tag_config('normal', font=('Arial', 10), lmargin1=5, lmargin2=5)
+                    
+                    # Add padding around the content
+                    self.resume_preview.config(padx=20, pady=20, wrap=tk.WORD)
+            
             except Exception as e:
                 self._log_message(f"Error loading resume preview: {e}", "error")
     
@@ -1045,6 +1057,18 @@ BEST PRACTICES:
                                 
                     # Add padding around the content
                     self.resume_preview.config(padx=20, pady=20)
+                    # Configure header tags to make them stand out more clearly
+                    self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', background='#f0f8ff', spacing1=12, spacing3=12, lmargin1=10, lmargin2=10)
+                    
+                    # Configure contact info to stand out
+                    self.resume_preview.tag_config('contact', font=('Arial', 11, 'bold'), foreground='darkgreen', background='#f5fff0')
+                    
+                    # Configure normal text
+                    self.resume_preview.tag_config('normal', font=('Arial', 10), lmargin1=5, lmargin2=5)
+                    
+                    # Add padding around the content
+                    self.resume_preview.config(padx=20, pady=20, wrap=tk.WORD)
+            
             except Exception as e:
                 self._log_message(f"Error loading resume preview after upload: {e}", "error")
             
