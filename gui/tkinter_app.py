@@ -1067,6 +1067,9 @@ BEST PRACTICES:
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*\n', r'● Certifications\n', content)  # Remove colon on separate line after Certifications
                     content = re.sub(r'●\s*Education\s*\n\s*:\s*\n', r'● Education\n', content)  # Remove colon on separate line after Education
                     
+                    # Handle case where colon is on next line but content continues on same line as colon
+                    content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: Content" -> "● Certifications Content"
+                    
                     self.resume_preview.delete('1.0', tk.END)
                                 
                     # Add content with improved visual formatting
