@@ -1070,6 +1070,9 @@ BEST PRACTICES:
                     # Handle case where colon is on next line but content continues on same line as colon
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: Content" -> "● Certifications Content"
                     
+                    # Handle special character case for Certiﬁcations (with ﬁ ligature)
+                    content = re.sub(r'●\s*Certiﬁcations\s*\n\s*:\s*([A-Z])', r'● Certiﬁcations \1', content)  # Fix "● Certiﬁcations\n: Content" -> "● Certiﬁcations Content"
+                    
                     self.resume_preview.delete('1.0', tk.END)
                                 
                     # Add content with improved visual formatting
