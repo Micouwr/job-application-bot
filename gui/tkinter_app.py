@@ -868,6 +868,9 @@ BEST PRACTICES:
                     text_content = re.sub(r'Py\s+Installer', r'PyInstaller', text_content)  # Already handled but adding here too
                     text_content = re.sub(r'hand\s+led', r'handled', text_content)  # Fix "hand led" -> "handled"
                     text_content = re.sub(r'Stand\s+ardized', r'standardized', text_content)  # Fix "Stand ardized" -> "standardized"
+                    text_content = re.sub(r'Manage\s+da', r'Managed a', text_content)  # Fix "Manage da" -> "Managed a"
+                    text_content = re.sub(r'Managed([a-z]+)team', r'Managed \1 team', text_content)  # Fix "Managedateam" -> "Managed a team"
+                    text_content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', text_content)  # Also handle other patterns
                     
                     # Fix remaining 'deploycustom' type issues - need to add space between 'deploy' and the following word
                     text_content = re.sub(r'(deploy)([a-z]+)', r'\1 \2', text_content)  # Fix "deploycustom" -> "deploy custom"
@@ -945,8 +948,9 @@ BEST PRACTICES:
                                 
                                 # Only join if the current paragraph is likely incomplete
                                 # (e.g., doesn't end with punctuation that indicates end of sentence)
-                                if paragraph.endswith(('.', '!', '?', ':')) or len(next_line) < 10:
-                                    # If current line ends with sentence punctuation or next line is very short, join them
+                                if not paragraph.endswith(('.', '!', '?')) and (len(next_line) < 10 or next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))):
+                                    # Only join if current line doesn't end with sentence punctuation
+                                    # and next line is very short OR is a list item
                                     paragraph += ' ' + next_line
                                 else:
                                     # Otherwise, treat as separate lines
