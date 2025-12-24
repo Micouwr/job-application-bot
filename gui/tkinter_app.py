@@ -1062,18 +1062,20 @@ BEST PRACTICES:
                     # Fix header formatting - separate name, contact info, and professional title
                     content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)\s+(OPERATIONS\s+LEADER)', r'\1\n\2\n\n\3', content)  # Separate name, contact info, and title
                     
-                    # Fix Professional Summary formatting - remove unnecessary line breaks in middle of sentences
-                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+)\n([A-Za-z\s,\d\-\+\(\)\.]+)\n\s*([A-Z])', r'\1\n\2 \3', content)  # Join broken sentences in summary
-                    content = re.sub(r'([^.])\n\s*([A-Z][^.]*\n)([A-Z][a-z]+\s+[a-z]+\s+Bot)', r'\1 \2\n\3', content)  # Fix sentence breaks before AI projects
+                    # Fix Professional Summary formatting - make it one continuous paragraph
+                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+)\n([\s\S]*?)\n\s*(CORE\s+CAPABILITIES)', r'\1\n\2\n\n\3', content)  # Capture summary section
+                    # Then join broken sentences in the summary
+                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+\n)([A-Za-z\s,\d\-\+\(\)\[\]\%]+)\n', r'\1\2 ', content)  # Join first broken line
+                    
+                    # Fix sentence breaks in general
+                    content = re.sub(r'([^.!?\s])\n([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
                     
                     # Fix Core Capabilities - separate each capability on its own line
-                    content = re.sub(r'(CORE\s+CAPABILITIES\s+)●\s*([A-Z][^●]+)●\s*([A-Z][^●]+)●\s*([A-Z].+?)(?=\nAI\s+PROJECTS)', r'\1● \2\n● \3\n● \4', content)  # Separate core capabilities
+                    content = re.sub(r'(CORE\s+CAPABILITIES\s+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^\n]+)\s*(\nAI\s+PROJECTS)', r'\1● \2\n● \3\n● \4\5', content)  # Separate core capabilities properly
                     
-                    # Fix AI PROJECTS section formatting - separate projects properly and format content
-                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^●]+)(●\s+Job\s+Application\s+Bot)', r'\1\n\n\2', content)  # Separate AI projects with blank line
-                    
-                    # Further fix for joining broken sentences throughout
-                    content = re.sub(r'([^.!?])\n([A-Za-z])', r'\1 \2', content)  # Join sentences broken by single line breaks
+                    # Fix AI PROJECTS section formatting - format with proper line breaks
+                    content = re.sub(r'(AI\s+PROJECTS\s+)●\s*(.+?)(?=●\s+Job\s+Application\s+Bot)', r'\1● \2\n', content)  # Process first project
+                    content = re.sub(r'●\s+(AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Documented[^\.]+\.)\s*○\s+(Repository[^\n]+)\s*●\s+(Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\.]+\.)\s*○\s+(Integrated[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Repository[^\n]+)', r'● \1 \2\n\3\n\4\n\5\n\6\n\n● \7 \8\n\9\n\10\n\11', content)  # Format AI projects with proper line breaks
                     
                     # Fix colon issues after section headers like "Certifications:" and "Education:"
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: " -> "● Certifications "
