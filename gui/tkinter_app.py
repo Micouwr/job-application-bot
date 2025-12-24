@@ -718,6 +718,54 @@ BEST PRACTICES:
                                         
                     # Ensure no empty lines have whitespace
                     content = re.sub(r'^\s+$', '', content, flags=re.MULTILINE)
+                                        
+                    # Additional comprehensive fixes for the specific formatting issues
+                    # Fix the specific issue where "environments ." is split across lines
+                    content = re.sub(r'(regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)
+                                        
+                    # Fix line breaks in the middle of sentences in Professional Summary
+                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)
+                                        
+                    # Fix the specific "99% Uptime, 50% reduction" issue
+                    content = re.sub(r'(sustained results\s*)\n\s*(\([^)]+\)\.)', r'\1 \2', content)
+                                        
+                    # Fix Core Capabilities formatting - separate each capability with proper spacing
+                    content = re.sub(r'(●\s*AI Governance:[^•\n]+)●\s*(IT Service Management:)', r'\1\n\n● \2', content)
+                    content = re.sub(r'(●\s*IT Service Management:[^•\n]+)●\s*(Technical Skills:)', r'\1\n\n● \2', content)
+                                        
+                    # More comprehensive fix for AI Projects formatting
+                    content = re.sub(r'(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed)', r'\1\n\n○ \2', content)  # Add line break before second project
+                                        
+                    # Fix specific AI Projects content formatting
+                    content = re.sub(r'(Repository:[^\n]+)\s*●\s*', r'\1\n\n● ', content)  # Add line break before next project
+                                        
+                    # Ensure each project detail is on its own line
+                    content = re.sub(r'([.])\s*\n\s*(Orchestrated|Applied|Speciﬁed|Documented|Designed|Integrated)', r'\1\n\2', content)  # Add line breaks after periods in AI projects
+                                        
+                    # More specific fixes for the current output
+                    content = re.sub(r'Orchestrated this proof-of-concept ticket classiﬁcation system using Google Gemini 2.5 Flash\s*\.\s*\n\s*○', r'Orchestrated this proof-of-concept ticket classiﬁcation system using Google Gemini 2.5 Flash.\n\n', content)  # Fix AI project formatting
+                                        
+                    # Fix the specific issue with "Applied governance controls" appearing on same line as period
+                    content = re.sub(r'Google Gemini 2.5 Flash\s*\.\s*\n\s*○\s+Applied', r'Google Gemini 2.5 Flash.\n\nApplied', content)  # Fix specific AI project line break issue
+                    
+                    # Additional comprehensive fixes for header section
+                    content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU\s+Louisville,\s+KY)', r'WILLIAM RYAN MICOU\nLouisville, KY', content)  # Ensure header is properly separated
+                    
+                    # Fix specific professional summary formatting
+                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\.\s*\n', r'\1. ', content)  # Fix "environments ." issue
+                    
+                    # Fix AI Projects section to ensure proper line breaks
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+Orchestrated', r'\1\n\nOrchestrated', content)  # Ensure project header has proper line break
+                    content = re.sub(r'(Repository:[^\n]+)\s*(●\s+Job\s+Application\s+Bot)', r'\1\n\n\2', content)  # Ensure separation between projects
+                    
+                    # Additional fix to ensure proper paragraph formatting
+                    content = re.sub(r'([.!?])\s*\n\s*([A-Z])', r'\1 \2', content)  # Join sentences that were broken by newlines
+                    
+                    # Ensure proper spacing in AI projects
+                    content = re.sub(r'(Orchestrated[^.]+\.)\s*\n\s*(Applied)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
+                    content = re.sub(r'(Applied[^.]+\.)\s*\n\s*(Speciﬁed)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
+                    content = re.sub(r'(Speciﬁed[^.]+\.)\s*\n\s*(Documented)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
+                    content = re.sub(r'(Documented[^.]+\.)\s*\n\s*(Repository)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
                     
                     self.resume_preview.delete('1.0', tk.END)
                             
@@ -733,14 +781,13 @@ BEST PRACTICES:
                                      'network infrastructure', 'service desk analyst', 'principal consultant']
                             
                     # Define contact information patterns to identify the contact block
-                    import re
                     contact_patterns = [r'([A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Middle Last"
                                       r'([A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Last"
                                       r'.*Louisville.*KY.*',  # Location
                                       r'.*\(\d{3}\).*\d{3}.*\d{4}.*',  # Phone number
                                       r'.*@.*\.com',  # Email
                                       r'linkedin\.com/in/']  # LinkedIn URL
-                            
+            
                     for i, line in enumerate(lines):
                         line = line.strip()
                         if not line:
@@ -758,7 +805,7 @@ BEST PRACTICES:
             
                         # Check if this starts with special characters (bullets, etc.)
                         is_list_item = line.startswith(('●', '○', '§', '•', '-', '—', '|', '• '))
-                                
+            
                         # Check if this is part of contact information
                         is_contact_info = any(re.search(pattern, line, re.IGNORECASE) for pattern in contact_patterns)
             
@@ -770,7 +817,7 @@ BEST PRACTICES:
                         start_pos = self.resume_preview.index(tk.END)
                         self.resume_preview.insert(tk.END, line + '\n')
                         end_pos = self.resume_preview.index(tk.END + '-1c')
-                                
+            
                         if is_header:
                             self.resume_preview.tag_add('header', start_pos, end_pos)
                         elif is_contact_info:
@@ -779,22 +826,22 @@ BEST PRACTICES:
                             self.resume_preview.tag_add('list_item', start_pos, end_pos)
                         else:
                             self.resume_preview.tag_add('normal', start_pos, end_pos)
-                                        
+            
                     # Configure header tags to make them stand out more clearly
                     self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', background='#f0f8ff', spacing1=12, spacing3=12, lmargin1=10, lmargin2=10)
-                                        
+            
                     # Configure contact info to stand out
                     self.resume_preview.tag_config('contact', font=('Arial', 11, 'bold'), foreground='darkgreen', background='#f5fff0')
-                                
+            
                     # Configure normal text
                     self.resume_preview.tag_config('normal', font=('Arial', 10), lmargin1=5, lmargin2=5)
-                                
+            
                     # Configure list items with smaller, more professional bullet points
                     self.resume_preview.tag_config('list_item', font=('Arial', 10), foreground='black', lmargin1=20, lmargin2=20)
-                                
+            
                     # Add padding around the content
                     self.resume_preview.config(padx=20, pady=20, wrap=tk.WORD)
-                        
+            
             except Exception as e:
                 self._log_message(f"Error loading resume preview: {e}", "error")
     
@@ -829,7 +876,6 @@ BEST PRACTICES:
                     
                     # Normalize text to fix common PDF extraction issues
                     # Remove excessive line breaks and fix word splits
-                    import re
                     # First, fix common word splits across lines
                     text_content = re.sub(r'([a-zA-Z])-\n([a-zA-Z])', r'\1\2', text_content)  # Join hyphenated words
                     # Fix names that might be split into individual letters
@@ -954,14 +1000,34 @@ BEST PRACTICES:
                     
                     # Fix remaining 'deploycustom' type issues - need to add space between 'deploy' and the following word
                     text_content = re.sub(r'(deploy)([a-z]+)', r'\1 \2', text_content)  # Fix "deploycustom" -> "deploy custom"
-                    
+                                        
                     text_content = re.sub(r'\s+\s+', ' ', text_content)  # Replace multiple spaces with single space
-                    
+                                        
+                    # Add clear section breaks after headers and other section markers
+                    # This ensures proper visual separation in the saved text
+                    for header in ['PROFESSIONAL SUMMARY', 'CORE CAPABILITIES', 'AI PROJECTS', 'PROFESSIONAL EXPERIENCE', 'EDUCATION & CERTIFICATIONS']:
+                        text_content = text_content.replace(f'{header}', f'\n\n{header}\n')
+                                        
+                    # Additional fixes before paragraph reconstruction
+                    # Fix specific formatting issues
+                    text_content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', text_content)  # Join specific broken sentence
+                    text_content = re.sub(r'(delivering sustained results)\s*\n\s*(\([^)]+\)\.)', r'\1 \2', text_content)  # Join results sentence
+                    text_content = re.sub(r'([.])\s*\n\s*([A-Z])', r'\1 \2', text_content)  # Join sentences broken by newlines
+                                        
+                    # Remove ○ symbols before paragraph reconstruction
+                    text_content = re.sub(r'○\s+', '', text_content)  # Remove all ○ symbols
+                                        
+                    # Fix header formatting - separate name and contact info
+                    text_content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU)\s+(Louisville,\s+KY\s+•)', r'\1\n\2', text_content)  # Separate name from contact info
+                                        
+                    # Additional comprehensive fixes for header section
+                    text_content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU\s+Louisville,\s+KY)', r'WILLIAM RYAN MICOU\nLouisville, KY', text_content)  # Ensure header is properly separated
+                                        
                     # Now do the paragraph reconstruction after all word fixes
                     lines = text_content.split('\n')
                     processed_lines = []
                     i = 0
-                    
+                                        
                     # Define resume section headers that should be on separate lines
                     section_headers = ['summary', 'experience', 'education', 'skills', 'projects', 'certifications', 
                                      'professional summary', 'work experience', 'professional experience',
@@ -969,28 +1035,27 @@ BEST PRACTICES:
                                      'professional experience', 'education & certifications',
                                      'operational summary', 'governance specialist', 'technical operations',
                                      'network infrastructure', 'service desk analyst', 'principal consultant']
-                    
+                                        
                     while i < len(lines):
                         current_line = lines[i].strip()
                         if not current_line:
                             processed_lines.append('')  # Preserve empty lines
                             i += 1
                             continue
-                        
+                                            
                         # Check if this line is a section header
                         is_section_header = any(header in current_line.lower() for header in section_headers) or \
                                           (current_line.isupper() and len(current_line) <= 50 and len(current_line) > 0 and not current_line.endswith('.'))  # Likely a section header if all caps, short and doesn't end with period
-                        
+                                            
                         # Check if this line is a job entry (contains years and company format)
                         is_job_entry = (any(char.isdigit() for char in current_line) and ('–' in current_line or '-' in current_line)) and \
                                      ('|' in current_line or '—' in current_line or '–' in current_line) and \
                                      not current_line.startswith(('●', '○', '§', '•', '-', '—', '|'))  # Job entries typically have company format like "Company — Location | Years" and don't start with bullets
-                        
+                                            
                         # Check if this line starts with special characters (bullets, etc.)
                         is_list_item = current_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
-                        
+                                            
                         # Check if this is part of contact information
-                        import re
                         contact_patterns = [r'([A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Middle Last"
                                           r'([A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Last"
                                           r'.*Louisville.*KY.*',  # Location
@@ -998,7 +1063,7 @@ BEST PRACTICES:
                                           r'.*@.*\.com',  # Email
                                           r'linkedin\.com/in/']  # LinkedIn URL
                         is_contact_info = any(re.search(pattern, current_line, re.IGNORECASE) for pattern in contact_patterns)
-                        
+                                            
                         if is_section_header or is_job_entry or is_list_item or is_contact_info:
                             # These should remain on separate lines
                             processed_lines.append(current_line)
@@ -1008,16 +1073,16 @@ BEST PRACTICES:
                             # (short line that might be a sentence break)
                             paragraph = current_line
                             i += 1
-                            
+                                                
                             # Check if next line is a continuation of this paragraph
                             # Only join if it's a short line that looks like a sentence break
                             while i < len(lines):
                                 next_line = lines[i].strip()
-                                
+                                                    
                                 if not next_line:
                                     # Empty line means end of paragraph
                                     break
-                                
+                                                    
                                 # Check if next line should start a new paragraph
                                 next_is_header = any(header in next_line.lower() for header in section_headers) or \
                                               (next_line.isupper() and len(next_line) <= 50 and len(next_line) > 0 and not next_line.endswith('.'))
@@ -1026,10 +1091,10 @@ BEST PRACTICES:
                                             not next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))  # Job entries typically have company format
                                 next_is_list = next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
                                 next_is_contact = any(re.search(pattern, next_line, re.IGNORECASE) for pattern in contact_patterns)
-                                
+                                                    
                                 if next_is_header or next_is_job or next_is_list or next_is_contact:
                                     break  # Start a new paragraph
-                                
+                                                    
                                 # Only join if the current paragraph is likely incomplete and next line is not a special type
                                 # Don't join if current paragraph ends with sentence punctuation OR next line is header/job/list/contact
                                 if (not paragraph.endswith(('.', '!', '?')) and 
@@ -1041,33 +1106,27 @@ BEST PRACTICES:
                                 else:
                                     # Otherwise, treat as separate lines
                                     break
-                                
+                                                    
                                 i += 1
-                            
+                                                
                             processed_lines.append(paragraph)
-                    
+                                        
                     text_content = '\n'.join(processed_lines)
+                                        
                     
-
-                    
-                    # Add clear section breaks after headers and other section markers
-                    # This ensures proper visual separation in the saved text
-                    for header in ['PROFESSIONAL SUMMARY', 'CORE CAPABILITIES', 'AI PROJECTS', 'PROFESSIONAL EXPERIENCE', 'EDUCATION & CERTIFICATIONS']:
-                        text_content = text_content.replace(f'{header}', f'\n\n{header}\n')
-                    
+                                        
                     # Ensure proper spacing around job entries (lines with dates)
-                    import re
                     text_content = re.sub(r'(\d{4})–(\d{4}|Present)', r'\1–\2\n', text_content)  # Add line break after date ranges
-                    
+                                        
                     # Remove extra newlines that might interfere with paragraph reconstruction
                     # But preserve the newlines that separate actual sections
                     text_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', text_content)  # Reduce multiple blank lines to 2
-                    
+                                        
                     # Additional fix: Ensure job entries are properly separated from previous content
                     # This handles cases where a line ending with punctuation is followed by a job entry
-                    text_content = re.sub(r'(\.)\s*(\w+\s+\w+\s+\|\s+[^\n]+\s+[—–]\s+[^\n]+\s+\|\s+\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # Separate periods followed by job entries like "Company | Location — Years"
-                    text_content = re.sub(r'(\.)\s*([^\n]*\|[^\n]*[—–][^\n]*\|[^\n]*\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # More general pattern for job entries after periods
-                    
+                    text_content = re.sub(r'(\.)\s*(\w+\s+\w+\s+\|\s+[^[\n]+\s+[—–]\s+[^[\n]+\s+\|\s+\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # Separate periods followed by job entries like "Company | Location — Years"
+                    text_content = re.sub(r'(\.)\s*([^\n]*\|[^\n]*[—–][^\n]*\|[^[\n]*\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # More general pattern for job entries after periods
+                                        
                     # Even more specific fix for the exact pattern seen in the resume
                     text_content = re.sub(r'(\w+\.)\s+(\w+\s+\w+\s+\|\s+\w+\s+—\s+\w+,\s+KY\s+\|\s+\d{4}–\d{4})', r'\1\n\n\2', text_content)  # Fix specific pattern like "time. Network Infrastructure Architect | AccuCode — Louisville, KY | 2017–2018"
                     
@@ -1098,46 +1157,45 @@ BEST PRACTICES:
                     content = f.read()
                     
                     # Apply comprehensive fixes to resume content
-                    import re  # Ensure re module is available
-                    
+                                        
                     # Comprehensive resume formatting fixes
-                    
+                                        
                     # Fix header formatting - separate name and contact info
                     content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU)\s+(Louisville,\s+KY\s+•)', r'\1\n\2', content)  # Separate name from contact info
-                    
+                                        
                     # Fix Professional Summary - join broken sentences
                     content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
                     content = re.sub(r'(delivering sustained results)\s*\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
                     content = re.sub(r'(high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)  # Another pattern
-                    
+                                        
                     # Join any other broken sentences in the summary
                     content = re.sub(r'([^.!\?\s])\s*\n\s*([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
-                    
+                                        
                     # Fix AI Projects formatting - remove ○ symbols and format properly
                     content = re.sub(r'○\s+', '', content)  # Remove all ○ symbols
-                    
+                                        
                     # Fix Education & Certifications formatting
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix certifications header
                     content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education - \1', content)  # Fix education header
-                    
+                                        
                     # Add proper spacing between sections
                     content = re.sub(r'(PROFESSIONAL\s+SUMMARY)', r'\n\n\1', content)
                     content = re.sub(r'(CORE\s+CAPABILITIES)', r'\n\n\1', content)
                     content = re.sub(r'(AI\s+PROJECTS)', r'\n\n\1', content)
                     content = re.sub(r'(PROFESSIONAL\s+EXPERIENCE)', r'\n\n\1', content)
                     content = re.sub(r'(EDUCATION\s+&\s+CERTIFICATIONS)', r'\n\n\1', content)
-                    
+                                        
                     # Fix specific issues with AI Projects section
                     content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+Orchestrated', r'\1\n\nOrchestrated', content)  # Add line break after project header
                     content = re.sub(r'(Repository:[^\n]+)\s*(●\s+Job\s+Application\s+Bot)', r'\1\n\n\2', content)  # Add line break before next project
-                    
+                                        
                     # More comprehensive fix for AI Projects section
                     content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Documented[^\.]+\.)\s*○\s+(Repository[^\n]+)\s*(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\.]+\.)\s*○\s+(Integrated[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Repository[^\n]+)', r'\1\n\n\2\n\3\n\4\n\5\n\6\n\n\7\n\n\8\n\9\n\10\n\11', content)
-                    
+                                        
                     # Fix Core Capabilities formatting - separate each capability on its own line
                     content = re.sub(r'(●\s*AI Governance:[^●]+)(●\s*IT Service Management:)', r'\1\n\n\2', content)
                     content = re.sub(r'(●\s*IT Service Management:[^●]+)(●\s*Technical Skills:)', r'\1\n\n\2', content)
-                    
+                                        
                     # Additional fixes for common word splits
                     content = re.sub(r'deploy\s+ment', r'deployment', content)  # General fix for "deploy ment" -> "deployment"
                     content = re.sub(r'hand\s+led', r'Handled', content)  # Fix "hand led" -> "Handled"
@@ -1150,23 +1208,71 @@ BEST PRACTICES:
                     content = re.sub(r'Manage\s+da', r'Managed a', content)  # Fix "Manage da" -> "Managed a"
                     content = re.sub(r'Managed([a-z]+)team', r'Managed \1 team', content)  # Fix "Managedateam" -> "Managed a team"
                     content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', content)  # Also handle other patterns
-                    
+                                        
                     # More comprehensive fixes for Professional Summary
                     content = re.sub(r'(Strategic IT Operations leader with 20\+ years of comprehensive experience)\s*\n\s*(managing complex infrastructure)', r'\1 \2', content)
                     content = re.sub(r'(Now specializing in AI governance and service delivery transformation)\s*\n\s*(I am certified in ISO/IEC 42001:2023)', r'\1 \2', content)
                     content = re.sub(r'(Proven ability to architect and deploy custom AI solutions)\s*\n\s*(\(e\.g\., ISO-aligned triage)', r'\1 \2', content)
-                    
+                                        
                     # Ensure proper line breaks after periods in specific contexts
                     content = re.sub(r'([.])\s*\n\s*([A-Z])', r'\1 \2', content)
-                    
+                                        
                     # Ensure no empty lines have whitespace
                     content = re.sub(r'^\s+$', '', content, flags=re.MULTILINE)
-                    
+                                        
+                    # Additional comprehensive fixes for the specific formatting issues
+                    # Fix the specific issue where "environments ." is split across lines
+                    content = re.sub(r'(regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)
+                                        
+                    # Fix line breaks in the middle of sentences in Professional Summary
+                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\n\s*([.])', r'\1 \2', content)
+                                        
+                    # Fix the specific "99% Uptime, 50% reduction" issue
+                    content = re.sub(r'(sustained results\s*)\n\s*(\([^)]+\)\.)', r'\1 \2', content)
+                                        
+                    # Fix Core Capabilities formatting - separate each capability with proper spacing
+                    content = re.sub(r'(●\s*AI Governance:[^•\n]+)●\s*(IT Service Management:)', r'\1\n\n● \2', content)
+                    content = re.sub(r'(●\s*IT Service Management:[^•\n]+)●\s*(Technical Skills:)', r'\1\n\n● \2', content)
+                                        
+                    # More comprehensive fix for AI Projects formatting
+                    content = re.sub(r'(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed)', r'\1\n\n○ \2', content)  # Add line break before second project
+                                        
+                    # Fix specific AI Projects content formatting
+                    content = re.sub(r'(Repository:[^\n]+)\s*●\s*', r'\1\n\n● ', content)  # Add line break before next project
+                                        
+                    # Ensure each project detail is on its own line
+                    content = re.sub(r'([.])\s*\n\s*(Orchestrated|Applied|Speciﬁed|Documented|Designed|Integrated)', r'\1\n\2', content)  # Add line breaks after periods in AI projects
+                                        
+                    # More specific fixes for the current output
+                    content = re.sub(r'Orchestrated this proof-of-concept ticket classiﬁcation system using Google Gemini 2.5 Flash\s*\.\s*\n\s*○', r'Orchestrated this proof-of-concept ticket classiﬁcation system using Google Gemini 2.5 Flash.\n\n', content)  # Fix AI project formatting
+                                        
+                    # Fix the specific issue with "Applied governance controls" appearing on same line as period
+                    content = re.sub(r'Google Gemini 2.5 Flash\s*\.\s*\n\s*○\s+Applied', r'Google Gemini 2.5 Flash.\n\nApplied', content)  # Fix specific AI project line break issue
+                                        
+                    # Additional comprehensive fixes for header section
+                    content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU\s+Louisville,\s+KY)', r'WILLIAM RYAN MICOU\nLouisville, KY', content)  # Ensure header is properly separated
+                                        
+                    # Fix specific professional summary formatting
+                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\s*\.\s*\n', r'\1. ', content)  # Fix "environments ." issue
+                                        
+                    # Fix AI Projects section to ensure proper line breaks
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+Orchestrated', r'\1\n\nOrchestrated', content)  # Ensure project header has proper line break
+                    content = re.sub(r'(Repository:[^\n]+)\s*(●\s+Job\s+Application\s+Bot)', r'\1\n\n\2', content)  # Ensure separation between projects
+                                        
+                    # Additional fix to ensure proper paragraph formatting
+                    content = re.sub(r'([.!?])\s*\n\s*([A-Z])', r'\1 \2', content)  # Join sentences that were broken by newlines
+                                        
+                    # Ensure proper spacing in AI projects
+                    content = re.sub(r'(Orchestrated[^.]+\.)\s*\n\s*(Applied)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
+                    content = re.sub(r'(Applied[^.]+\.)\s*\n\s*(Speciﬁed)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
+                    content = re.sub(r'(Speciﬁed[^.]+\.)\s*\n\s*(Documented)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
+                    content = re.sub(r'(Documented[^.]+\.)\s*\n\s*(Repository)', r'\1\n\2', content)  # Ensure proper line breaks in AI projects
+                                        
                     self.resume_preview.delete('1.0', tk.END)
-                                
+                                        
                     # Add content with improved visual formatting
                     lines = content.split('\n')
-                                
+                                        
                     # Define resume section headers that should be on separate lines
                     section_headers = ['summary', 'experience', 'education', 'skills', 'projects', 'certifications', 
                                      'professional summary', 'work experience', 'professional experience',
@@ -1174,9 +1280,8 @@ BEST PRACTICES:
                                      'professional experience', 'education & certifications',
                                      'operational summary', 'governance specialist', 'technical operations',
                                      'network infrastructure', 'service desk analyst', 'principal consultant']
-                                
+                                        
                     # Define contact information patterns to identify the contact block
-                    import re
                     contact_patterns = [r'([A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Middle Last"
                                       r'([A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Last"
                                       r'.*Louisville.*KY.*',  # Location
