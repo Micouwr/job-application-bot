@@ -1051,7 +1051,10 @@ BEST PRACTICES:
                     content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', content)  # Also handle other patterns
                     
                     # Additional fix specifically for job entry separation in preview
-                    content = re.sub(r'(\.)\s+(\w+\s+\w+\s+\|\s+\w+\s+—\s+\w+,\s+KY\s+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. JobTitle | Company — Location | Year" pattern
+                    content = re.sub(r'(\.)\s*(\w+\s+\w+\s+\|\s+\w+\s+—\s+\w+,\s+KY\s+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. JobTitle | Company — Location | Year" pattern
+                    
+                    # More general pattern to handle job entries after periods with various spacing
+                    content = re.sub(r'(\w+\.)\s*(((\w+\s*){1,3})\s*\|\s*[\w\s]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "word. Job Title | Company — Location | Year" pattern
                     
                     self.resume_preview.delete('1.0', tk.END)
                                 
