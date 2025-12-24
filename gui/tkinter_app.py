@@ -864,7 +864,6 @@ BEST PRACTICES:
                     text_content = re.sub(r'Accu\s+Code', r'AccuCode', text_content)  # Fix "Accu Code" -> "AccuCode"
                     text_content = re.sub(r'Code\s+Louisville', r'CodeLouisville', text_content)  # Fix "Code Louisville" -> "CodeLouisville"
                     text_content = re.sub(r'Comp\s+TIA', r'CompTIA', text_content)  # Fix "Comp TIA" -> "CompTIA"
-                    text_content = re.sub(r'deploy\s+ment', r'deployment', text_content)  # Fix "deploy ment" -> "deployment"
                     text_content = re.sub(r'deploy\s+ment\s+workflow', r'deployment workflow', text_content)  # Fix "deploy ment workflow" -> "deployment workflow"
                     text_content = re.sub(r'deploy\s+ment\s+time', r'deployment time', text_content)  # Fix "deploy ment time" -> "deployment time"
                     text_content = re.sub(r'deploy\s+ment', r'deployment', text_content)  # General fix for "deploy ment" -> "deployment"
