@@ -1002,6 +1002,9 @@ BEST PRACTICES:
                     text_content = re.sub(r'(\.)\s*(\w+\s+\w+\s+\|\s+[^\n]+\s+[—–]\s+[^\n]+\s+\|\s+\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # Separate periods followed by job entries like "Company | Location — Years"
                     text_content = re.sub(r'(\.)\s*([^\n]*\|[^\n]*[—–][^\n]*\|[^\n]*\d{4}[––]\d{4})', r'\1\n\n\2', text_content)  # More general pattern for job entries after periods
                     
+                    # Even more specific fix for the exact pattern seen in the resume
+                    text_content = re.sub(r'(\w+\.)\s+(\w+\s+\w+\s+\|\s+\w+\s+—\s+\w+,\s+KY\s+\|\s+\d{4}–\d{4})', r'\1\n\n\2', text_content)  # Fix specific pattern like "time. Network Infrastructure Architect | AccuCode — Louisville, KY | 2017–2018"
+                    
                     # Save as text file
                     txt_path = OUTPUT_PATH / f"{name}.txt"
                     with open(txt_path, 'w', encoding='utf-8') as f:
