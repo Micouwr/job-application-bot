@@ -1062,6 +1062,13 @@ BEST PRACTICES:
                     # Fix header formatting - separate name, contact info, and professional title
                     content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)\s+(OPERATIONS\s+LEADER)', r'\1\n\2\n\n\3', content)  # Separate name, contact info, and title
                     
+                    # Fix Professional Summary formatting - remove unnecessary line breaks in middle of sentences
+                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+)\n([^.]+)\n\s*([.])', r'\1\n\2 \3', content)  # Join broken sentences in summary
+                    content = re.sub(r'([^.])\n\s*([A-Z][^.]*\n)([A-Z][a-z]+\s+[a-z]+\s+Bot)', r'\1 \2\n\3', content)  # Fix sentence breaks before AI projects
+                    
+                    # Fix AI PROJECTS section formatting - separate projects properly
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^●]+)(●\s+Job\s+Application\s+Bot)', r'\1\n\n\2', content)  # Separate AI projects with blank line
+                    
                     # Fix colon issues after section headers like "Certifications:" and "Education:"
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: " -> "● Certifications "
                     content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education \1', content)  # Fix "● Education\n: " -> "● Education "
