@@ -1070,6 +1070,10 @@ BEST PRACTICES:
                     # Fix sentence breaks in general
                     content = re.sub(r'([^.!?\s])\n([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
                     
+                    # More specific fix for Professional Summary - join any line breaks in the middle of the summary
+                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
+                    content = re.sub(r'(delivering sustained results\s*)\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
+                    
                     # Fix Core Capabilities - separate each capability on its own line
                     content = re.sub(r'(CORE\s+CAPABILITIES\s+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^\n]+)\s*(\nAI\s+PROJECTS)', r'\1● \2\n● \3\n● \4\5', content)  # Separate core capabilities properly
                     
