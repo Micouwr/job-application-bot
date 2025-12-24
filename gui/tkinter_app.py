@@ -1059,20 +1059,22 @@ BEST PRACTICES:
                     # Even more general pattern to handle any job entry format after a period
                     content = re.sub(r'(\.)\s*([A-Z][a-zA-Z\s]+&?\s*[A-Z][a-zA-Z\s]+\s*\|\s*[\w\s\(\)\-]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. Job Title | Company — Location | Year" pattern
                     
-                    # Fix header formatting - separate name, contact info, and professional title
-                    content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)\s+(OPERATIONS\s+LEADER)', r'\1\n\2\n\n\3', content)  # Separate name, contact info, and title
+                    # Fix header formatting - separate name and contact info
+                    content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)(\s+OPERATIONS)', r'\1\n\2\3', content)  # Separate name from contact info
                     
                     # Fix Professional Summary formatting - make it one continuous paragraph
+                    # First capture the summary section and then fix line breaks within it
                     content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+)\n([\s\S]*?)\n\s*(CORE\s+CAPABILITIES)', r'\1\n\2\n\n\3', content)  # Capture summary section
-                    # Then join broken sentences in the summary
-                    content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+\n)([A-Za-z\s,\d\-\+\(\)\[\]\%]+)\n', r'\1\2 ', content)  # Join first broken line
                     
-                    # Fix sentence breaks in general
+                    # Join broken sentences in the Professional Summary specifically
+                    content = re.sub(r'([A-Za-z\s,\d\-\+\(\)\[\]\%]+)\n\s*([A-Z][^\n]*)', r'\1 \2', content)  # Join any lines broken in the summary
+                    
+                    # More comprehensive fix for joining broken sentences throughout the summary
                     content = re.sub(r'([^.!?\s])\n([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
                     
-                    # More specific fix for Professional Summary - join any line breaks in the middle of the summary
+                    # Specific fixes for common broken patterns in Professional Summary
                     content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
-                    content = re.sub(r'(delivering sustained results\s*)\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
+                    content = re.sub(r'(delivering sustained results)\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
                     
                     # Fix Core Capabilities - separate each capability on its own line
                     content = re.sub(r'(CORE\s+CAPABILITIES\s+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^\n]+)\s*(\nAI\s+PROJECTS)', r'\1● \2\n● \3\n● \4\5', content)  # Separate core capabilities properly
