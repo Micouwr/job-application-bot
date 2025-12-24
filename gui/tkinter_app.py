@@ -1074,7 +1074,7 @@ BEST PRACTICES:
                     content = re.sub(r'●\s*Certiﬁcations\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certiﬁcations\n: Content" -> "● Certifications - Content"
                     
                     # Also handle the Education part to add proper separation
-                    content = re.sub(r'(\w\.)(\s*●\s*Education\s+)', r'\1\n\n\2', content)  # Add newlines before Education section
+                    content = re.sub(r'(\w\.)\s*(●\s*Education\s+)', r'\1\n\n\2', content)  # Add newlines before Education section
                     content = re.sub(r'●\s*Education\s+([A-Z])', r'● Education - \1', content)  # Fix "● Education Content" -> "● Education - Content"
                     
                     self.resume_preview.delete('1.0', tk.END)
