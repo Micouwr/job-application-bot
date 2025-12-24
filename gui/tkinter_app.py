@@ -944,32 +944,73 @@ BEST PRACTICES:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     self.resume_preview.delete('1.0', tk.END)
-                    
+                                
                     # Add content with improved visual formatting
                     lines = content.split('\n')
+                                
+                    # Define resume section headers that should be on separate lines
+                    section_headers = ['summary', 'experience', 'education', 'skills', 'projects', 'certifications', 
+                                     'professional summary', 'work experience', 'professional experience',
+                                     'technical skills', 'core capabilities', 'ai projects',
+                                     'professional experience', 'education & certifications',
+                                     'operational summary', 'governance specialist', 'technical operations',
+                                     'network infrastructure', 'service desk analyst', 'principal consultant']
+                                
+                    # Define contact information patterns to identify the contact block
+                    import re
+                    contact_patterns = [r'([A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Middle Last"
+                                      r'([A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Last"
+                                      r'.*Louisville.*KY.*',  # Location
+                                      r'.*\(\d{3}\).*\d{3}.*\d{4}.*',  # Phone number
+                                      r'.*@.*\.com',  # Email
+                                      r'linkedin\.com/in/']  # LinkedIn URL
+                                
                     for i, line in enumerate(lines):
+                        line = line.strip()
+                        if not line:
+                            continue
+            
                         # Identify and highlight section headers
-                        is_header = line.strip().upper() == line.strip() and len(line.strip()) < 50 and not line.strip().endswith('.') and len(line.strip()) > 0
-                        
-                        # Add extra spacing before headers for better visual separation
-                        if is_header and i > 0:  # Don't add before the very first line
+                        is_header = any(header in line.lower() for header in section_headers) or \
+                                  (line.strip().upper() == line.strip() and len(line.strip()) < 50 and \
+                                   not line.strip().endswith('.') and len(line.strip()) > 0)
+            
+                        # Check if this looks like a job entry (contains years/dates)
+                        is_job_entry = any(char.isdigit() for char in line) and ('–' in line or '-' in line or '202' in line or '201' in line)
+            
+                        # Check if this starts with special characters (bullets, etc.)
+                        is_list_item = line.startswith(('●', '○', '§', '•', '-', '—', '|', '• '))
+                                    
+                        # Check if this is part of contact information
+                        is_contact_info = any(re.search(pattern, line, re.IGNORECASE) for pattern in contact_patterns)
+            
+                        # Add extra spacing before headers, job entries, list items, and contact info for better visual separation
+                        if (is_header or is_job_entry or is_list_item or is_contact_info) and i > 0:  # Don't add before the very first line
                             self.resume_preview.insert(tk.END, '\n')  # Add blank line before header
-                        
+            
+                        # Format headers as bold
+                        start_pos = self.resume_preview.index(tk.END)
                         self.resume_preview.insert(tk.END, line + '\n')
-                        
+                        end_pos = self.resume_preview.index(tk.END + '-1c')
+                                    
                         if is_header:
-                            # Tag headers to make them stand out
-                            # Get the position of the header line (after the blank line we added)
-                            header_line_num = i + 2 if i > 0 else i + 1  # Adjust for any added blank line
-                            start_pos = self.resume_preview.index(f"{header_line_num}.0")
-                            end_pos = self.resume_preview.index(f"{header_line_num}.end")
                             self.resume_preview.tag_add('header', start_pos, end_pos)
-                    
+                        elif is_contact_info:
+                            self.resume_preview.tag_add('contact', start_pos, end_pos)
+                        else:
+                            self.resume_preview.tag_add('normal', start_pos, end_pos)
+                        
                     # Configure header tags to make them stand out
-                    self.resume_preview.tag_config('header', font=('Arial', 12, 'bold'), foreground='darkblue', spacing1=12, spacing3=12)
-                    
+                    self.resume_preview.tag_config('header', font=('Arial', 11, 'bold'), foreground='darkblue', spacing1=8, spacing3=8)
+                                
+                    # Configure contact info
+                    self.resume_preview.tag_config('contact', font=('Arial', 10, 'bold'), foreground='darkgreen')
+                                
+                    # Configure normal text
+                    self.resume_preview.tag_config('normal', font=('Arial', 10))
+                                
                     # Add padding around the content
-                    self.resume_preview.config(padx=30, pady=30)
+                    self.resume_preview.config(padx=20, pady=20)
             except Exception as e:
                 self._log_message(f"Error loading resume preview after upload: {e}", "error")
             
