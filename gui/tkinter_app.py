@@ -1056,6 +1056,9 @@ BEST PRACTICES:
                     # More general pattern to handle job entries after periods with various spacing
                     content = re.sub(r'(\w+\.)\s*(((\w+\s*){1,3})\s*\|\s*[\w\s]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "word. Job Title | Company — Location | Year" pattern
                     
+                    # Even more general pattern to handle any job entry format after a period
+                    content = re.sub(r'(\.)\s*([A-Z][a-zA-Z\s]+&?\s*[A-Z][a-zA-Z\s]+\s*\|\s*[\w\s\(\)\-]+—[\w\s,]+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. Job Title | Company — Location | Year" pattern
+                    
                     self.resume_preview.delete('1.0', tk.END)
                                 
                     # Add content with improved visual formatting
