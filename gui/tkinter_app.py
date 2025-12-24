@@ -1085,6 +1085,12 @@ BEST PRACTICES:
                     content = re.sub(r'(AI PROJECTS\s+)●\s*(.+?Triage Bot[^\n]+)\s+○', r'\1● \2\n\n', content)  # Add line break after first project title
                     content = re.sub(r'○\s*(Repository:[^\n]+)\s*●\s*(.+?Bot[^\n]+)\s+○', r'○ \1\n\n● \2\n\n', content)  # Add line breaks between projects
                     
+                    # Fix AI projects to remove ○ from content lines and format properly
+                    content = re.sub(r'○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)', r'\1\n\2', content)  # Remove ○ and put on separate lines
+                    content = re.sub(r'○\s+(Speciﬁed[^\.]+\.)', r'\1', content)  # Remove ○ from Specified line
+                    content = re.sub(r'○\s+(Documented[^\.]+\.)', r'\1', content)  # Remove ○ from Documented line
+                    content = re.sub(r'○\s+(Repository[^\n]+)\s*●', r'\1\n\n●', content)  # Format Repository line and start new project
+                    
                     # Fix colon issues after section headers like "Certifications:" and "Education:"
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: " -> "● Certifications "
                     content = re.sub(r'●\s*Education\s*\n\s*:\s*([A-Z])', r'● Education \1', content)  # Fix "● Education\n: " -> "● Education "
