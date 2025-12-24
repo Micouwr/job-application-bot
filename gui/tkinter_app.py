@@ -1074,8 +1074,12 @@ BEST PRACTICES:
                     content = re.sub(r'(CORE\s+CAPABILITIES\s+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^•\n]+)●\s*([A-Z][^•\n]+•[^\n]+)\s*(\nAI\s+PROJECTS)', r'\1● \2\n● \3\n● \4\5', content)  # Separate core capabilities properly
                     
                     # Fix AI PROJECTS section formatting - format with proper line breaks
-                    content = re.sub(r'(AI\s+PROJECTS\s+)●\s*(.+?)(?=●\s+Job\s+Application\s+Bot)', r'\1● \2\n', content)  # Process first project
-                    content = re.sub(r'●\s+(AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Documented[^\.]+\.)\s*○\s+(Repository[^\n]+)\s*●\s+(Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\.]+\.)\s*○\s+(Integrated[^\.]+\.)\s*○\s+(Speciﬁed[^\.]+\.)\s*○\s+(Repository[^\n]+)', r'● \1 \2\n\3\n\4\n\5\n\6\n\n● \7 \8\n\9\n\10\n\11', content)  # Format AI projects with proper line breaks
+                    # First, separate the project headers from their details
+                    content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\\.]+\\.)\s*○\s+(Applied[^\\.]+\\.)\s*○\s+(Speciﬁed[^\\.]+\\.)\s*○\s+(Documented[^\\.]+\\.)\s*○\s+(Repository[^\n]+)\s*(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\\.]+\\.)\s*○\s+(Integrated[^\\.]+\\.)\s*○\s+(Speciﬁed[^\\.]+\\.)\s*○\s+(Repository[^\n]+)', r'\1\n\n\2\n\3\n\4\n\5\n\6\n\n\7\n\n\8\n\9\n\10\n\11', content)  # Format AI projects with proper line breaks between elements
+                                        
+                    # Additional fix to ensure proper line breaks in AI projects
+                    content = re.sub(r'(AI PROJECTS\s+)●\s*(.+?Triage Bot[^\n]+)\s+○', r'\1● \2\n\n', content)  # Add line break after first project title
+                    content = re.sub(r'○\s*(Repository:[^\n]+)\s*●\s*(.+?Bot[^\n]+)\s+○', r'○ \1\n\n● \2\n\n', content)  # Add line breaks between projects
                     
                     # Fix colon issues after section headers like "Certifications:" and "Education:"
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: " -> "● Certifications "
