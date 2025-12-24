@@ -913,8 +913,10 @@ BEST PRACTICES:
                         is_section_header = any(header in current_line.lower() for header in section_headers) or \
                                           (current_line.isupper() and len(current_line) <= 50 and len(current_line) > 0 and not current_line.endswith('.'))  # Likely a section header if all caps, short and doesn't end with period
                         
-                        # Check if this line is a job entry (contains years)
-                        is_job_entry = any(char.isdigit() for char in current_line) and ('–' in current_line or '-' in current_line)
+                        # Check if this line is a job entry (contains years and company format)
+                        is_job_entry = (any(char.isdigit() for char in current_line) and ('–' in current_line or '-' in current_line)) and \
+                                     ('|' in current_line or '—' in current_line) and \
+                                     not current_line.startswith(('●', '○', '§', '•', '-', '—', '|'))  # Job entries typically have company format like "Company — Location | Years" and don't start with bullets
                         
                         # Check if this line starts with special characters (bullets, etc.)
                         is_list_item = current_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
@@ -951,7 +953,9 @@ BEST PRACTICES:
                                 # Check if next line should start a new paragraph
                                 next_is_header = any(header in next_line.lower() for header in section_headers) or \
                                               (next_line.isupper() and len(next_line) <= 50 and len(next_line) > 0 and not next_line.endswith('.'))
-                                next_is_job = any(char.isdigit() for char in next_line) and ('–' in next_line or '-' in next_line)
+                                next_is_job = (any(char.isdigit() for char in next_line) and ('–' in next_line or '-' in next_line)) and \
+                                            ('|' in next_line or '—' in next_line) and \
+                                            not next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))  # Job entries typically have company format
                                 next_is_list = next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
                                 next_is_contact = any(re.search(pattern, next_line, re.IGNORECASE) for pattern in contact_patterns)
                                 
