@@ -1020,6 +1020,26 @@ BEST PRACTICES:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
+                    
+                    # Apply final fixes to the content before display to handle any remaining issues
+                    # Fix any remaining 'deploy ment' issues that might have occurred
+                    content = re.sub(r'deploy\s+ment', r'deployment', content)  # General fix for "deploy ment" -> "deployment"
+                    content = re.sub(r'deploy\s+ment\s+workflow', r'deployment workflow', content)  # Fix "deploy ment workflow" -> "deployment workflow"
+                    content = re.sub(r'deploy\s+ment\s+time', r'deployment time', content)  # Fix "deploy ment time" -> "deployment time"
+                    content = re.sub(r'hand\s+led', r'Handled', content)  # Fix "hand led" -> "Handled"
+                    content = re.sub(r'Hand\s+led', r'Handled', content)  # Also handle capitalized version
+                    
+                    # Additional comprehensive fixes
+                    content = re.sub(r'Saa\s+S', r'SaaS', content)  # Fix "Saa S" -> "SaaS"
+                    content = re.sub(r'Compu\s+Com', r'CompuCom', content)  # Fix "Compu Com" -> "CompuCom"
+                    content = re.sub(r'Accu\s+Code', r'AccuCode', content)  # Fix "Accu Code" -> "AccuCode"
+                    content = re.sub(r'Code\s+Louisville', r'CodeLouisville', content)  # Fix "Code Louisville" -> "CodeLouisville"
+                    content = re.sub(r'Comp\s+TIA', r'CompTIA', content)  # Fix "Comp TIA" -> "CompTIA"
+                    content = re.sub(r'Stand\s+ardized', r'standardized', content)  # Fix "Stand ardized" -> "standardized"
+                    content = re.sub(r'Manage\s+da', r'Managed a', content)  # Fix "Manage da" -> "Managed a"
+                    content = re.sub(r'Managed([a-z]+)team', r'Managed \1 team', content)  # Fix "Managedateam" -> "Managed a team"
+                    content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', content)  # Also handle other patterns
+                    
                     self.resume_preview.delete('1.0', tk.END)
                                 
                     # Add content with improved visual formatting
