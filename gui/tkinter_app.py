@@ -707,6 +707,8 @@ BEST PRACTICES:
                             self.resume_preview.tag_add('header', start_pos, end_pos)
                         elif is_contact_info:
                             self.resume_preview.tag_add('contact', start_pos, end_pos)
+                        elif is_list_item:
+                            self.resume_preview.tag_add('list_item', start_pos, end_pos)
                         else:
                             self.resume_preview.tag_add('normal', start_pos, end_pos)
                                         
@@ -715,13 +717,16 @@ BEST PRACTICES:
                                         
                     # Configure contact info to stand out
                     self.resume_preview.tag_config('contact', font=('Arial', 11, 'bold'), foreground='darkgreen', background='#f5fff0')
-                                        
+                                
                     # Configure normal text
                     self.resume_preview.tag_config('normal', font=('Arial', 10), lmargin1=5, lmargin2=5)
-                                        
+                                
+                    # Configure list items with smaller, more professional bullet points
+                    self.resume_preview.tag_config('list_item', font=('Arial', 10), foreground='black', lmargin1=20, lmargin2=20)
+                                
                     # Add padding around the content
                     self.resume_preview.config(padx=20, pady=20, wrap=tk.WORD)
-            
+                        
             except Exception as e:
                 self._log_message(f"Error loading resume preview: {e}", "error")
     
@@ -1063,6 +1068,8 @@ BEST PRACTICES:
                             self.resume_preview.tag_add('header', start_pos, end_pos)
                         elif is_contact_info:
                             self.resume_preview.tag_add('contact', start_pos, end_pos)
+                        elif is_list_item:
+                            self.resume_preview.tag_add('list_item', start_pos, end_pos)
                         else:
                             self.resume_preview.tag_add('normal', start_pos, end_pos)
                                             
@@ -1071,13 +1078,16 @@ BEST PRACTICES:
                                         
                     # Configure contact info to stand out
                     self.resume_preview.tag_config('contact', font=('Arial', 11, 'bold'), foreground='darkgreen', background='#f5fff0')
-                                        
+                                
                     # Configure normal text
                     self.resume_preview.tag_config('normal', font=('Arial', 10), lmargin1=5, lmargin2=5)
-                                        
+                                
+                    # Configure list items with smaller, more professional bullet points
+                    self.resume_preview.tag_config('list_item', font=('Arial', 10), foreground='black', lmargin1=20, lmargin2=20)
+                                
                     # Add padding around the content
                     self.resume_preview.config(padx=20, pady=20, wrap=tk.WORD)
-            
+                        
             except Exception as e:
                 self._log_message(f"Error loading resume preview after upload: {e}", "error")
             
