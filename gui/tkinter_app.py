@@ -948,10 +948,9 @@ BEST PRACTICES:
                     
 
                     
-                    # Replace multiple consecutive newlines with a single newline for remaining cases
-                    text_content = re.sub(r'\n+', '\n', text_content)
-                    # Fix any remaining excessive spacing
-                    text_content = re.sub(r'\n\s+\n', '\n', text_content)
+                    # Remove extra newlines that might interfere with paragraph reconstruction
+                    # But preserve the newlines that separate actual sections
+                    text_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', text_content)  # Reduce multiple blank lines to 2
                     
                     # Save as text file
                     txt_path = OUTPUT_PATH / f"{name}.txt"
