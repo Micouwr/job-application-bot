@@ -1050,6 +1050,9 @@ BEST PRACTICES:
                     content = re.sub(r'Managed([a-z]+)team', r'Managed \1 team', content)  # Fix "Managedateam" -> "Managed a team"
                     content = re.sub(r'Manage([a-z]+)team', r'Manage \1 team', content)  # Also handle other patterns
                     
+                    # Additional fix specifically for job entry separation in preview
+                    content = re.sub(r'(\.)\s+(\w+\s+\w+\s+\|\s+\w+\s+—\s+\w+,\s+KY\s+\|\s+\d{4}–\d{4})', r'\1\n\n\2', content)  # Handle "sentence. JobTitle | Company — Location | Year" pattern
+                    
                     self.resume_preview.delete('1.0', tk.END)
                                 
                     # Add content with improved visual formatting
