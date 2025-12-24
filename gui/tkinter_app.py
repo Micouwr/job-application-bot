@@ -1062,15 +1062,14 @@ BEST PRACTICES:
                     # Fix header formatting - separate name and contact info
                     content = re.sub(r'([A-Z]+\s+[A-Z]+\s+[A-Z]+)\s+(Louisville,?\s+KY\s+•\s+\(\d{3}\)\s+\d{3}\s*[-\.]?\s*\d{4}\s+•\s+[^@]+@[^\.]+\.[^\s]+\s+•\s+linkedin\.com/in/[\w-]+)\s+(OPERATIONS)', r'\1\n\2\n\n\3', content)  # Separate name from contact info with blank line
                     
+                    # Additional fix to ensure header is properly formatted
+                    content = re.sub(r'(WILLIAM\s+RYAN\s+MICOU)\s+(Louisville,?\s+KY\s+•)', r'\1\n\2', content)  # Explicitly separate name and contact info
+                    
                     # Fix Professional Summary formatting - make it one continuous paragraph
                     # First capture the summary section and then fix line breaks within it
                     content = re.sub(r'(PROFESSIONAL\s+SUMMARY\s+)\n([\s\S]*?)\n\s*(CORE\s+CAPABILITIES)', r'\1\n\2\n\n\3', content)  # Capture summary section
                     
                     # More comprehensive fix for joining broken sentences in Professional Summary
-                    # First join any lines that are broken in the middle of a sentence
-                    content = re.sub(r'(including high-volume service desk operations within regulated enterprise environments)\n\s*([.])', r'\1 \2', content)  # Join specific broken sentence
-                    content = re.sub(r'(delivering sustained results)\n\s*(\([^)]+\)\.)', r'\1 \2', content)  # Join results sentence
-                    
                     # Join any other broken sentences in the summary
                     content = re.sub(r'([^.!?\s])\n([A-Z][^\n]*)', r'\1 \2', content)  # Join sentences broken by newlines
                     
@@ -1085,21 +1084,16 @@ BEST PRACTICES:
                     # First, separate the project headers from their details and remove ○ symbols
                     content = re.sub(r'(●\s+AI\s+Triage\s+Bot[^\n]+)\s+○\s+(Orchestrated[^\\.]+\\.)\s*○\s+(Applied[^\\.]+\\.)\s*○\s+(Speciﬁed[^\\.]+\\.)\s*○\s+(Documented[^\\.]+\\.)\s*○\s+(Repository[^\n]+)\s*(●\s+Job\s+Application\s+Bot[^\n]+)\s+○\s+(Designed[^\\.]+\\.)\s*○\s+(Integrated[^\\.]+\\.)\s*○\s+(Speciﬁed[^\\.]+\\.)\s*○\s+(Repository[^\n]+)', r'\1\n\n\2\n\3\n\4\n\5\n\6\n\n\7\n\n\8\n\9\n\10\n\11', content)  # Format AI projects with proper line breaks between elements
                     
-                    # Additional fix to properly remove ○ symbols from AI projects
-                    content = re.sub(r'○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)', r'\1\n\2', content)  # Remove ○ and put on separate lines
-                    content = re.sub(r'○\s+(Speciﬁed[^\.]+\.)', r'\1', content)  # Remove ○ from Specified line
-                    content = re.sub(r'○\s+(Documented[^\.]+\.)', r'\1', content)  # Remove ○ from Documented line
-                    content = re.sub(r'○\s+(Repository[^\n]+)\s*●', r'\1\n\n●', content)  # Format Repository line and start new project
-                                        
                     # Additional fix to ensure proper line breaks in AI projects
                     content = re.sub(r'(AI PROJECTS\s+)●\s*(.+?Triage Bot[^\n]+)\s+○', r'\1● \2\n\n', content)  # Add line break after first project title
-                    content = re.sub(r'○\s*(Repository:[^\n]+)\s*●\s*(.+?Bot[^\n]+)\s+○', r'○ \1\n\n● \2\n\n', content)  # Add line breaks between projects
-                    
+                    content = re.sub(r'○\s*(Repository:[^\n]+)\s*●\s*(.+?Bot[^\n]+)\s+○', r'\1\n\n● \2\n\n', content)  # Add line breaks between projects
+                                        
                     # Fix AI projects to remove ○ from content lines and format properly
-                    content = re.sub(r'○\s+(Orchestrated[^\.]+\.)\s*○\s+(Applied[^\.]+\.)', r'\1\n\2', content)  # Remove ○ and put on separate lines
+                    content = re.sub(r'○\s+(Orchestrated[^\.]+\.)', r'\1', content)  # Remove ○ from beginning of line
+                    content = re.sub(r'○\s+(Applied[^\.]+\.)', r'\1', content)  # Remove ○ from Applied line
                     content = re.sub(r'○\s+(Speciﬁed[^\.]+\.)', r'\1', content)  # Remove ○ from Specified line
                     content = re.sub(r'○\s+(Documented[^\.]+\.)', r'\1', content)  # Remove ○ from Documented line
-                    content = re.sub(r'○\s+(Repository[^\n]+)\s*●', r'\1\n\n●', content)  # Format Repository line and start new project
+                    content = re.sub(r'○\s+(Repository[^\n]+)', r'\1', content)  # Remove ○ from Repository line
                     
                     # Fix colon issues after section headers like "Certifications:" and "Education:"
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: " -> "● Certifications "
