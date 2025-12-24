@@ -1070,8 +1070,8 @@ BEST PRACTICES:
                     # Handle case where colon is on next line but content continues on same line as colon
                     content = re.sub(r'●\s*Certifications\s*\n\s*:\s*([A-Z])', r'● Certifications \1', content)  # Fix "● Certifications\n: Content" -> "● Certifications Content"
                     
-                    # Handle special character case for Certiﬁcations (with ﬁ ligature)
-                    content = re.sub(r'●\s*Certiﬁcations\s+([A-Z])', r'● Certifications - \1', content)  # Fix "● Certiﬁcations Content" -> "● Certifications - Content"
+                    # Handle special character case for Certiﬁcations with colon on next line
+                    content = re.sub(r'●\s*Certiﬁcations\s*\n\s*:\s*([A-Z])', r'● Certifications - \1', content)  # Fix "● Certiﬁcations\n: Content" -> "● Certifications - Content"
                     
                     # Also handle the Education part to add proper separation
                     content = re.sub(r'(\w\.)(\s*●\s*Education\s+)', r'\1\n\n\2', content)  # Add newlines before Education section
