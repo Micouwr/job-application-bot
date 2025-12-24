@@ -964,11 +964,13 @@ BEST PRACTICES:
                                 if next_is_header or next_is_job or next_is_list or next_is_contact:
                                     break  # Start a new paragraph
                                 
-                                # Only join if the current paragraph is likely incomplete
-                                # (e.g., doesn't end with punctuation that indicates end of sentence)
-                                if not paragraph.endswith(('.', '!', '?')) and (len(next_line) < 10 or next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))):
+                                # Only join if the current paragraph is likely incomplete and next line is not a special type
+                                # Don't join if current paragraph ends with sentence punctuation OR next line is header/job/list/contact
+                                if (not paragraph.endswith(('.', '!', '?')) and 
+                                    not next_is_header and not next_is_job and not next_is_list and not next_is_contact and
+                                    (len(next_line) < 10 or next_line.startswith(('●', '○', '§', '•', '-', '—', '|')))):
                                     # Only join if current line doesn't end with sentence punctuation
-                                    # and next line is very short OR is a list item
+                                    # and next line is very short OR is a list item, and next line is not a special type
                                     paragraph += ' ' + next_line
                                 else:
                                     # Otherwise, treat as separate lines
