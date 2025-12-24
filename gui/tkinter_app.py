@@ -866,6 +866,10 @@ BEST PRACTICES:
                     text_content = re.sub(r'deploy\s+ment', r'deployment', text_content)  # Fix "deploy ment" -> "deployment"
                     text_content = re.sub(r'Py\s+Installer', r'PyInstaller', text_content)  # Already handled but adding here too
                     text_content = re.sub(r'hand\s+led', r'handled', text_content)  # Fix "hand led" -> "handled"
+                    text_content = re.sub(r'Stand\s+ardized', r'standardized', text_content)  # Fix "Stand ardized" -> "standardized"
+                    
+                    # Fix remaining 'deploycustom' type issues - need to add space between 'deploy' and the following word
+                    text_content = re.sub(r'(deploy)([a-z]+)', r'\1 \2', text_content)  # Fix "deploycustom" -> "deploy custom"
                     
                     text_content = re.sub(r'\s+\s+', ' ', text_content)  # Replace multiple spaces with single space
                     
