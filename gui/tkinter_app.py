@@ -849,6 +849,14 @@ BEST PRACTICES:
                     text_content = re.sub(r'PROJEC\s+TS', r'PROJECTS', text_content)  # Fix "PROJEC TS"
                     text_content = re.sub(r'certiﬁ\s+cations', r'certifications', text_content)  # Fix "certiﬁ cations" with special character
                     text_content = re.sub(r'Governance\s+Pro\s+jects', r'Governance Projects', text_content)  # Fix "Governance Projects" splits
+                    
+                    # Fix specific concatenated words that are still causing issues
+                    text_content = re.sub(r'deploy([a-z]+)\s+([a-z]+)', r'deploy \1 \2', text_content)  # Fix "deploycustomAI" -> "deploy custom AI"
+                    text_content = re.sub(r'([a-z])([A-Z])', r'\1 \2', text_content)  # Add space between lowercase and uppercase: 'leverageDeep' -> 'leverage Deep'
+                    
+                    # Fix more concatenated words
+                    text_content = re.sub(r'and\s*([a-z])', r'and \1', text_content)  # Ensure space after 'and'
+                    
                     text_content = re.sub(r'\s+\s+', ' ', text_content)  # Replace multiple spaces with single space
                     
                     # Now do the paragraph reconstruction after all word fixes
@@ -860,7 +868,9 @@ BEST PRACTICES:
                     section_headers = ['summary', 'experience', 'education', 'skills', 'projects', 'certifications', 
                                      'professional summary', 'work experience', 'professional experience',
                                      'technical skills', 'core capabilities', 'ai projects',
-                                     'professional experience', 'education & certifications']
+                                     'professional experience', 'education & certifications',
+                                     'operational summary', 'governance specialist', 'technical operations',
+                                     'network infrastructure', 'service desk analyst', 'principal consultant']
                     
                     while i < len(lines):
                         current_line = lines[i].strip()
@@ -870,7 +880,7 @@ BEST PRACTICES:
                         
                         # Check if this line is a section header
                         is_section_header = any(header in current_line.lower() for header in section_headers) or \
-                                          current_line.isupper() and len(current_line) <= 50  # Likely a section header if all caps and short
+                                          (current_line.isupper() and len(current_line) <= 50 and len(current_line) > 0)  # Likely a section header if all caps and short
                         
                         # Check if this line is a job entry (contains years)
                         is_job_entry = any(char.isdigit() for char in current_line) and ('–' in current_line or '-' in current_line)
@@ -878,7 +888,17 @@ BEST PRACTICES:
                         # Check if this line starts with special characters (bullets, etc.)
                         is_list_item = current_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
                         
-                        if is_section_header or is_job_entry or is_list_item:
+                        # Check if this is part of contact information
+                        import re
+                        contact_patterns = [r'([A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Middle Last"
+                                          r'([A-Z][a-z]+\s+[A-Z][a-z]+)',  # Name pattern like "First Last"
+                                          r'.*Louisville.*KY.*',  # Location
+                                          r'.*\(\d{3}\).*\d{3}.*\d{4}.*',  # Phone number
+                                          r'.*@.*\.com',  # Email
+                                          r'linkedin\.com/in/']  # LinkedIn URL
+                        is_contact_info = any(re.search(pattern, current_line, re.IGNORECASE) for pattern in contact_patterns)
+                        
+                        if is_section_header or is_job_entry or is_list_item or is_contact_info:
                             # These should remain on separate lines
                             processed_lines.append(current_line)
                             i += 1
@@ -896,11 +916,12 @@ BEST PRACTICES:
                                 
                                 # Check if next line should start a new paragraph
                                 next_is_header = any(header in next_line.lower() for header in section_headers) or \
-                                              next_line.isupper() and len(next_line) <= 50
+                                              (next_line.isupper() and len(next_line) <= 50 and len(next_line) > 0)
                                 next_is_job = any(char.isdigit() for char in next_line) and ('–' in next_line or '-' in next_line)
                                 next_is_list = next_line.startswith(('●', '○', '§', '•', '-', '—', '|'))
+                                next_is_contact = any(re.search(pattern, next_line, re.IGNORECASE) for pattern in contact_patterns)
                                 
-                                if next_is_header or next_is_job or next_is_list:
+                                if next_is_header or next_is_job or next_is_list or next_is_contact:
                                     break  # Start a new paragraph
                                 
                                 # Join this line to the current paragraph
