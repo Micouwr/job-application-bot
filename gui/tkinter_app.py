@@ -685,8 +685,10 @@ BEST PRACTICES:
                                   (line.strip().upper() == line.strip() and len(line.strip()) < 50 and \
                                    not line.strip().endswith('.') and len(line.strip()) > 0)
             
-                        # Check if this looks like a job entry (contains years/dates)
-                        is_job_entry = any(char.isdigit() for char in line) and ('–' in line or '-' in line or '202' in line or '201' in line)
+                        # Check if this looks like a job entry (contains years/dates and company format)
+                        is_job_entry = (any(char.isdigit() for char in line) and ('–' in line or '-' in line or '202' in line or '201' in line)) and \
+                                 ('|' in line or '—' in line) and \
+                                 not line.startswith(('●', '○', '§', '•', '-', '—', '|', '• '))  # Job entries typically have company format like "Company — Location | Years" and don't start with bullets
             
                         # Check if this starts with special characters (bullets, etc.)
                         is_list_item = line.startswith(('●', '○', '§', '•', '-', '—', '|', '• '))
@@ -1050,8 +1052,10 @@ BEST PRACTICES:
                                   (line.strip().upper() == line.strip() and len(line.strip()) < 50 and \
                                    not line.strip().endswith('.') and len(line.strip()) > 0)
             
-                        # Check if this looks like a job entry (contains years/dates)
-                        is_job_entry = any(char.isdigit() for char in line) and ('–' in line or '-' in line or '202' in line or '201' in line)
+                        # Check if this looks like a job entry (contains years/dates and company format)
+                        is_job_entry = (any(char.isdigit() for char in line) and ('–' in line or '-' in line or '202' in line or '201' in line)) and \
+                                 ('|' in line or '—' in line) and \
+                                 not line.startswith(('●', '○', '§', '•', '-', '—', '|', '• '))  # Job entries typically have company format like "Company — Location | Years" and don't start with bullets
             
                         # Check if this starts with special characters (bullets, etc.)
                         is_list_item = line.startswith(('●', '○', '§', '•', '-', '—', '|', '• '))
